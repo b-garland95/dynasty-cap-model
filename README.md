@@ -151,3 +151,79 @@ python -m venv .venv
 source .venv/Scripts/activate  # Git Bash on Windows
 python -m pip install -r requirements.txt
 python -m pytest -q
+```
+
+---
+
+## Development Workflow
+
+We build in milestones with tight scopes and golden tests:
+- **Milestone 0:** config loader + dead money (nominal + PV) + tests
+- **Milestone 1:** Phase 3 Tables 1–2 (ledger + schedule) + tests
+- **Milestone 2:** Phase 1 cutlines + shrinkage + tests
+- **Milestone 3:** Phase 1 assignment + SAV + tests (artifact regression case)
+- **Milestone 4:** Phase 1 RSV/LD/CG scaffolding + tests (shape/bounds)
+- **Milestone 5:** Phase 2 v0 ADP→RSV calibration + quantiles + rolling backtest harness
+- **Milestone 6:** Phase 3 Tables 3–7 using TV inputs + contract economics + instrument shortlists
+
+**Rules**
+- Do not implement multiple milestones in a single change set.
+- Every milestone must include unit tests. `python -m pytest -q` must pass.
+- If a rule is ambiguous, add a TODO and a failing test placeholder rather than guessing.
+
+---
+
+## Data Notes
+
+### League Tycoon roster export
+League Tycoon roster exports include:
+- **Real Salary** (contract face value) and **Current Salary** (after PS/IR discounting)
+- **Years** remaining
+- Booleans for:
+  - extension/tag eligibility
+  - whether a player has already been extended/tagged
+
+### Instrument-adjusted contracts (validation requirement)
+Instrument-adjusted contracts (extended/tagged/optioned) may break the standard +10% escalator.
+
+Implementation rule:
+- If `has_been_extended == true` or `has_been_tagged == true` (and later, optioned),
+  set `needs_schedule_validation = true` unless an **observed year-by-year salary schedule** is available.
+
+Until observed schedules exist, build a **best-effort** schedule but keep the validation flag true.
+
+---
+
+## Where Outputs Live
+
+Suggested convention:
+- Raw data: `data/raw/`
+- Cleaned/intermediate: `data/interim/`
+- Final tables/exports: `data/processed/`
+
+Tests use tiny fixtures in `tests/fixtures/`.
+
+---
+
+## Naming / ID Normalization
+
+Player names may differ across:
+- League Tycoon exports
+- FantasyPros ADP
+- Projection/box score sources
+
+We maintain a name mapping layer (eventually `data/external/name_map.csv`) and treat normalized `player_id` as the preferred key where possible.
+
+---
+
+## TODO Roadmap (High Level)
+
+- [ ] Implement config loader (`src/utils/config.py`)
+- [ ] Dead money functions (nominal + PV) and tests
+- [ ] Contract ledger + schedule builder (Tables 1–2) and tests
+- [ ] Phase 1 cutlines + shrinkage and tests
+- [ ] Phase 1 assignment + SAV and artifact regression test
+- [ ] Phase 2 v0 ADP→RSV calibration + quantiles + rolling backtests
+- [ ] Phase 3 Tables 3–7 populated from TV + contract economics
+- [ ] Add observed contract schedule ingestion for extended/tagged/optioned players
+- [ ] Add dynasty ADP ingestion and 4-horizon TV path model

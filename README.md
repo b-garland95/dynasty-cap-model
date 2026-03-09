@@ -1,1 +1,153 @@
-# dynasty-cap-model
+# Dynasty Cap Model
+
+A salary-cap dynasty fantasy football valuation framework for League Tycoon-style contract leagues.
+
+This repo implements a rigorous, test-driven pipeline to:
+1) value historical player seasons beyond basic PAR
+2) calibrate preseason ADP into expected season value (RSV) and uncertainty
+3) translate multi-year expected value into contract surplus under League Tycoon mechanics
+4) generate actionable Phase 3 tables for trades, contract management, and instrument decisions (extensions/tags/options)
+
+---
+
+## League Rules (Source of Truth)
+
+All league rules must be read from:
+
+- `src/config/league_config.yaml`
+
+Do **not** hardcode league settings in Python modules. If a rule needs to change, it should be changed in config and tests should reflect it.
+
+Current assumptions (see YAML for exact values):
+- Teams: 10
+- Scoring: Half PPR
+- Starters: QB1, RB2, WR3, TE1, FLEX2 (RB/WR/TE), SF1 (QB/RB/WR/TE)
+- Bench: 8, IR: 3, Practice Squad: 10
+- Standard contract escalation: +10% per year
+- Dead money (active roster cut): 100% current year + 25% of each future year remaining
+- PS cap hit: 25%; IR cap hit: 75%
+- Rookie scale: deterministic salaries by pick/round; 3-year rookie deal + 1-year option
+- Option is use-it-or-lose-it each year; 1 option per team per year
+- Discount rate for dynasty PV: 25%
+
+---
+
+## Core Definitions
+
+### Phase 1 metrics (historical seasons)
+
+We compute a ladder of season values:
+
+- **PAR (naive baseline):** points above a crude position-only replacement
+- **SAV (Slot-Adjusted Value):** value relative to leaguewide slot economy (FLEX/SF correctly handled), assuming perfect capture
+- **RSV (Realized Start Value):** SAV discounted by roster/start probabilities in a rational average league
+- **LD (Lineup Drag):** negative value from starts below replacement (penalizes durable mediocrity traps)
+- **CG (Capture Gap):** `CG = SAV - RSV` (hindsight value that was not realistically captured)
+
+### True Value vs Free Agent Value
+
+- **True Value (TV):** value for all players, regardless of availability  
+  - In v1, TV is measured in **RSV units**.
+  - Later, TV may be upgraded to a win-based unit (tWARP/WPA).
+- **Free Agent Value (FAV):** expected market-clearing auction price conditional on the FA auction pool and available cap.
+  - FAV is a pricing layer, not a universal truth unit.
+
+---
+
+## Phase 1 Method (Historical Valuation)
+
+### Weekly slot economy (replacement cutlines)
+For each week, we compute replacement cutlines by slot type:
+
+- QB, RB, WR, TE, FLEX (RB/WR/TE), SF (QB/RB/WR/TE)
+
+Cutlines are computed via a deterministic leaguewide optimal allocation of actual points under lineup constraints.
+
+### Shrinkage
+Weekly cutlines are shrunk toward a season baseline to reduce noise:
+`R_{s,w} = λ_s * R_base_s + (1-λ_s) * R_raw_{s,w}`
+
+### Assignment (non-negotiable)
+Players **cannot** choose the slot that maximizes their value.
+
+Each week we compute an optimal constrained starting set and record each started player's **assigned slot**. Weekly margin is computed against the cutline of that assigned slot.
+
+This prevents artifacts like “RB21 looks more valuable than RB20 because it was compared to FLEX.”
+
+---
+
+## Phase 2 Method (Predictive Modeling)
+
+### Target
+Primary prediction target is season **RSV** (not raw points).
+
+### v0: ADP-only calibration
+We fit a position-specific monotonic mapping from preseason Superflex redraft ADP to expected RSV and quantiles:
+- `RSV_hat = f_pos(log(ADP))`
+- Quantiles (p25/p50/p75) for uncertainty bands
+
+### Validation
+Backtests must be time-aware:
+- train on years ≤ t-1, test year t
+Report:
+- MAE on RSV
+- Spearman rank correlation
+- interval calibration (coverage)
+
+---
+
+## Phase 3 Method (Dynasty + Contracts)
+
+### Per-year value path
+We estimate expected True Value (RSV units) for the next 4 years:
+`TV_y0..TV_y3`
+
+### Dynasty PV
+Discounted PV with d=25%:
+`PV_TV = Σ TV_yk / 1.25^k`
+
+### Contracts
+- **Real Salary** drives contract PV and dead money
+- **Current Salary** is only used for “cap today” feasibility
+
+Standard contract schedule (unless overridden by observed schedule):
+`Cap_{t+k} = RealSalary * 1.1^k`
+
+Instrument-adjusted deals (extended/tagged/optioned) can break standard escalation.
+These must be flagged for schedule validation unless an observed year-by-year schedule is provided.
+
+---
+
+## Phase 3 v1 Outputs (Tables 1–7)
+
+v1 focuses on these outputs (DataFrames/CSVs):
+
+1) Player Contract Ledger (normalized LT export + derived flags)
+2) Contract Salary Schedule (year-by-year; with schedule source + validation flags)
+3) Production Value Forecast (TV path y0–y3 + PV @ 25%)
+4) Contract Economics (cap PV + dead money exposure)
+5) Contract Surplus & Trade Value (PV(TV) vs PV(cap) pair; full CSV once exchange rate exists)
+6) Team Cap Health Dashboard (current vs real cap usage, PV burdens, validation exposure)
+7) Instrument Candidate Shortlists (extension/tag/option; “use only if surplus-positive”)
+
+---
+
+## Invariants (Do Not Violate)
+
+- League rules live only in `src/config/league_config.yaml`. Do not hardcode league settings elsewhere.
+- Phase 1 cutlines are computed by slot (QB,RB,WR,TE,FLEX,SF) using leaguewide optimal allocation.
+- Players cannot choose the slot that maximizes value. Assignment defines slot for margin calculations.
+- Phase 3: Real Salary drives contract PV and dead money; Current Salary is only for “cap today.”
+- Any extended/tagged/optioned deal must set `needs_schedule_validation=true` unless an observed year-by-year schedule is provided.
+- Tests are mandatory for every milestone (`python -m pytest -q` must pass).
+
+---
+
+## Getting Started (Local)
+
+Create and activate a virtual environment, then install dependencies:
+```bash
+python -m venv .venv
+source .venv/Scripts/activate  # Git Bash on Windows
+python -m pip install -r requirements.txt
+python -m pytest -q

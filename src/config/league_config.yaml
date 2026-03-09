@@ -1,0 +1,65 @@
+league:
+  teams: 10
+  scoring:
+    half_ppr: true
+
+lineup:
+  qb: 1
+  rb: 2
+  wr: 3
+  te: 1
+  flex: 2           # RB/WR/TE
+  superflex: 1      # QB/RB/WR/TE
+
+roster:
+  bench: 8
+  ir_slots: 3
+  practice_squad_slots: 10
+
+cap:
+  base_cap: 300
+  annual_inflation: 0.10
+  discount_rate: 0.25
+
+practice_squad:
+  cap_percent: 0.25
+  salary_growth_while_ps: 0.0
+  drop_penalty:
+    current_year_percent: 0.25
+    future_year_percent: 0.0
+  eligibility:
+    rookie_draft_only: true
+    loses_eligibility_if_started: true
+
+injured_reserve:
+  cap_percent: 0.75
+  eligible_statuses: ["IR","PUP","Out","Doubtful","Covid","NFI","NFI-Illness"]
+
+dead_money:
+  active_roster_cut:
+    current_year_percent: 1.0
+    future_year_percent: 0.25
+
+season:
+  regular_weeks: [1,14]
+  playoff_weeks: [15,17]
+
+rookie_scale:
+  round1:
+    "1.01": 14
+    "1.02": 12
+    "1.03": 12
+    "1.04": 10
+    "1.05": 10
+    "1.06": 10
+    "1.07": 8
+    "1.08": 8
+    "1.09": 8
+    "1.10": 6
+  round2_salary: 4
+  round3_salary: 2
+  round4_salary: 1
+  contract_years: 3
+  option_years: 1
+  option_use_it_or_lose_it: true
+  options_per_team_per_year: 1

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import ast
 from pathlib import Path
@@ -21,7 +21,7 @@ def load_league_config(path: str | None = None) -> dict[str, Any]:
     else:
         path_obj = Path(path)
 
-    with path_obj.open("r", encoding="utf-8") as fh:
+    with path_obj.open("r", encoding="utf-8-sig") as fh:
         text = fh.read()
 
     if yaml is not None:

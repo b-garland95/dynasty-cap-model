@@ -1,12 +1,25 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 from typing import Any
 
 
+def build_rounded_salary_path(base_salary: float, years_remaining: int, annual_inflation: float) -> list[float]:
+    """Return a whole-dollar salary path with each future year rounded up."""
+    if years_remaining <= 0:
+        return []
+
+    hits = [float(base_salary)]
+    current_salary = float(base_salary)
+    for _ in range(1, years_remaining):
+        current_salary = float(math.ceil(current_salary * (1.0 + annual_inflation)))
+        hits.append(current_salary)
+    return hits
+
+
 def standard_cap_hits(real_salary: float, years_remaining: int, annual_inflation: float) -> list[float]:
     """Return standard escalator cap hits built from real salary."""
-    return [real_salary * ((1.0 + annual_inflation) ** k) for k in range(years_remaining)]
+    return build_rounded_salary_path(real_salary, years_remaining, annual_inflation)
 
 
 def instrument_best_effort_cap_hits(
@@ -20,10 +33,13 @@ def instrument_best_effort_cap_hits(
         return []
 
     if extension_salary > 0.0:
-        hits = [real_salary]
-        for k in range(1, years_remaining):
-            hits.append(extension_salary * ((1.0 + annual_inflation) ** (k - 1)))
-        return hits
+        if years_remaining == 1:
+            return [float(real_salary)]
+        return [float(real_salary)] + build_rounded_salary_path(
+            extension_salary,
+            years_remaining - 1,
+            annual_inflation,
+        )
 
     return standard_cap_hits(real_salary, years_remaining, annual_inflation)
 

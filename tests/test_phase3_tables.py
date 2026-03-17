@@ -1,9 +1,10 @@
-import math
+﻿import math
 from pathlib import Path
 
 import pandas as pd
 
 from src.contracts.phase3_tables import build_contract_ledger, build_salary_schedule
+from src.contracts.schedule_builder import build_rounded_salary_path
 from src.utils.config import load_league_config
 
 
@@ -62,3 +63,8 @@ def test_build_salary_schedule_values_and_shape():
         if len(player_rows) > 1:
             for v in player_rows.iloc[1:]["cap_hit_current"].tolist():
                 assert math.isnan(v)
+
+
+def test_salary_schedule_rounds_up_each_future_year():
+    rounded_path = build_rounded_salary_path(base_salary=5.0, years_remaining=4, annual_inflation=0.10)
+    assert rounded_path == [5.0, 6.0, 7.0, 8.0]

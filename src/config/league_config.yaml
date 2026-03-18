@@ -3,6 +3,8 @@
   scoring:
     half_ppr: true
 
+player_positions: ["QB", "RB", "WR", "TE"]
+
 lineup:
   qb: 1
   rb: 2

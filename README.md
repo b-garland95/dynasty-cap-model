@@ -1,4 +1,4 @@
-# Dynasty Cap Model
+﻿# Dynasty Cap Model
 
 A salary-cap dynasty fantasy football valuation framework for League Tycoon-style contract leagues.
 
@@ -65,14 +65,14 @@ Cutlines are computed via a deterministic leaguewide optimal allocation of actua
 
 ### Shrinkage
 Weekly cutlines are shrunk toward a season baseline to reduce noise:
-`R_{s,w} = λ_s * R_base_s + (1-λ_s) * R_raw_{s,w}`
+`R_{s,w} = Î»_s * R_base_s + (1-Î»_s) * R_raw_{s,w}`
 
 ### Assignment (non-negotiable)
 Players **cannot** choose the slot that maximizes their value.
 
 Each week we compute an optimal constrained starting set and record each started player's **assigned slot**. Weekly margin is computed against the cutline of that assigned slot.
 
-This prevents artifacts like “RB21 looks more valuable than RB20 because it was compared to FLEX.”
+This prevents artifacts like â€œRB21 looks more valuable than RB20 because it was compared to FLEX.â€
 
 ---
 
@@ -88,7 +88,7 @@ We fit a position-specific monotonic mapping from preseason Superflex redraft AD
 
 ### Validation
 Backtests must be time-aware:
-- train on years ≤ t-1, test year t
+- train on years â‰¤ t-1, test year t
 Report:
 - MAE on RSV
 - Spearman rank correlation
@@ -104,11 +104,11 @@ We estimate expected True Value (RSV units) for the next 4 years:
 
 ### Dynasty PV
 Discounted PV with d=25%:
-`PV_TV = Σ TV_yk / 1.25^k`
+`PV_TV = Î£ TV_yk / 1.25^k`
 
 ### Contracts
 - **Real Salary** drives contract PV and dead money
-- **Current Salary** is only used for “cap today” feasibility
+- **Current Salary** is only used for â€œcap todayâ€ feasibility
 
 Standard contract schedule (unless overridden by observed schedule):
 `Cap_{t+k} = RealSalary * 1.1^k`
@@ -118,17 +118,17 @@ These must be flagged for schedule validation unless an observed year-by-year sc
 
 ---
 
-## Phase 3 v1 Outputs (Tables 1–7)
+## Phase 3 v1 Outputs (Tables 1â€“7)
 
 v1 focuses on these outputs (DataFrames/CSVs):
 
 1) Player Contract Ledger (normalized LT export + derived flags)
 2) Contract Salary Schedule (year-by-year; with schedule source + validation flags)
-3) Production Value Forecast (TV path y0–y3 + PV @ 25%)
+3) Production Value Forecast (TV path y0â€“y3 + PV @ 25%)
 4) Contract Economics (cap PV + dead money exposure)
 5) Contract Surplus & Trade Value (PV(TV) vs PV(cap) pair; full CSV once exchange rate exists)
 6) Team Cap Health Dashboard (current vs real cap usage, PV burdens, validation exposure)
-7) Instrument Candidate Shortlists (extension/tag/option; “use only if surplus-positive”)
+7) Instrument Candidate Shortlists (extension/tag/option; â€œuse only if surplus-positiveâ€)
 
 ---
 
@@ -137,7 +137,7 @@ v1 focuses on these outputs (DataFrames/CSVs):
 - League rules live only in `src/config/league_config.yaml`. Do not hardcode league settings elsewhere.
 - Phase 1 cutlines are computed by slot (QB,RB,WR,TE,FLEX,SF) using leaguewide optimal allocation.
 - Players cannot choose the slot that maximizes value. Assignment defines slot for margin calculations.
-- Phase 3: Real Salary drives contract PV and dead money; Current Salary is only for “cap today.”
+- Phase 3: Real Salary drives contract PV and dead money; Current Salary is only for â€œcap today.â€
 - Any extended/tagged/optioned deal must set `needs_schedule_validation=true` unless an observed year-by-year schedule is provided.
 - Tests are mandatory for every milestone (`python -m pytest -q` must pass).
 
@@ -159,12 +159,12 @@ python -m pytest -q
 
 We build in milestones with tight scopes and golden tests:
 - **Milestone 0:** config loader + dead money (nominal + PV) + tests
-- **Milestone 1:** Phase 3 Tables 1–2 (ledger + schedule) + tests
+- **Milestone 1:** Phase 3 Tables 1â€“2 (ledger + schedule) + tests
 - **Milestone 2:** Phase 1 cutlines + shrinkage + tests
 - **Milestone 3:** Phase 1 assignment + SAV + tests (artifact regression case)
 - **Milestone 4:** Phase 1 RSV/LD/CG scaffolding + tests (shape/bounds)
-- **Milestone 5:** Phase 2 v0 ADP→RSV calibration + quantiles + rolling backtest harness
-- **Milestone 6:** Phase 3 Tables 3–7 using TV inputs + contract economics + instrument shortlists
+- **Milestone 5:** Phase 2 v0 ADPâ†’RSV calibration + quantiles + rolling backtest harness
+- **Milestone 6:** Phase 3 Tables 3â€“7 using TV inputs + contract economics + instrument shortlists
 
 **Rules**
 - Do not implement multiple milestones in a single change set.
@@ -183,6 +183,75 @@ League Tycoon roster exports include:
   - extension/tag eligibility
   - whether a player has already been extended/tagged
 
+### Weekly projections raw input
+Current raw weekly projections input is a FantasyData-style CSV. Two schema variants are supported.
+
+Legacy raw file:
+- `data/raw/fantasydata_weekly_projections_2014_2024_raw.csv`
+
+Observed legacy raw columns:
+- `Unnamed: 0` (drop as source index column)
+- `PlayerID`
+- `Name`
+- `Team`
+- `Position`
+- `Opponent`
+- `Year`
+- `Week`
+- `FantasyPointsHalfPointPpr`
+
+Observed legacy coverage in the attached dataset:
+- Years: 2014-2024
+- Weeks: 1-18
+- Positions present in the raw file: `QB`, `RB`, `WR`, `TE`, `K`, `FB`, `DL`, `LB`, `DB`
+
+Current-schema raw file example:
+- `data/raw/fantasydata_weekly_projections_2025_week1_raw.csv`
+
+Observed current-schema raw columns:
+- `rank`
+- `id`
+- `player`
+- `team`
+- `pos`
+- `game.week`
+- `opp`
+- component stat columns such as `pass_yds`, `rush_yds`, `rec`, etc.
+- `fpts_half_ppr`
+
+Implementation expectation:
+- Raw ingest should treat these files as weekly half-PPR projection sources.
+- Modeling layers should filter player positions using `src/config/league_config.yaml` (`player_positions`) rather than hardcoding positions.
+- Normalized weekly projections should map both schema variants into:
+  - `season`
+  - `week`
+  - `player_id`
+  - `player`
+  - `team`
+  - `position`
+  - `opponent`
+  - `projected_points`
+  - `source`
+  - `loaded_at`
+- Legacy mapping:
+  - `PlayerID -> player_id`
+  - `Name -> player`
+  - `Team -> team`
+  - `Position -> position`
+  - `Opponent -> opponent`
+  - `Year -> season`
+  - `Week -> week`
+  - `FantasyPointsHalfPointPpr -> projected_points`
+- Current-schema mapping:
+  - `id -> player_id`
+  - `player -> player`
+  - `team -> team`
+  - `pos -> position`
+  - `opp -> opponent`
+  - `game.week -> week`
+  - `fpts_half_ppr -> projected_points`
+- `season` must be provided as import metadata for the current schema because the export does not include a year column.
+- Legacy 2014-2024 imports may contain duplicate `season/week/player_id` rows from mid-week team changes. Current master-build resolution keeps the row with the higher `projected_points`; ties keep the first row encountered.
 ### Instrument-adjusted contracts (validation requirement)
 Instrument-adjusted contracts (extended/tagged/optioned) may break the standard +10% escalator.
 
@@ -220,10 +289,11 @@ We maintain a name mapping layer (eventually `data/external/name_map.csv`) and t
 
 - [ ] Implement config loader (`src/utils/config.py`)
 - [ ] Dead money functions (nominal + PV) and tests
-- [ ] Contract ledger + schedule builder (Tables 1–2) and tests
+- [ ] Contract ledger + schedule builder (Tables 1â€“2) and tests
 - [ ] Phase 1 cutlines + shrinkage and tests
 - [ ] Phase 1 assignment + SAV and artifact regression test
-- [ ] Phase 2 v0 ADP→RSV calibration + quantiles + rolling backtests
-- [ ] Phase 3 Tables 3–7 populated from TV + contract economics
+- [ ] Phase 2 v0 ADPâ†’RSV calibration + quantiles + rolling backtests
+- [ ] Phase 3 Tables 3â€“7 populated from TV + contract economics
 - [ ] Add observed contract schedule ingestion for extended/tagged/optioned players
 - [ ] Add dynasty ADP ingestion and 4-horizon TV path model
+

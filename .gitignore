@@ -15,8 +15,11 @@ __pycache__/
 
 # Data directories (generated outputs; raw inputs are local only)
 data/raw/
-data/interim/
+data/interim/*
 data/processed/
+
+# Allow the canonical master normalized projections snapshot
+!data/interim/weekly_projections_2014_2025_master_normalized.csv
 
 # Distribution / packaging
 dist/

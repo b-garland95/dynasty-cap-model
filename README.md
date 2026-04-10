@@ -228,8 +228,10 @@ League Tycoon roster exports include:
 ### Weekly projections raw input
 Current raw weekly projections input is a FantasyData-style CSV. Two schema variants are supported.
 
+The canonical merged output — `data/interim/weekly_projections_2014_2025_master_normalized.csv` — is checked into the repo so fresh clones can skip rebuilding. Re-run `scripts/build_master_weekly_projections.py` only when the raw FantasyData exports under `data/raw/projections/` change.
+
 Legacy raw file:
-- `data/raw/fantasydata_weekly_projections_2014_2024_raw.csv`
+- `data/raw/projections/fantasydata_weekly_projections_2014_2024_raw.csv`
 
 Observed legacy raw columns:
 - `Unnamed: 0` (drop as source index column)
@@ -248,7 +250,7 @@ Observed legacy coverage in the attached dataset:
 - Positions present in the raw file: `QB`, `RB`, `WR`, `TE`, `K`, `FB`, `DL`, `LB`, `DB`
 
 Current-schema raw file example:
-- `data/raw/fantasydata_weekly_projections_2025_week1_raw.csv`
+- `data/raw/projections/2025/nfl-fantasy-football-weekly-projections-20264921532.csv`
 
 Observed current-schema raw columns:
 - `rank`

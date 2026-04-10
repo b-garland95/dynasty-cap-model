@@ -10,6 +10,47 @@ This repo implements a rigorous, test-driven pipeline to:
 
 ---
 
+## Platform Reference
+
+This league runs on **League Tycoon** (contract league mode).
+
+Full platform rules: https://leaguetycoon.com/rules/contract-league-rules/
+
+Key mechanics that directly affect this model:
+
+### Performance-Based Extension Salary
+The league uses **performance-based** extension salary calculations (not the LT stable/flat default).
+When a player in their final contract year is extended, the extension salary is computed by LT via a 5-step process:
+
+1. Compute **adjusted PPG** from the player's most recent 30 games. Compare the recent 15 vs. the prior 15:
+   - Recent 15 > Prior 15 → use recent 15 only (recency bias rewards breakouts)
+   - Recent 15 ≤ Prior 15 → average all 30 (smoothing penalizes declines less harshly)
+2. Collect all position salaries from the most recent FA auction draft.
+3. Rank players by adjusted PPG and FA salaries independently, highest-to-lowest.
+4. Match the player's PPG rank to the corresponding salary rank — this is their **market salary**.
+5. Apply the **Performance-Based Salary % (85% default)** to the market salary. Floor: $10.
+
+The `Extension Salary` column in every League Tycoon roster export is this pre-calculated
+performance-based value. It represents what the player's Year 1 salary would be if extended.
+Large gaps between `Real Salary` and `Extension Salary` indicate players who broke out after
+signing their current contract (e.g., signed cheap, performed above market).
+
+### Franchise Tags
+Tags retain a final-year player for one additional season. Tag salary = higher of:
+- Average of the top 8 salaries at the player's position (from the most recent FA draft)
+- Current salary × (1 + yearly escalation %)
+
+Players can only be tagged once per career. After the tag year they become free agents.
+
+### Dead Money (Active Roster Cut)
+- **Current season:** 100% of current-year salary
+- **Next season:** 25% × (years remaining − 1) × salary, charged as a single lump sum
+- **Year 3+:** $0
+
+Practice squad cuts: 25% current season, 0% next season.
+
+---
+
 ## League Rules (Source of Truth)
 
 All league rules must be read from:
@@ -23,9 +64,9 @@ Current assumptions (see YAML for exact values):
 - Scoring: Half PPR
 - Starters: QB1, RB2, WR3, TE1, FLEX2 (RB/WR/TE), SF1 (QB/RB/WR/TE)
 - Bench: 8, IR: 3, Practice Squad: 10
-- Standard contract escalation: +10% per year
-- Dead money (active roster cut): 100% current year + 25% of each future year remaining
-- PS cap hit: 25%; IR cap hit: 75%
+- Standard contract escalation: +10% per year (LT default is 0%; this league uses 10%)
+- Dead money (active roster cut): 100% current year + 25% × future years remaining, lump sum next season
+- PS cap hit: 25%; IR cap hit: 75% (LT default IR is 100%; this league uses 75%)
 - Rookie scale: deterministic salaries by pick/round; 3-year rookie deal + 1-year option
 - Option is use-it-or-lose-it each year; 1 option per team per year
 - Discount rate for dynasty PV: 25%

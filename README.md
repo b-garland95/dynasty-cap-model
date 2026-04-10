@@ -320,12 +320,22 @@ Tests use tiny fixtures in `tests/fixtures/`.
 
 ## Naming / ID Normalization
 
-Player names may differ across:
-- League Tycoon exports
-- FantasyPros ADP
-- Projection/box score sources
+Player names and identifiers differ across data sources:
 
-We maintain a name mapping layer (eventually `data/external/name_map.csv`) and treat normalized `player_id` as the preferred key where possible.
+| Source | ID type | Example (Travis Etienne) |
+|---|---|---|
+| FantasyData weekly projections | FantasyData ID (str) | `21696`, name `Travis Etienne Jr.` |
+| nflverse historical weekly points | gsis_id | `00-0036973`, name `Travis Etienne` |
+| League Tycoon roster exports | name only (no ID) | `Travis Etienne Jr.` |
+
+The normalization layer in `src/ingest/player_ids.py` bridges these gaps using `nflreadpy.load_ff_playerids()`, which provides a crosswalk containing `fantasy_data_id`, `gsis_id`, `fantasypros_id`, `sleeper_id`, `merge_name` (lowercased canonical form), and other identifiers.
+
+### Functions
+
+- **`normalize_name(raw)`** — lowercase, strip punctuation, drop suffixes (`Jr.`, `Sr.`, `II`–`V`). Produces the same canonical form as the crosswalk's `merge_name` column.
+- **`load_player_id_crosswalk()`** — loads the nflverse crosswalk as a pandas DataFrame; optional disk cache at `data/external/ff_playerids.csv`.
+- **`attach_gsis_id_by_fantasy_data_id(df)`** — joins projections-shaped DataFrames (which carry FantasyData IDs) to `gsis_id` + `fantasypros_id`.
+- **`attach_gsis_id_by_name(df)`** — joins name-only DataFrames (roster exports) via `merge_name` + `position`. Ambiguous collisions are flagged, not silently resolved.
 
 ---
 

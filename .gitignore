@@ -1,0 +1,32 @@
+# Virtual environments
+.venv/
+.venv_mac/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+
+# Data directories (generated outputs; raw inputs are local only)
+data/raw/
+data/interim/
+data/processed/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

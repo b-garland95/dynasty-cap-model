@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import pandas as pd
 
@@ -7,15 +7,14 @@ from src.ingest.historical_weekly_points import (
     compute_weekly_fantasy_points,
     get_config_player_positions,
     normalize_historical_weekly_points,
+    normalize_historical_weekly_points_csv,
 )
 from src.utils.config import load_league_config
-
 
 
 def test_get_config_player_positions_reads_config_values():
     config = load_league_config()
     assert get_config_player_positions(config) == ["QB", "RB", "WR", "TE"]
-
 
 
 def test_compute_weekly_fantasy_points_uses_half_ppr_scoring():
@@ -29,7 +28,6 @@ def test_compute_weekly_fantasy_points_uses_half_ppr_scoring():
 
     points = compute_weekly_fantasy_points(raw_df, config)
     assert points.tolist() == [12.0, 5.5]
-
 
 
 def test_normalize_historical_weekly_points_filters_and_renames():
@@ -104,7 +102,6 @@ def test_normalize_historical_weekly_points_filters_and_renames():
     assert normalized["source"].nunique() == 1
 
 
-
 def test_normalize_historical_weekly_points_accepts_player_name_fallback():
     config = load_league_config()
     raw_df = pd.DataFrame(
@@ -137,13 +134,6 @@ def test_normalize_historical_weekly_points_accepts_player_name_fallback():
     assert normalized.loc[0, "team"] == "BAL"
     assert normalized.loc[0, "opponent"] == "PIT"
     assert normalized.loc[0, "points"] == 5.0
-from pathlib import Path
-
-import pandas as pd
-
-from src.ingest.historical_weekly_points import CANONICAL_COLUMNS, normalize_historical_weekly_points_csv
-from src.utils.config import load_league_config
-
 
 
 def test_normalize_historical_weekly_points_csv_writes_output(tmp_path: Path):

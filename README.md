@@ -148,7 +148,8 @@ v1 focuses on these outputs (DataFrames/CSVs):
 Create and activate a virtual environment, then install dependencies:
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate  # Git Bash on Windows
+source .venv/bin/activate        # Mac/Linux
+# source .venv/Scripts/activate  # Git Bash on Windows
 python -m pip install -r requirements.txt
 python -m pytest -q
 ```

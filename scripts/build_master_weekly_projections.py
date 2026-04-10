@@ -44,6 +44,8 @@ def build_master_weekly_projections(config: dict) -> tuple[object, object, objec
     current_frames = []
     for week in range(1, 19):
         raw_path = REPO_ROOT / "data" / "raw" / f"fantasydata_weekly_projections_2025_week{week}_raw.csv"
+        if not raw_path.exists():
+            continue
         normalized_path = CURRENT_2025_DIR / f"weekly_projections_2025_week{week}_normalized.csv"
         current_frames.append(
             normalize_weekly_projections_csv(

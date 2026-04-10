@@ -15,16 +15,16 @@ def _make_synthetic_week() -> pd.DataFrame:
     rows = []
 
     for i in range(1, 13):
-        rows.append({"player": f"QB{i}", "position": "QB", "points": 201 - i})
+        rows.append({"gsis_id": f"G-QB{i}", "player": f"QB{i}", "position": "QB", "points": 201 - i})
 
     for i in range(1, 31):
-        rows.append({"player": f"RB{i}", "position": "RB", "points": 151 - i})
+        rows.append({"gsis_id": f"G-RB{i}", "player": f"RB{i}", "position": "RB", "points": 151 - i})
 
     for i in range(1, 46):
-        rows.append({"player": f"WR{i}", "position": "WR", "points": 121 - i})
+        rows.append({"gsis_id": f"G-WR{i}", "player": f"WR{i}", "position": "WR", "points": 121 - i})
 
     for i in range(1, 19):
-        rows.append({"player": f"TE{i}", "position": "TE", "points": 81 - i})
+        rows.append({"gsis_id": f"G-TE{i}", "player": f"TE{i}", "position": "TE", "points": 81 - i})
 
     return pd.DataFrame(rows)
 
@@ -115,10 +115,10 @@ def test_compute_season_base_cutlines_uses_median():
 
 def test_insufficient_pool_raises_value_error():
     config = load_league_config()
-    rows = [{"player": f"QB{i}", "position": "QB", "points": 50 - i} for i in range(1, 10)]
-    rows += [{"player": f"RB{i}", "position": "RB", "points": 100 - i} for i in range(1, 31)]
-    rows += [{"player": f"WR{i}", "position": "WR", "points": 90 - i} for i in range(1, 46)]
-    rows += [{"player": f"TE{i}", "position": "TE", "points": 80 - i} for i in range(1, 19)]
+    rows = [{"gsis_id": f"G-QB{i}", "player": f"QB{i}", "position": "QB", "points": 50 - i} for i in range(1, 10)]
+    rows += [{"gsis_id": f"G-RB{i}", "player": f"RB{i}", "position": "RB", "points": 100 - i} for i in range(1, 31)]
+    rows += [{"gsis_id": f"G-WR{i}", "player": f"WR{i}", "position": "WR", "points": 90 - i} for i in range(1, 46)]
+    rows += [{"gsis_id": f"G-TE{i}", "player": f"TE{i}", "position": "TE", "points": 80 - i} for i in range(1, 19)]
     week_df = pd.DataFrame(rows)
 
     with pytest.raises(ValueError, match="Insufficient eligible players for slot QB"):

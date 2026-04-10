@@ -11,6 +11,7 @@ from src.ingest.player_ids import (
     CROSSWALK_COLUMNS,
     attach_gsis_id_by_fantasy_data_id,
     attach_gsis_id_by_name,
+    harmonize_projection_names,
     normalize_name,
 )
 
@@ -91,3 +92,32 @@ def test_attach_gsis_by_name_ambiguous_position_collision(crosswalk):
     row = out.iloc[0]
     assert row["gsis_id"] == "00-0036252"
     assert row["id_match_source"] == "merge_name+position"
+
+
+def test_harmonize_projection_names_replaces_fantasydata_name(crosswalk):
+    df = pd.DataFrame(
+        [{"player_id": "21696", "player": "Travis Etienne Jr.", "position": "RB"}]
+    )
+    out = harmonize_projection_names(df, crosswalk=crosswalk)
+    assert out.iloc[0]["player"] == "Travis Etienne"
+    assert out.iloc[0]["gsis_id"] == "00-0036973"
+
+
+def test_harmonize_projection_names_preserves_unmatched(crosswalk):
+    df = pd.DataFrame(
+        [{"player_id": "999999", "player": "Nobody Real", "position": "QB"}]
+    )
+    out = harmonize_projection_names(df, crosswalk=crosswalk)
+    assert out.iloc[0]["player"] == "Nobody Real"
+    assert pd.isna(out.iloc[0]["gsis_id"])
+
+
+def test_harmonize_projection_names_attaches_gsis_id(crosswalk):
+    df = pd.DataFrame([
+        {"player_id": "21696", "player": "Travis Etienne Jr.", "position": "RB"},
+        {"player_id": "21744", "player": "Michael Pittman Jr.", "position": "WR"},
+    ])
+    out = harmonize_projection_names(df, crosswalk=crosswalk)
+    assert "gsis_id" in out.columns
+    assert out.iloc[0]["gsis_id"] == "00-0036973"
+    assert out.iloc[1]["gsis_id"] == "00-0036252"

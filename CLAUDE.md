@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Dynasty Cap Model is a salary-cap dynasty fantasy football valuation framework for **League Tycoon** contract leagues. The repo is a test-driven pipeline that goes from historical weekly stats → season values (PAR/SAV/RSV/LD/CG) → predictive TV forecasts → contract surplus/dead-money/instrument-decision tables.
 
 Platform rules reference: https://leaguetycoon.com/rules/contract-league-rules/
+nflreadpy Github and docs: https://github.com/nflverse/nflreadpy 
 
 ## Commands
 

@@ -48,9 +48,10 @@ def compute_par_by_player(season_points_df: pd.DataFrame, r_par: dict[str, float
         axis=1,
     )
 
-    group_cols = ["player"]
+    player_key = "gsis_id" if "gsis_id" in weekly_df.columns else "player"
+    group_cols = [player_key]
     if "season" in weekly_df.columns:
-        group_cols = ["season", "player"]
+        group_cols = ["season", player_key]
 
     return weekly_df.groupby(group_cols, as_index=False).agg(
         par=("par_week", "sum"),

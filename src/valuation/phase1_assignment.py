@@ -66,6 +66,68 @@ def compute_sav_for_week(
     return compute_weekly_margins(started_df, cutlines)
 
 
+# Fallback slot for players not in the leaguewide starting set.
+_FALLBACK_SLOT: dict[str, str] = {
+    "QB": "SF",
+    "RB": "FLEX",
+    "WR": "FLEX",
+    "TE": "FLEX",
+}
+
+
+def compute_full_pool_margins(
+    week_df: pd.DataFrame,
+    cutlines: dict[str, float],
+    config: dict[str, Any],
+    min_points: float = 0.1,
+) -> pd.DataFrame:
+    """Compute margins for ALL players in the weekly pool, not just starters.
+
+    Players in the optimal starting set get their assigned slot.
+    Non-starters get a fallback slot (QB→SF, RB/WR/TE→FLEX) and their
+    margin is computed against that slot's cutline.
+
+    Parameters
+    ----------
+    week_df:
+        Full weekly player pool with columns: gsis_id, player, position, points.
+    cutlines:
+        Shrunk cutlines by slot for this week.
+    config:
+        League config dict.
+    min_points:
+        Minimum actual points to include a player (filters out zeroes/inactives).
+
+    Returns
+    -------
+    DataFrame with all players and their margin, wmsv, wdrag, assigned_slot.
+    """
+    # Filter to players meeting minimum threshold.
+    pool = week_df[week_df["points"] >= min_points].copy()
+    if pool.empty:
+        return pd.DataFrame()
+
+    # Get the optimal starting set with assigned slots.
+    started_df = assign_leaguewide_starting_set(pool, config)
+
+    # Build the non-starter pool: everyone not in the starting set.
+    id_col = "gsis_id" if "gsis_id" in pool.columns else "player"
+    started_ids = set(started_df[id_col].values)
+    non_starters = pool[~pool[id_col].isin(started_ids)].copy()
+
+    # Assign fallback slots to non-starters.
+    non_starters["assigned_slot"] = non_starters["position"].map(_FALLBACK_SLOT)
+    non_starters["rank_within_slot"] = 0
+
+    id_cols = [id_col] if id_col != "player" else []
+    keep_cols = id_cols + ["player", "position", "points", "assigned_slot", "rank_within_slot"]
+    non_starters = non_starters[[c for c in keep_cols if c in non_starters.columns]]
+
+    # Combine starters + non-starters, compute margins.
+    full_pool = pd.concat([started_df, non_starters], ignore_index=True)
+    return compute_weekly_margins(full_pool, cutlines)
+
+
 
 def _assign_slot(
     remaining: pd.DataFrame,
@@ -86,4 +148,5 @@ def _assign_slot(
     chosen["assigned_slot"] = slot_name
     chosen["rank_within_slot"] = range(1, len(chosen) + 1)
     updated_remaining = remaining.drop(index=chosen.index)
-    return chosen[["player", "position", "points", "assigned_slot", "rank_within_slot"]], updated_remaining
+    id_cols = ["gsis_id"] if "gsis_id" in chosen.columns else []
+    return chosen[id_cols + ["player", "position", "points", "assigned_slot", "rank_within_slot"]], updated_remaining

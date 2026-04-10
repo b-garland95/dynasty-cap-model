@@ -52,19 +52,22 @@ def assign_projected_leaguewide_starting_set(
     temp = week_proj_df.rename(columns={"proj_points": "points"})
     started = assign_leaguewide_starting_set(temp, config)
 
-    result = pd.DataFrame({
+    result_dict: dict = {
         "player": started["player"].values,
         "position": started["position"].values,
         "proj_points": started["points"].values,
         "proj_assigned_slot": started["assigned_slot"].values,
-    })
+    }
+    if "gsis_id" in started.columns:
+        result_dict["gsis_id"] = started["gsis_id"].values
+    result = pd.DataFrame(result_dict)
 
     for col in ("season", "week"):
         if col in week_proj_df.columns:
             result[col] = int(week_proj_df[col].iloc[0])
 
     ordered = [
-        c for c in ("season", "week", "player", "position", "proj_points", "proj_assigned_slot")
+        c for c in ("season", "week", "gsis_id", "player", "position", "proj_points", "proj_assigned_slot")
         if c in result.columns
     ]
     return result[ordered].reset_index(drop=True)

@@ -19,16 +19,16 @@ def _make_assignment_week() -> pd.DataFrame:
     rows = []
 
     for i in range(1, 13):
-        rows.append({"player": f"QB{i}", "position": "QB", "points": 201 - i})
+        rows.append({"gsis_id": f"G-QB{i}", "player": f"QB{i}", "position": "QB", "points": 201 - i})
 
     for i in range(1, 31):
-        rows.append({"player": f"RB{i}", "position": "RB", "points": 151 - i})
+        rows.append({"gsis_id": f"G-RB{i}", "player": f"RB{i}", "position": "RB", "points": 151 - i})
 
     for i in range(1, 46):
-        rows.append({"player": f"WR{i}", "position": "WR", "points": 121 - i})
+        rows.append({"gsis_id": f"G-WR{i}", "player": f"WR{i}", "position": "WR", "points": 121 - i})
 
     for i in range(1, 19):
-        rows.append({"player": f"TE{i}", "position": "TE", "points": 81 - i})
+        rows.append({"gsis_id": f"G-TE{i}", "player": f"TE{i}", "position": "TE", "points": 81 - i})
 
     return pd.DataFrame(rows)
 
@@ -38,18 +38,18 @@ def _make_slot_gaming_week() -> pd.DataFrame:
     rows = []
 
     for i in range(1, 21):
-        rows.append({"player": f"QB{i}", "position": "QB", "points": 300 - i})
+        rows.append({"gsis_id": f"G-QB{i}", "player": f"QB{i}", "position": "QB", "points": 300 - i})
 
     rb_points = [240 - i for i in range(19)] + [200, 100]
     for i, points in enumerate(rb_points, start=1):
-        rows.append({"player": f"RB{i}", "position": "RB", "points": points})
+        rows.append({"gsis_id": f"G-RB{i}", "player": f"RB{i}", "position": "RB", "points": points})
 
     wr_points = [220 - i for i in range(30)] + [150 - i for i in range(20)]
     for i, points in enumerate(wr_points, start=1):
-        rows.append({"player": f"WR{i}", "position": "WR", "points": points})
+        rows.append({"gsis_id": f"G-WR{i}", "player": f"WR{i}", "position": "WR", "points": points})
 
     for i in range(1, 31):
-        rows.append({"player": f"TE{i}", "position": "TE", "points": 90 - i})
+        rows.append({"gsis_id": f"G-TE{i}", "player": f"TE{i}", "position": "TE", "points": 90 - i})
 
     return pd.DataFrame(rows)
 
@@ -64,7 +64,7 @@ def test_assign_leaguewide_starting_set_slot_counts_and_labels():
     assert len(started_df) == sum(SLOT_COUNTS.values())
     assert started_df["assigned_slot"].value_counts().to_dict() == SLOT_COUNTS
     assert started_df["rank_within_slot"].min() == 1
-    assert set(started_df.columns) == {"player", "position", "points", "assigned_slot", "rank_within_slot"}
+    assert set(started_df.columns) == {"gsis_id", "player", "position", "points", "assigned_slot", "rank_within_slot"}
 
 
 
@@ -151,18 +151,20 @@ def test_slot_gaming_artifact_is_prevented():
 def test_aggregate_sav_sums_wmsv_by_player():
     weekly_started = pd.DataFrame(
         [
-            {"player": "A", "points": 10.0, "wmsv": 1.5},
-            {"player": "A", "points": 20.0, "wmsv": 2.5},
-            {"player": "B", "points": 15.0, "wmsv": 0.0},
+            {"gsis_id": "G-A", "player": "A", "position": "RB", "points": 10.0, "wmsv": 1.5},
+            {"gsis_id": "G-A", "player": "A", "position": "RB", "points": 20.0, "wmsv": 2.5},
+            {"gsis_id": "G-B", "player": "B", "position": "WR", "points": 15.0, "wmsv": 0.0},
         ]
     )
 
     sav_df = aggregate_sav(weekly_started)
 
-    player_a = sav_df.loc[sav_df["player"] == "A"].iloc[0]
-    player_b = sav_df.loc[sav_df["player"] == "B"].iloc[0]
+    player_a = sav_df.loc[sav_df["gsis_id"] == "G-A"].iloc[0]
+    player_b = sav_df.loc[sav_df["gsis_id"] == "G-B"].iloc[0]
 
     assert math.isclose(player_a["sav"], 4.0, rel_tol=1e-12)
     assert math.isclose(player_a["total_points"], 30.0, rel_tol=1e-12)
     assert int(player_a["weeks_started_in_leaguewide_set"]) == 2
+    assert player_a["player"] == "A"
+    assert player_a["position"] == "RB"
     assert math.isclose(player_b["sav"], 0.0, rel_tol=1e-12)

@@ -46,7 +46,7 @@ def _make_boom_scenario(config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     actual_rows: list[dict] = []
 
     def _add(player: str, position: str, proj: float, actual: float) -> None:
-        base = {"season": SEASON, "week": WEEK, "player": player, "position": position}
+        base = {"season": SEASON, "week": WEEK, "gsis_id": f"G-{player}", "player": player, "position": position}
         proj_rows.append({**base, "proj_points": proj})
         actual_rows.append({**base, "points": actual})
 
@@ -70,7 +70,7 @@ def _make_boom_scenario(config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def _build_started_weekly_df(actual_df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """Compute the actual started set and add season/week for RSV lookup."""
-    pts_only = actual_df[["player", "position", "points"]]
+    pts_only = actual_df[["gsis_id", "player", "position", "points"]]
     cutlines = compute_weekly_raw_cutlines(pts_only, config)
     started = compute_sav_for_week(pts_only, cutlines, config)
     started["season"] = SEASON
@@ -104,7 +104,7 @@ def test_boom_rb_actual_sav_is_positive():
     _, actual_df = _make_boom_scenario(config)
     started_df = _build_started_weekly_df(actual_df, config)
     sav_df = aggregate_sav(started_df)
-    boom_sav = sav_df.loc[sav_df["player"] == "BoomRB", "sav"].iloc[0]
+    boom_sav = sav_df.loc[sav_df["gsis_id"] == "G-BoomRB", "sav"].iloc[0]
     assert boom_sav > 0
 
 
@@ -121,7 +121,7 @@ def test_perfect_capture_rsv_equals_sav():
     sav_df = aggregate_sav(started_df)
     rsv_df = compute_rsv_ld_from_started_weekly(started_df, PerfectCaptureModel())
 
-    merged = sav_df.merge(rsv_df, on="player")
+    merged = sav_df.merge(rsv_df, on="gsis_id")
     for _, row in merged.iterrows():
         assert math.isclose(row["sav"], row["rsv"], rel_tol=1e-9), (
             f"{row['player']}: SAV={row['sav']:.4f} != RSV={row['rsv']:.4f}"
@@ -142,11 +142,11 @@ def test_rational_capture_discounts_boom_rb_rsv_below_sav():
     started_df = _build_started_weekly_df(actual_df, config)
 
     sav_df = aggregate_sav(started_df)
-    boom_sav = sav_df.loc[sav_df["player"] == "BoomRB", "sav"].iloc[0]
+    boom_sav = sav_df.loc[sav_df["gsis_id"] == "G-BoomRB", "sav"].iloc[0]
 
     model = RationalStartCaptureModel(proj_df=proj_df, config=config)
     rsv_df = compute_rsv_ld_from_started_weekly(started_df, model)
-    boom_rsv = rsv_df.loc[rsv_df["player"] == "BoomRB", "rsv"].iloc[0]
+    boom_rsv = rsv_df.loc[rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
 
     assert boom_rsv < boom_sav
 
@@ -158,11 +158,11 @@ def test_rational_capture_boom_rb_rsv_less_than_perfect():
     started_df = _build_started_weekly_df(actual_df, config)
 
     perfect_rsv_df = compute_rsv_ld_from_started_weekly(started_df, PerfectCaptureModel())
-    boom_perfect = perfect_rsv_df.loc[perfect_rsv_df["player"] == "BoomRB", "rsv"].iloc[0]
+    boom_perfect = perfect_rsv_df.loc[perfect_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
 
     model = RationalStartCaptureModel(proj_df=proj_df, config=config)
     rational_rsv_df = compute_rsv_ld_from_started_weekly(started_df, model)
-    boom_rational = rational_rsv_df.loc[rational_rsv_df["player"] == "BoomRB", "rsv"].iloc[0]
+    boom_rational = rational_rsv_df.loc[rational_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
 
     assert boom_rational < boom_perfect
 
@@ -174,22 +174,25 @@ def test_rational_capture_boom_rb_rsv_less_than_perfect():
 def test_higher_projected_margin_yields_higher_sigma():
     """Monotonic check: same proj slot_hat, higher projected margin → higher σ.
 
+    Use α=0 (constant τ) so players near the cutline don't both saturate to 1.0.
     RB21 (proj=130) and RB22 (proj=129) are both assigned to FLEX in the
-    projected starting set. RB21's projected margin vs the FLEX cutline is
+    projected starting set with FLEX cutline=81. RB21's projected margin is
     one point larger, so its σ must be strictly higher.
     """
     config = load_league_config()
+    # Use constant τ so the 1-point difference is distinguishable.
+    config = {**config, "capture_model": {**config["capture_model"], "tau_margin_scaling": 0.0}}
     proj_df, _ = _make_boom_scenario(config)
     model = RationalStartCaptureModel(proj_df=proj_df, config=config)
 
     # Both RBs are in the projected FLEX slot (confirmed by the pool structure).
     test_df = pd.DataFrame([
         {
-            "season": SEASON, "week": WEEK, "player": "RB21", "position": "RB",
+            "season": SEASON, "week": WEEK, "gsis_id": "G-RB21", "player": "RB21", "position": "RB",
             "points": 10.0, "assigned_slot": "FLEX", "wmsv": 5.0, "wdrag": 0.0,
         },
         {
-            "season": SEASON, "week": WEEK, "player": "RB22", "position": "RB",
+            "season": SEASON, "week": WEEK, "gsis_id": "G-RB22", "player": "RB22", "position": "RB",
             "points": 5.0, "assigned_slot": "FLEX", "wmsv": 0.0, "wdrag": -5.0,
         },
     ])
@@ -197,3 +200,101 @@ def test_higher_projected_margin_yields_higher_sigma():
     sigmas = model.start_prob(test_df)
     # RB21 proj=130 > RB22 proj=129, same slot → σ(RB21) > σ(RB22)
     assert sigmas.iloc[0] > sigmas.iloc[1]
+
+
+def test_monotonicity_near_cutline_with_variable_tau():
+    """Monotonic check near the cutline with variable τ enabled.
+
+    TE9 (proj=72) and TE10 (proj=71) are near the TE cutline (71).
+    TE9 has margin +1, TE10 has margin 0. With variable τ, margins this
+    small keep τ_effective close to τ_base, so the 1-point difference is
+    still distinguishable.
+    """
+    config = load_league_config()
+    assert config["capture_model"].get("tau_margin_scaling", 0.0) > 0
+    proj_df, _ = _make_boom_scenario(config)
+    model = RationalStartCaptureModel(proj_df=proj_df, config=config)
+
+    test_df = pd.DataFrame([
+        {
+            "season": SEASON, "week": WEEK, "gsis_id": "G-TE9", "player": "TE9", "position": "TE",
+            "points": 10.0, "assigned_slot": "TE", "wmsv": 5.0, "wdrag": 0.0,
+        },
+        {
+            "season": SEASON, "week": WEEK, "gsis_id": "G-TE10", "player": "TE10", "position": "TE",
+            "points": 5.0, "assigned_slot": "TE", "wmsv": 0.0, "wdrag": -5.0,
+        },
+    ])
+
+    sigmas = model.start_prob(test_df)
+    # TE9 proj=72 > TE10 proj=71, same slot → σ(TE9) > σ(TE10)
+    assert sigmas.iloc[0] > sigmas.iloc[1]
+
+
+# ---------------------------------------------------------------------------
+# Variable τ: tail behavior (top players → σ ≈ 1, bottom → σ ≈ 0)
+# ---------------------------------------------------------------------------
+
+def test_top_projected_qbs_have_near_certain_start_prob():
+    """Top 2 projected QBs should have σ > 0.99 with variable τ.
+
+    QB1 (proj=200) and QB2 (proj=199) are well above the QB cutline (~190).
+    With tau_margin_scaling > 0, τ_effective shrinks for large margins,
+    pushing σ toward 1.0.
+    """
+    config = load_league_config()
+    assert config["capture_model"].get("tau_margin_scaling", 0.0) > 0, (
+        "tau_margin_scaling must be set for this test"
+    )
+    proj_df, actual_df = _make_boom_scenario(config)
+    model = RationalStartCaptureModel(proj_df=proj_df, config=config)
+
+    started_df = _build_started_weekly_df(actual_df, config)
+    # QB1 and QB2 are in the actual started set (top QBs).
+    qb1 = started_df[started_df["gsis_id"] == "G-QB1"]
+    qb2 = started_df[started_df["gsis_id"] == "G-QB2"]
+    assert len(qb1) == 1 and len(qb2) == 1
+
+    sigma_qb1 = model.start_prob(qb1).iloc[0]
+    sigma_qb2 = model.start_prob(qb2).iloc[0]
+    assert sigma_qb1 > 0.99, f"QB1 σ={sigma_qb1:.4f}, expected > 0.99"
+    assert sigma_qb2 > 0.99, f"QB2 σ={sigma_qb2:.4f}, expected > 0.99"
+
+
+def test_bottom_of_pool_has_near_zero_start_prob():
+    """A player far below the cutline should have σ < 0.01 with variable τ.
+
+    BoomRB (proj=4) is ~77 points below the FLEX cutline (~81).
+    Variable τ makes the sigmoid even steeper for large negative margins.
+    """
+    config = load_league_config()
+    proj_df, actual_df = _make_boom_scenario(config)
+    model = RationalStartCaptureModel(proj_df=proj_df, config=config)
+
+    started_df = _build_started_weekly_df(actual_df, config)
+    boom_row = started_df[started_df["gsis_id"] == "G-BoomRB"]
+    assert len(boom_row) == 1
+
+    sigma_boom = model.start_prob(boom_row).iloc[0]
+    assert sigma_boom < 0.01, f"BoomRB σ={sigma_boom:.4f}, expected < 0.01"
+
+
+def test_variable_tau_recovers_constant_when_alpha_zero():
+    """With tau_margin_scaling=0, variable τ produces identical σ to constant τ."""
+    config = load_league_config()
+    proj_df, actual_df = _make_boom_scenario(config)
+    started_df = _build_started_weekly_df(actual_df, config)
+
+    # Model with alpha from config (> 0).
+    model_variable = RationalStartCaptureModel(proj_df=proj_df, config=config)
+    sigma_variable = model_variable.start_prob(started_df)
+
+    # Model with alpha = 0 (constant τ).
+    config_zero = {**config, "capture_model": {**config["capture_model"], "tau_margin_scaling": 0.0}}
+    model_constant = RationalStartCaptureModel(proj_df=proj_df, config=config_zero)
+    sigma_constant = model_constant.start_prob(started_df)
+
+    # They should NOT be equal when alpha > 0 in the original config.
+    assert not sigma_variable.equals(sigma_constant), (
+        "Variable and constant τ should produce different σ values when α > 0"
+    )

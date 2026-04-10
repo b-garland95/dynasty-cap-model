@@ -40,6 +40,7 @@ capture_model:
     TE: 2.5
     FLEX: 3.0
     SF: 2.5
+  tau_margin_scaling: 0.3  # α: scales τ down as |margin| grows → steeper sigmoid for obvious decisions
 
 practice_squad:
   cap_percent: 0.25

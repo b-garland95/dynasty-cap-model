@@ -209,3 +209,58 @@ def attach_gsis_id_by_name(
     merged["id_match_source"] = source
 
     return merged.drop(columns=["_merge_name", "_position_u"])
+
+
+def harmonize_projection_names(
+    proj_df: pd.DataFrame,
+    *,
+    fd_id_col: str = "player_id",
+    crosswalk: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Attach ``gsis_id`` and replace player names with nflverse canonical form.
+
+    Intended for weekly-projection DataFrames that carry a FantasyData
+    ``player_id``.  The crosswalk is used to look up each player's
+    ``gsis_id`` and nflverse ``name``; the ``player`` column is then
+    overwritten with the nflverse name where a match exists (original
+    name is kept as a fallback).
+
+    Returns a copy of *proj_df* with ``gsis_id`` added and ``player``
+    harmonized.  Intermediate join columns are dropped.
+    """
+    cw = _crosswalk_for_attach(crosswalk)
+
+    # Step 1: attach gsis_id via FantasyData ID.
+    with_ids = attach_gsis_id_by_fantasy_data_id(
+        proj_df, fd_id_col=fd_id_col, crosswalk=cw,
+    )
+
+    # Step 2: bring in the nflverse canonical name for matched rows.
+    name_lookup = (
+        cw[["gsis_id", "name"]]
+        .dropna(subset=["gsis_id"])
+        .drop_duplicates(subset=["gsis_id"])
+        .rename(columns={"name": "_nflverse_name"})
+    )
+    with_ids = with_ids.merge(name_lookup, on="gsis_id", how="left")
+
+    # Overwrite player with nflverse name where available.
+    matched = with_ids["_nflverse_name"].notna()
+    with_ids.loc[matched, "player"] = with_ids.loc[matched, "_nflverse_name"]
+    with_ids = with_ids.drop(columns=["_nflverse_name"])
+
+    # Clean up columns added by attach_gsis_id_by_fantasy_data_id that
+    # the caller doesn't need beyond gsis_id.
+    drop_cols = [c for c in ("fantasypros_id", "id_match_source") if c in with_ids.columns]
+    with_ids = with_ids.drop(columns=drop_cols)
+
+    n_unmatched = with_ids["gsis_id"].isna().sum()
+    if n_unmatched:
+        import warnings
+        warnings.warn(
+            f"harmonize_projection_names: {n_unmatched} of {len(with_ids)} "
+            f"projection rows have no crosswalk gsis_id match",
+            stacklevel=2,
+        )
+
+    return with_ids

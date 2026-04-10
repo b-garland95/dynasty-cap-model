@@ -43,8 +43,8 @@ class RationalStartCaptureModel:
     (FLEX for RB/WR/TE, SF for QB) to compute their margin.
 
     The input df passed to start_prob must contain columns:
-        season, week, player, position
-    (i.e. the started_weekly_df must carry season and week).
+        season, week, gsis_id, position
+    (i.e. the started_weekly_df must carry season, week, and gsis_id).
     """
 
     _FALLBACK_SLOT: dict[str, str] = {
@@ -74,14 +74,17 @@ class RationalStartCaptureModel:
             pd.concat(assignment_frames, ignore_index=True)
             if assignment_frames
             else pd.DataFrame(
-                columns=["season", "week", "player", "proj_points", "proj_assigned_slot"]
+                columns=["season", "week", "gsis_id", "proj_points", "proj_assigned_slot"]
             )
         )
 
+        # Detect whether input uses gsis_id or player as the identity key.
+        self._id_col: str = "gsis_id" if "gsis_id" in proj_df.columns else "player"
+
         # Full proj_points lookup for every player (including non-projected starters).
         self._proj_points_all: dict[tuple[int, int, str], float] = {
-            (int(r.season), int(r.week), str(r.player)): float(r.proj_points)
-            for r in proj_df[["season", "week", "player", "proj_points"]].itertuples(index=False)
+            (int(r[0]), int(r[1]), str(r[2])): float(r[3])
+            for r in proj_df[["season", "week", self._id_col, "proj_points"]].itertuples(index=False)
         }
 
     def roster_prob(self, df: pd.DataFrame) -> pd.Series:
@@ -101,13 +104,15 @@ class RationalStartCaptureModel:
         """
         tau_by_slot: dict[str, float] = self._config["capture_model"]["tau_by_slot"]
 
+        id_col = self._id_col
+
         # Reset to positional index so the merge never scrambles row order.
-        working = df[["season", "week", "player", "position"]].copy().reset_index(drop=True)
+        working = df[["season", "week", id_col, "position"]].copy().reset_index(drop=True)
 
         # Bring in projected slot and proj_points for players in the projected starting set.
         working = working.merge(
-            self._proj_assignments[["season", "week", "player", "proj_assigned_slot", "proj_points"]],
-            on=["season", "week", "player"],
+            self._proj_assignments[["season", "week", id_col, "proj_assigned_slot", "proj_points"]],
+            on=["season", "week", id_col],
             how="left",
         )
 
@@ -123,7 +128,7 @@ class RationalStartCaptureModel:
         if missing_pts.any():
             working.loc[missing_pts, "proj_points"] = working.loc[missing_pts].apply(
                 lambda r: self._proj_points_all.get(
-                    (int(r["season"]), int(r["week"]), str(r["player"]))
+                    (int(r["season"]), int(r["week"]), str(r[id_col]))
                 ),
                 axis=1,
             )
@@ -137,8 +142,12 @@ class RationalStartCaptureModel:
         working["m_hat"] = working["proj_points"].fillna(0.0) - working["cutline"]
         working["tau"] = working["slot_hat"].map(tau_by_slot).fillna(2.5)
 
-        # σ = 1 / (1 + exp(-m/τ)); clip exponent to avoid float overflow.
-        exponent = -(working["m_hat"] / working["tau"]).clip(-500.0, 500.0)
+        # Variable τ: shrink τ as |margin| grows so obvious decisions → σ ≈ 0 or 1.
+        alpha = self._config["capture_model"].get("tau_margin_scaling", 0.0)
+        tau_effective = working["tau"] / (1.0 + alpha * working["m_hat"].abs())
+
+        # σ = 1 / (1 + exp(-m/τ_eff)); clip exponent to avoid float overflow.
+        exponent = -(working["m_hat"] / tau_effective).clip(-500.0, 500.0)
         sigma = 1.0 / (1.0 + exponent.apply(math.exp))
 
         return sigma.clip(0.0, 1.0).set_axis(df.index)

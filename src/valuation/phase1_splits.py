@@ -34,9 +34,10 @@ def aggregate_sav_splits(started_weekly_df: pd.DataFrame, config: dict[str, Any]
 def aggregate_rsv_ld_splits(realized_weekly_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
     """Aggregate weekly RSV and LD into regular/playoff splits."""
     phased = add_season_phase(realized_weekly_df, config)
-    group_cols = [col for col in ["season", "player", "phase"] if col in phased.columns]
-    if "player" not in group_cols:
-        group_cols.append("player")
+    player_key = "gsis_id" if "gsis_id" in phased.columns else "player"
+    group_cols = [col for col in ["season", player_key, "phase"] if col in phased.columns]
+    if player_key not in group_cols:
+        group_cols.append(player_key)
     return phased.groupby(group_cols, as_index=False).agg(
         rsv=("rsv_week", "sum"),
         ld=("ld_week", "sum"),
@@ -46,9 +47,10 @@ def aggregate_rsv_ld_splits(realized_weekly_df: pd.DataFrame, config: dict[str, 
 
 def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, rsv_splits_df: pd.DataFrame) -> pd.DataFrame:
     """Compute split capture gap from split SAV and RSV tables."""
-    join_cols = [col for col in ["season", "player", "phase"] if col in sav_splits_df.columns and col in rsv_splits_df.columns]
+    player_key = "gsis_id" if "gsis_id" in sav_splits_df.columns and "gsis_id" in rsv_splits_df.columns else "player"
+    join_cols = [col for col in ["season", player_key, "phase"] if col in sav_splits_df.columns and col in rsv_splits_df.columns]
     if not join_cols:
-        join_cols = ["player", "phase"]
+        join_cols = [player_key, "phase"]
     merged = sav_splits_df.merge(rsv_splits_df, on=join_cols, how="inner")
     merged["cg"] = merged["sav"] - merged["rsv"]
     return merged
@@ -56,7 +58,8 @@ def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, rsv_splits_df: pd.Da
 
 
 def _aggregate_by_phase(weekly_df: pd.DataFrame, value_col: str, output_col: str) -> pd.DataFrame:
-    group_cols = [col for col in ["season", "player", "phase"] if col in weekly_df.columns]
-    if "player" not in group_cols:
-        group_cols.append("player")
+    player_key = "gsis_id" if "gsis_id" in weekly_df.columns else "player"
+    group_cols = [col for col in ["season", player_key, "phase"] if col in weekly_df.columns]
+    if player_key not in group_cols:
+        group_cols.append(player_key)
     return weekly_df.groupby(group_cols, as_index=False).agg(**{output_col: (value_col, "sum")})

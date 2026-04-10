@@ -63,6 +63,17 @@ def build_contract_ledger(roster_csv_path: str) -> pd.DataFrame:
     }
     ledger_df = raw_df.rename(columns=rename_map)[list(rename_map.values())].copy()
 
+    # Normalize multi-value position strings (e.g. "DB, WR" → "WR").
+    # League Tycoon occasionally exports two-way players with comma-separated
+    # positions; we keep the last value which is the fantasy-relevant slot.
+    ledger_df["position"] = (
+        ledger_df["position"]
+        .astype(str)
+        .str.split(",")
+        .str[-1]
+        .str.strip()
+    )
+
     numeric_cols = ["current_salary", "real_salary", "extension_salary", "years_remaining"]
     for col in numeric_cols:
         ledger_df[col] = pd.to_numeric(ledger_df[col], errors="raise")

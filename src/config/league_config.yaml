@@ -32,6 +32,15 @@ valuation:
     FLEX: 0.40
     SF: 0.50
 
+capture_model:
+  tau_by_slot:
+    QB: 2.0
+    RB: 2.5
+    WR: 3.0
+    TE: 2.5
+    FLEX: 3.0
+    SF: 2.5
+
 practice_squad:
   cap_percent: 0.25
   salary_growth_while_ps: 0.0

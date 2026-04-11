@@ -40,6 +40,20 @@ capture_model:
     TE: 2.5
     FLEX: 3.0
     SF: 2.5
+  roster_model:
+    active_roster_spots_per_team: 18
+    kappa: 1.5
+    gamma: 0.03
+    salary_beta: 0.75
+    cap_scale: 300
+    stickiness_bonus: 0.15
+  practice_squad_model:
+    enabled: true
+    cap_percent: 0.25
+    rookie_draft_only: true
+    assume_rookies_ps_eligible: true
+    delta: 0.5
+    kappa_ps: 1.5
   tau_margin_scaling: 0.3  # α: scales τ down as |margin| grows → steeper sigmoid for obvious decisions
 
 practice_squad:

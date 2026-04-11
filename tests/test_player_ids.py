@@ -9,9 +9,11 @@ import pytest
 
 from src.ingest.player_ids import (
     CROSSWALK_COLUMNS,
+    build_name_crosswalk_from_points,
     attach_gsis_id_by_fantasy_data_id,
     attach_gsis_id_by_name,
     harmonize_projection_names,
+    harmonize_projection_names_by_name,
     normalize_name,
 )
 
@@ -28,10 +30,17 @@ def crosswalk() -> pd.DataFrame:
 
 def test_normalize_name_strips_suffix_and_punct():
     assert normalize_name("Travis Etienne Jr.") == "travis etienne"
-    assert normalize_name("A.J. Brown") == "a j brown"
+    assert normalize_name("A.J. Brown") == "aj brown"
     assert normalize_name("Michael Pittman Jr.") == "michael pittman"
     assert normalize_name("  Justin   Jefferson  ") == "justin jefferson"
     assert normalize_name("Patrick Mahomes II") == "patrick mahomes"
+    # Hyphens preserved, initials collapsed
+    assert normalize_name("T.J. Hockenson") == "tj hockenson"
+    assert normalize_name("Clyde Edwards-Helaire") == "clyde edwards-helaire"
+    assert normalize_name("D.J. Moore") == "dj moore"
+    # Apostrophes dropped without space
+    assert normalize_name("Le'Veon Bell") == "leveon bell"
+    assert normalize_name("Ja'Marr Chase") == "jamarr chase"
 
 
 def test_attach_gsis_by_fantasy_data_id_travis_etienne(crosswalk):
@@ -120,4 +129,23 @@ def test_harmonize_projection_names_attaches_gsis_id(crosswalk):
     out = harmonize_projection_names(df, crosswalk=crosswalk)
     assert "gsis_id" in out.columns
     assert out.iloc[0]["gsis_id"] == "00-0036973"
+    assert out.iloc[1]["gsis_id"] == "00-0036252"
+
+
+def test_build_name_crosswalk_from_points_and_harmonize_by_name():
+    points_df = pd.DataFrame([
+        {"gsis_id": "00-0036973", "player": "Travis Etienne", "position": "RB"},
+        {"gsis_id": "00-0036252", "player": "Michael Pittman", "position": "WR"},
+    ])
+    proj_df = pd.DataFrame([
+        {"player_id": "21696", "player": "Travis Etienne Jr.", "position": "RB"},
+        {"player_id": "21744", "player": "Michael Pittman Jr.", "position": "WR"},
+    ])
+
+    crosswalk = build_name_crosswalk_from_points(points_df)
+    out = harmonize_projection_names_by_name(proj_df, crosswalk=crosswalk)
+
+    assert out.iloc[0]["player"] == "Travis Etienne"
+    assert out.iloc[0]["gsis_id"] == "00-0036973"
+    assert out.iloc[1]["player"] == "Michael Pittman"
     assert out.iloc[1]["gsis_id"] == "00-0036252"

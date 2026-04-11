@@ -26,6 +26,7 @@ from src.valuation.phase1_realized import compute_capture_gap, compute_rsv_ld_fr
 def run_phase1_season(
     season_points: pd.DataFrame,
     season_proj: pd.DataFrame | None,
+    season_adp: pd.DataFrame | None,
     config: dict[str, Any],
 ) -> dict[str, pd.DataFrame]:
     """Run the full Phase 1 pipeline for one season.
@@ -40,6 +41,10 @@ def run_phase1_season(
         ``gsis_id, player, position, projected_points, season, week``.
         Pass ``None`` if no projections are available (falls back to
         PerfectCaptureModel).
+    season_adp:
+        Preseason redraft rankings for the same season. Must contain at least
+        ``season, rank`` plus ``gsis_id`` or ``player``. Pass ``None`` to
+        fall back to the start-only rational model when projections exist.
     config:
         League config dict.
 
@@ -98,6 +103,18 @@ def run_phase1_season(
     # --- Capture model + RSV / LD ------------------------------------------
     if season_proj is not None and len(season_proj) > 0:
         proj_renamed = season_proj.rename(columns={"projected_points": "proj_points"})
+
+        # TODO: Re-enable `RationalCaptureModel` once the roster-probability
+        # heuristic is behaving sensibly in production Phase 1 runs.
+        #
+        # The rankings/ADP plumbing is intentionally left in place so we can
+        # revisit rho without re-threading the pipeline, but for now RSV uses
+        # sigma-only start capture.
+        #
+        # Interesting review cases from the current rho heuristic:
+        # - Brock Purdy, 2025 Week 1: surprisingly low roster probability
+        # - Joe Burrow, 2025 Week 2: surprisingly low roster probability
+        _ = season_adp
         capture_model = RationalStartCaptureModel(proj_renamed, config)
     else:
         capture_model = PerfectCaptureModel()
@@ -126,6 +143,7 @@ def run_phase1_season(
 def run_phase1_all_seasons(
     historical_points: pd.DataFrame,
     projections: pd.DataFrame | None,
+    adp_rankings: pd.DataFrame | None,
     config: dict[str, Any],
     seasons: list[int] | None = None,
 ) -> dict[str, pd.DataFrame]:
@@ -137,6 +155,8 @@ def run_phase1_all_seasons(
         Multi-season historical weekly points.
     projections:
         Multi-season weekly projections (may be ``None``).
+    adp_rankings:
+        Multi-season preseason redraft rankings (may be ``None``).
     config:
         League config dict.
     seasons:
@@ -171,7 +191,13 @@ def run_phase1_all_seasons(
             if not sp.empty:
                 season_proj = sp
 
-        result = run_phase1_season(season_pts, season_proj, config)
+        season_adp = None
+        if adp_rankings is not None:
+            sa = adp_rankings[adp_rankings["season"] == season]
+            if not sa.empty:
+                season_adp = sa
+
+        result = run_phase1_season(season_pts, season_proj, season_adp, config)
         for key in all_results:
             all_results[key].append(result[key])
 

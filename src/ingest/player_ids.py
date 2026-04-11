@@ -38,25 +38,37 @@ CROSSWALK_COLUMNS = [
 ]
 
 _SUFFIX_TOKENS = {"jr", "sr", "ii", "iii", "iv", "v"}
-_PUNCT_RE = re.compile(r"[^\w\s]")
+_PUNCT_RE = re.compile(r"[^\w\s\-]")  # preserve hyphens
 _WS_RE = re.compile(r"\s+")
 
 
 def normalize_name(raw: str) -> str:
     """Return the nflverse-style ``merge_name`` form of a player name.
 
-    Lowercases, strips punctuation, drops common generational suffixes
-    (``jr``, ``sr``, ``ii``..``v``), and collapses whitespace. This matches
-    the canonical form stored in ``load_ff_playerids().merge_name``, so a
-    roster-export name like ``"Travis Etienne Jr."`` normalizes to
-    ``"travis etienne"`` — directly joinable against the crosswalk.
+    Lowercases, strips punctuation (preserving hyphens), drops common
+    generational suffixes (``jr``, ``sr``, ``ii``..``v``), collapses
+    whitespace, and merges adjacent single-letter tokens into initials
+    (e.g. ``"A.J."`` → ``"aj"``). This matches the canonical form stored
+    in ``load_ff_playerids().merge_name``, so a roster-export name like
+    ``"Travis Etienne Jr."`` normalizes to ``"travis etienne"`` and
+    ``"T.J. Hockenson"`` normalizes to ``"tj hockenson"`` — directly
+    joinable against the crosswalk.
     """
     if raw is None:
         return ""
     s = str(raw).lower()
+    s = s.replace("'", "")  # drop apostrophes without inserting space
     s = _PUNCT_RE.sub(" ", s)
     tokens = [t for t in _WS_RE.split(s) if t and t not in _SUFFIX_TOKENS]
-    return " ".join(tokens)
+
+    # Merge adjacent single-letter tokens into initials: ["a", "j"] → ["aj"]
+    merged: list[str] = []
+    for t in tokens:
+        if len(t) == 1 and merged and len(merged[-1]) == 1:
+            merged[-1] += t
+        else:
+            merged.append(t)
+    return " ".join(merged)
 
 
 def load_player_id_crosswalk(
@@ -118,6 +130,40 @@ def _crosswalk_for_attach(
     if crosswalk is None:
         crosswalk = load_player_id_crosswalk()
     return crosswalk
+
+
+def build_name_crosswalk_from_points(points_df: pd.DataFrame) -> pd.DataFrame:
+    """Build a local name-based crosswalk from historical points data.
+
+    This is a conservative offline fallback for environments where the full
+    nflverse/FantasyData crosswalk is unavailable. It only supports joins by
+    normalized player name + position.
+    """
+    required = {"gsis_id", "player", "position"}
+    missing = sorted(required - set(points_df.columns))
+    if missing:
+        raise ValueError(
+            f"points DataFrame missing columns required for fallback crosswalk: {missing}"
+        )
+
+    crosswalk = (
+        points_df[["gsis_id", "player", "position"]]
+        .dropna(subset=["gsis_id", "player", "position"])
+        .drop_duplicates()
+        .copy()
+    )
+    crosswalk["name"] = crosswalk["player"]
+    crosswalk["merge_name"] = crosswalk["player"].map(normalize_name)
+
+    # Ambiguous keys are safer to leave unmatched than to guess.
+    dup_mask = crosswalk.duplicated(subset=["merge_name", "position"], keep=False)
+    crosswalk = crosswalk.loc[~dup_mask].copy()
+
+    for col in CROSSWALK_COLUMNS:
+        if col not in crosswalk.columns:
+            crosswalk[col] = pd.NA
+
+    return crosswalk[CROSSWALK_COLUMNS].reset_index(drop=True)
 
 
 def attach_gsis_id_by_fantasy_data_id(
@@ -264,3 +310,47 @@ def harmonize_projection_names(
         )
 
     return with_ids
+
+
+def harmonize_projection_names_by_name(
+    proj_df: pd.DataFrame,
+    *,
+    crosswalk: pd.DataFrame,
+) -> pd.DataFrame:
+    """Offline fallback to attach ``gsis_id`` by normalized name + position."""
+    attached = attach_gsis_id_by_name(
+        proj_df,
+        name_col="player",
+        position_col="position",
+        crosswalk=crosswalk,
+    )
+
+    name_lookup = (
+        crosswalk[["gsis_id", "name"]]
+        .dropna(subset=["gsis_id", "name"])
+        .drop_duplicates(subset=["gsis_id"])
+        .rename(columns={"name": "_canonical_name"})
+    )
+    attached = attached.merge(name_lookup, on="gsis_id", how="left")
+    matched = attached["_canonical_name"].notna()
+    attached.loc[matched, "player"] = attached.loc[matched, "_canonical_name"]
+
+    drop_cols = [
+        col
+        for col in ("fantasy_data_id", "fantasypros_id", "id_match_source", "name", "position_y", "_canonical_name")
+        if col in attached.columns
+    ]
+    if "position_x" in attached.columns:
+        attached = attached.rename(columns={"position_x": "position"})
+    attached = attached.drop(columns=drop_cols)
+
+    n_unmatched = attached["gsis_id"].isna().sum()
+    if n_unmatched:
+        import warnings
+        warnings.warn(
+            f"harmonize_projection_names_by_name: {n_unmatched} of {len(attached)} "
+            f"projection rows have no local gsis_id match",
+            stacklevel=2,
+        )
+
+    return attached

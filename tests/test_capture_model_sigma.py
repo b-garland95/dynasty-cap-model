@@ -12,8 +12,8 @@ import pandas as pd
 
 from src.utils.config import load_league_config
 from src.valuation.capture_model import PerfectCaptureModel, RationalStartCaptureModel
-from src.valuation.phase1_assignment import compute_sav_for_week
-from src.valuation.phase1_cutlines import compute_weekly_raw_cutlines
+from src.valuation.phase1_assignment import assign_leaguewide_starting_set, compute_weekly_margins
+from src.valuation.phase1_cutlines import compute_position_cutlines
 from src.valuation.phase1_metrics import aggregate_sav
 from src.valuation.phase1_projected import assign_projected_leaguewide_starting_set
 from src.valuation.phase1_realized import compute_rsv_ld_from_started_weekly
@@ -71,8 +71,9 @@ def _make_boom_scenario(config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
 def _build_started_weekly_df(actual_df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """Compute the actual started set and add season/week for RSV lookup."""
     pts_only = actual_df[["gsis_id", "player", "position", "points"]]
-    cutlines = compute_weekly_raw_cutlines(pts_only, config)
-    started = compute_sav_for_week(pts_only, cutlines, config)
+    started_df = assign_leaguewide_starting_set(pts_only, config)
+    pos_cutlines = compute_position_cutlines(started_df)
+    started = compute_weekly_margins(started_df, pos_cutlines)
     started["season"] = SEASON
     started["week"] = WEEK
     return started

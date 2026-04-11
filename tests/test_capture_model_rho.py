@@ -7,8 +7,8 @@ import pandas as pd
 
 from src.utils.config import load_league_config
 from src.valuation.capture_model import PerfectCaptureModel, RationalCaptureModel
-from src.valuation.phase1_assignment import compute_sav_for_week
-from src.valuation.phase1_cutlines import compute_weekly_raw_cutlines
+from src.valuation.phase1_assignment import assign_leaguewide_starting_set, compute_weekly_margins
+from src.valuation.phase1_cutlines import compute_position_cutlines
 from src.valuation.phase1_metrics import aggregate_sav
 from src.valuation.phase1_realized import compute_rsv_ld_from_started_weekly
 from src.valuation.roster_probability import compute_roster_probabilities
@@ -121,13 +121,17 @@ def _make_boom_scenario() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     _add("RB3", "RB", proj=11.0, actual=0.0, rank=7)
     _add("WR3", "WR", proj=10.0, actual=0.0, rank=8)
     _add("BoomRB", "RB", proj=1.0, actual=18.0, rank=9)
+    # RB4 provides a lower RB starter so BoomRB isn't the position cutline player.
+    _add("RB4", "RB", proj=2.0, actual=5.0, rank=10)
 
     return pd.DataFrame(proj_rows), pd.DataFrame(actual_rows), pd.DataFrame(adp_rows)
 
 
 def _build_started_weekly_df(actual_df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    cutlines = compute_weekly_raw_cutlines(actual_df[["gsis_id", "player", "position", "points"]], config)
-    started = compute_sav_for_week(actual_df[["gsis_id", "player", "position", "points"]], cutlines, config)
+    pts_only = actual_df[["gsis_id", "player", "position", "points"]]
+    started_df = assign_leaguewide_starting_set(pts_only, config)
+    pos_cutlines = compute_position_cutlines(started_df)
+    started = compute_weekly_margins(started_df, pos_cutlines)
     started["season"] = 2024
     started["week"] = 1
     return started

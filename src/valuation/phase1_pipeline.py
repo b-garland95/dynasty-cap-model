@@ -12,9 +12,15 @@ from typing import Any
 import pandas as pd
 
 from src.valuation.capture_model import PerfectCaptureModel, RationalStartCaptureModel
-from src.valuation.phase1_assignment import compute_full_pool_margins, compute_sav_for_week
+from src.valuation.phase1_assignment import (
+    assign_leaguewide_starting_set,
+    compute_full_pool_margins,
+    compute_weekly_margins,
+)
 from src.valuation.phase1_cutlines import (
+    POSITIONS,
     apply_shrinkage,
+    compute_position_cutlines,
     compute_season_base_cutlines,
     compute_weekly_raw_cutlines,
 )
@@ -55,43 +61,60 @@ def run_phase1_season(
     """
     season = int(season_points["season"].iloc[0])
 
-    # --- Cutlines -----------------------------------------------------------
-    raw_cutlines_by_week: list[dict[str, float]] = []
+    # --- Pass 1: raw cutlines (slot + position) ------------------------------
+    raw_slot_cutlines_by_week: list[dict[str, float]] = []
+    raw_pos_cutlines_by_week: list[dict[str, float]] = []
     weeks = sorted(season_points["week"].unique())
     for week in weeks:
         week_df = season_points[season_points["week"] == week]
-        raw_cutlines_by_week.append(compute_weekly_raw_cutlines(week_df, config))
+        raw_slot_cutlines_by_week.append(compute_weekly_raw_cutlines(week_df, config))
+        started_df = assign_leaguewide_starting_set(week_df, config)
+        raw_pos_cutlines_by_week.append(compute_position_cutlines(started_df))
 
-    base_cutlines = compute_season_base_cutlines(raw_cutlines_by_week)
+    base_slot_cutlines = compute_season_base_cutlines(raw_slot_cutlines_by_week)
+    base_pos_cutlines = compute_season_base_cutlines(raw_pos_cutlines_by_week, keys=POSITIONS)
 
     # Build a cutlines record for export.
     cutline_rows: list[dict] = []
-    for week, raw_cl in zip(weeks, raw_cutlines_by_week):
-        shrunk_cl = apply_shrinkage(raw_cl, base_cutlines, config)
-        for slot in raw_cl:
+    for week, raw_slot_cl, raw_pos_cl in zip(weeks, raw_slot_cutlines_by_week, raw_pos_cutlines_by_week):
+        shrunk_slot_cl = apply_shrinkage(raw_slot_cl, base_slot_cutlines, config)
+        shrunk_pos_cl = apply_shrinkage(raw_pos_cl, base_pos_cutlines, config, keys=POSITIONS)
+        for slot in raw_slot_cl:
             cutline_rows.append({
                 "season": season,
                 "week": week,
-                "slot": slot,
-                "raw_cutline": raw_cl[slot],
-                "shrunk_cutline": shrunk_cl[slot],
-                "base_cutline": base_cutlines[slot],
+                "cutline_type": "slot",
+                "key": slot,
+                "raw_cutline": raw_slot_cl[slot],
+                "shrunk_cutline": shrunk_slot_cl[slot],
+                "base_cutline": base_slot_cutlines[slot],
+            })
+        for pos in raw_pos_cl:
+            cutline_rows.append({
+                "season": season,
+                "week": week,
+                "cutline_type": "position",
+                "key": pos,
+                "raw_cutline": raw_pos_cl[pos],
+                "shrunk_cutline": shrunk_pos_cl[pos],
+                "base_cutline": base_pos_cutlines[pos],
             })
     cutlines_df = pd.DataFrame(cutline_rows)
 
-    # --- Assignment + SAV (weekly) ------------------------------------------
+    # --- Pass 2: assignment + margins (using position cutlines) -------------
     started_frames: list[pd.DataFrame] = []
     full_pool_frames: list[pd.DataFrame] = []
-    for week, raw_cl in zip(weeks, raw_cutlines_by_week):
+    for week, raw_slot_cl, raw_pos_cl in zip(weeks, raw_slot_cutlines_by_week, raw_pos_cutlines_by_week):
         week_df = season_points[season_points["week"] == week]
-        shrunk_cl = apply_shrinkage(raw_cl, base_cutlines, config)
+        shrunk_pos_cl = apply_shrinkage(raw_pos_cl, base_pos_cutlines, config, keys=POSITIONS)
         # Top-100 starters for SAV calculation.
-        started = compute_sav_for_week(week_df, shrunk_cl, config)
+        started_df = assign_leaguewide_starting_set(week_df, config)
+        started = compute_weekly_margins(started_df, shrunk_pos_cl)
         started["season"] = season
         started["week"] = week
         started_frames.append(started)
         # Full player pool (all players with points >= 0.1) for RSV.
-        full_pool = compute_full_pool_margins(week_df, shrunk_cl, config, min_points=0.1)
+        full_pool = compute_full_pool_margins(week_df, shrunk_pos_cl, config, min_points=0.1)
         full_pool["season"] = season
         full_pool["week"] = week
         full_pool_frames.append(full_pool)

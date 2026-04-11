@@ -108,12 +108,12 @@ Cutlines are computed via a deterministic leaguewide optimal allocation of actua
 Weekly cutlines are shrunk toward a season baseline to reduce noise:
 `R_{s,w} = Î»_s * R_base_s + (1-Î»_s) * R_raw_{s,w}`
 
-### Assignment (non-negotiable)
+### Assignment
 Players **cannot** choose the slot that maximizes their value.
 
-Each week we compute an optimal constrained starting set and record each started player's **assigned slot**. Weekly margin is computed against the cutline of that assigned slot.
+Each week we compute an optimal constrained starting set via a greedy allocation under lineup constraints. The assignment determines **who starts** and in which slot, but margins are computed against **position-level cutlines** -- the lowest-scoring starter of that position across all slots.
 
-This prevents artifacts like â€œRB21 looks more valuable than RB20 because it was compared to FLEX.â€
+This ensures all QBs are valued against the same QB replacement level regardless of whether they fill the QB or SF slot, eliminating the artifact where a SF-slot QB gets inflated WMSV from a lower slot cutline.
 
 ---
 
@@ -176,8 +176,8 @@ v1 focuses on these outputs (DataFrames/CSVs):
 ## Invariants (Do Not Violate)
 
 - League rules live only in `src/config/league_config.yaml`. Do not hardcode league settings elsewhere.
-- Phase 1 cutlines are computed by slot (QB,RB,WR,TE,FLEX,SF) using leaguewide optimal allocation.
-- Players cannot choose the slot that maximizes value. Assignment defines slot for margin calculations.
+- Phase 1 slot cutlines (QB,RB,WR,TE,FLEX,SF) determine the leaguewide starting set. **Position cutlines** (min starter points by position across all slots) are used for margin/WMSV calculation.
+- Players cannot choose the slot that maximizes value. Assignment determines who starts; position determines the replacement baseline.
 - Phase 3: Real Salary drives contract PV and dead money; Current Salary is only for â€œcap today.â€
 - Any extended/tagged/optioned deal must set `needs_schedule_validation=true` unless an observed year-by-year schedule is provided.
 - Tests are mandatory for every milestone (`python -m pytest -q` must pass).

@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 SLOTS: tuple[str, ...] = ("QB", "RB", "WR", "TE", "FLEX", "SF")
+POSITIONS: tuple[str, ...] = ("QB", "RB", "WR", "TE")
 
 
 def compute_weekly_raw_cutlines(week_df: pd.DataFrame, config: dict[str, Any]) -> dict[str, float]:
@@ -43,14 +44,34 @@ def compute_weekly_raw_cutlines(week_df: pd.DataFrame, config: dict[str, Any]) -
     return cutlines
 
 
-def compute_season_base_cutlines(raw_cutlines_by_week: list[dict[str, float]]) -> dict[str, float]:
-    """Compute season base cutlines as the median raw cutline for each slot."""
+def compute_position_cutlines(started_df: pd.DataFrame) -> dict[str, float]:
+    """Compute position-level cutlines from the leaguewide starting set.
+
+    The position cutline for a given position is the minimum points scored
+    by any starter of that position, regardless of which slot they were
+    assigned to (e.g. a QB starting in the SF slot contributes to the QB
+    position cutline).
+    """
+    cutlines: dict[str, float] = {}
+    for pos in POSITIONS:
+        pos_starters = started_df[started_df["position"] == pos]
+        if pos_starters.empty:
+            raise ValueError(f"No starters found for position {pos}")
+        cutlines[pos] = float(pos_starters["points"].min())
+    return cutlines
+
+
+def compute_season_base_cutlines(
+    raw_cutlines_by_week: list[dict[str, float]],
+    keys: tuple[str, ...] = SLOTS,
+) -> dict[str, float]:
+    """Compute season base cutlines as the median raw cutline for each key."""
     if not raw_cutlines_by_week:
         raise ValueError("raw_cutlines_by_week must contain at least one week")
 
     return {
-        slot: float(median(week_cutlines[slot] for week_cutlines in raw_cutlines_by_week))
-        for slot in SLOTS
+        key: float(median(week_cutlines[key] for week_cutlines in raw_cutlines_by_week))
+        for key in keys
     }
 
 
@@ -58,13 +79,14 @@ def apply_shrinkage(
     raw_cutlines: dict[str, float],
     base_cutlines: dict[str, float],
     config: dict[str, Any],
+    keys: tuple[str, ...] = SLOTS,
 ) -> dict[str, float]:
-    """Apply per-slot shrinkage from weekly raw cutlines toward season base cutlines."""
+    """Apply per-key shrinkage from weekly raw cutlines toward season base cutlines."""
     lambdas = config["valuation"]["shrinkage_lambdas"]
     return {
-        slot: float(lambdas[slot]) * float(base_cutlines[slot])
-        + (1.0 - float(lambdas[slot])) * float(raw_cutlines[slot])
-        for slot in SLOTS
+        key: float(lambdas[key]) * float(base_cutlines[key])
+        + (1.0 - float(lambdas[key])) * float(raw_cutlines[key])
+        for key in keys
     }
 
 

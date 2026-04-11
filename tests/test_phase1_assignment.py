@@ -8,7 +8,7 @@ from src.valuation.phase1_assignment import (
     compute_sav_for_week,
     compute_weekly_margins,
 )
-from src.valuation.phase1_cutlines import compute_weekly_raw_cutlines
+from src.valuation.phase1_cutlines import compute_position_cutlines, compute_weekly_raw_cutlines
 from src.valuation.phase1_metrics import aggregate_sav
 
 
@@ -90,11 +90,11 @@ def test_flex_and_sf_are_selected_from_remaining_pools():
 def test_compute_weekly_margins_and_wrapper():
     config = load_league_config()
     week_df = _make_assignment_week()
-    cutlines = compute_weekly_raw_cutlines(week_df, config)
 
     started_df = assign_leaguewide_starting_set(week_df, config)
-    margins_df = compute_weekly_margins(started_df, cutlines)
-    wrapper_df = compute_sav_for_week(week_df, cutlines, config)
+    pos_cutlines = compute_position_cutlines(started_df)
+    margins_df = compute_weekly_margins(started_df, pos_cutlines)
+    wrapper_df = compute_sav_for_week(week_df, pos_cutlines, config)
 
     assert margins_df.equals(wrapper_df)
 
@@ -102,27 +102,30 @@ def test_compute_weekly_margins_and_wrapper():
     qb10 = margins_df.loc[margins_df["player"] == "QB10"].iloc[0]
     qb11 = margins_df.loc[margins_df["player"] == "QB11"].iloc[0]
 
+    # All QBs are compared against the QB position cutline (QB12 = 189 pts),
+    # regardless of whether they are in the QB or SF slot.
     assert qb1["assigned_slot"] == "QB"
-    assert math.isclose(qb1["margin"], 9.0, rel_tol=1e-12)
-    assert math.isclose(qb1["wmsv"], 9.0, rel_tol=1e-12)
+    assert math.isclose(qb1["margin"], 11.0, rel_tol=1e-12)
+    assert math.isclose(qb1["wmsv"], 11.0, rel_tol=1e-12)
     assert math.isclose(qb1["wdrag"], 0.0, rel_tol=1e-12)
 
     assert qb10["assigned_slot"] == "QB"
-    assert math.isclose(qb10["margin"], 0.0, rel_tol=1e-12)
-    assert math.isclose(qb10["wmsv"], 0.0, rel_tol=1e-12)
+    assert math.isclose(qb10["margin"], 2.0, rel_tol=1e-12)
+    assert math.isclose(qb10["wmsv"], 2.0, rel_tol=1e-12)
     assert math.isclose(qb10["wdrag"], 0.0, rel_tol=1e-12)
 
+    # QB11 is in the SF slot but still compared against the QB position cutline.
     assert qb11["assigned_slot"] == "SF"
-    expected_qb11_margin = float(qb11["points"]) - float(cutlines["SF"])
-    assert math.isclose(qb11["margin"], expected_qb11_margin, rel_tol=1e-12)
-    assert math.isclose(qb11["wmsv"], expected_qb11_margin, rel_tol=1e-12)
+    assert math.isclose(qb11["margin"], 1.0, rel_tol=1e-12)
+    assert math.isclose(qb11["wmsv"], 1.0, rel_tol=1e-12)
     assert math.isclose(qb11["wdrag"], 0.0, rel_tol=1e-12)
 
+    # Negative margin: cutlines are now position-keyed.
     negative_df = compute_weekly_margins(
         pd.DataFrame(
             [{"player": "LowStarter", "position": "RB", "points": 8.0, "assigned_slot": "FLEX", "rank_within_slot": 1}]
         ),
-        {"QB": 0.0, "RB": 0.0, "WR": 0.0, "TE": 0.0, "FLEX": 10.0, "SF": 0.0},
+        {"QB": 0.0, "RB": 10.0, "WR": 0.0, "TE": 0.0},
     )
     row = negative_df.iloc[0]
     assert math.isclose(row["margin"], -2.0, rel_tol=1e-12)
@@ -131,19 +134,26 @@ def test_compute_weekly_margins_and_wrapper():
 
 
 
-def test_slot_gaming_artifact_is_prevented():
+def test_position_cutline_eliminates_slot_gaming_artifact():
+    """Position-based cutlines make the slot gaming artifact structurally impossible.
+
+    Under the old slot-based approach, a player at the bottom of the RB slot
+    could appear less valuable than a worse player who happened to land in
+    the FLEX slot (with its lower cutline).  With position cutlines, all RBs
+    are compared against the same RB position cutline regardless of slot.
+    """
     config = load_league_config()
     week_df = _make_slot_gaming_week()
-    cutlines = compute_weekly_raw_cutlines(week_df, config)
 
-    started_df = compute_sav_for_week(week_df, cutlines, config)
+    started_df = assign_leaguewide_starting_set(week_df, config)
+    pos_cutlines = compute_position_cutlines(started_df)
+    margins_df = compute_sav_for_week(week_df, pos_cutlines, config)
 
-    assert "RB21" not in started_df["player"].tolist()
+    assert "RB21" not in margins_df["player"].tolist()
 
-    rb20 = started_df.loc[started_df["player"] == "RB20"].iloc[0]
+    rb20 = margins_df.loc[margins_df["player"] == "RB20"].iloc[0]
     assert rb20["assigned_slot"] == "RB"
-    assert cutlines["FLEX"] < cutlines["RB"]
-    assert float(rb20["points"]) > cutlines["FLEX"]
+    # RB20 is the position cutline player, so margin is 0.
     assert math.isclose(rb20["margin"], 0.0, rel_tol=1e-12)
 
 

@@ -45,10 +45,15 @@ def assign_leaguewide_starting_set(week_df: pd.DataFrame, config: dict[str, Any]
 
 
 def compute_weekly_margins(started_df: pd.DataFrame, cutlines: dict[str, float]) -> pd.DataFrame:
-    """Compute slot-based weekly margins and positive/negative weekly value."""
+    """Compute position-based weekly margins and positive/negative weekly value.
+
+    ``cutlines`` must be keyed by position (QB, RB, WR, TE).  Every player's
+    margin is measured against their own position's cutline, regardless of
+    which slot they were assigned to.
+    """
     result = started_df.copy()
     result["margin"] = result.apply(
-        lambda row: float(row["points"]) - float(cutlines[row["assigned_slot"]]),
+        lambda row: float(row["points"]) - float(cutlines[row["position"]]),
         axis=1,
     )
     result["wmsv"] = result["margin"].clip(lower=0.0)
@@ -58,12 +63,12 @@ def compute_weekly_margins(started_df: pd.DataFrame, cutlines: dict[str, float])
 
 def compute_sav_for_week(
     week_df: pd.DataFrame,
-    cutlines: dict[str, float],
+    position_cutlines: dict[str, float],
     config: dict[str, Any],
 ) -> pd.DataFrame:
     """Assign the weekwide starting set and compute weekly margins for SAV."""
     started_df = assign_leaguewide_starting_set(week_df, config)
-    return compute_weekly_margins(started_df, cutlines)
+    return compute_weekly_margins(started_df, position_cutlines)
 
 
 # Fallback slot for players not in the leaguewide starting set.
@@ -77,22 +82,23 @@ _FALLBACK_SLOT: dict[str, str] = {
 
 def compute_full_pool_margins(
     week_df: pd.DataFrame,
-    cutlines: dict[str, float],
+    position_cutlines: dict[str, float],
     config: dict[str, Any],
     min_points: float = 0.1,
 ) -> pd.DataFrame:
     """Compute margins for ALL players in the weekly pool, not just starters.
 
     Players in the optimal starting set get their assigned slot.
-    Non-starters get a fallback slot (QB→SF, RB/WR/TE→FLEX) and their
-    margin is computed against that slot's cutline.
+    Non-starters get a fallback slot (QB→SF, RB/WR/TE→FLEX) so the capture
+    model can determine start probability.  Margins for all players are
+    computed against their **position** cutline.
 
     Parameters
     ----------
     week_df:
         Full weekly player pool with columns: gsis_id, player, position, points.
-    cutlines:
-        Shrunk cutlines by slot for this week.
+    position_cutlines:
+        Shrunk cutlines keyed by position (QB, RB, WR, TE).
     config:
         League config dict.
     min_points:
@@ -125,7 +131,7 @@ def compute_full_pool_margins(
 
     # Combine starters + non-starters, compute margins.
     full_pool = pd.concat([started_df, non_starters], ignore_index=True)
-    return compute_weekly_margins(full_pool, cutlines)
+    return compute_weekly_margins(full_pool, position_cutlines)
 
 
 

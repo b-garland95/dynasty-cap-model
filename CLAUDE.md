@@ -48,8 +48,8 @@ Source tree is organized by pipeline phase, not by data type:
 
 ### Phase 1 mechanics that are easy to get wrong
 
-- **Cutlines are by slot**, not by position: QB, RB, WR, TE, FLEX (RB/WR/TE), SF (QB/RB/WR/TE). They come from a weekly leaguewide *optimal constrained allocation* of actual points, then shrunk toward a season baseline.
-- **Players cannot choose their best slot.** Each week, an optimal constrained starting set is computed, each started player gets an **assigned slot**, and weekly margin is computed against *that* slot's cutline. This prevents "RB21 > RB20 because it compared to FLEX" artifacts.
+- **Two levels of cutlines**: **Slot cutlines** (QB, RB, WR, TE, FLEX, SF) are computed via a weekly leaguewide optimal constrained allocation and determine who starts. **Position cutlines** (the min points of any starter of that position across all slots) are used for margin/WMSV calculation. Both are shrunk toward a season baseline.
+- **Players cannot choose their best slot.** The assignment determines who starts and in which slot. Margins are computed against the player's **position cutline**, not their assigned slot's cutline. This ensures all QBs are valued against the same replacement level whether they fill the QB or SF slot.
 - Realized Start Value (RSV) discounts SAV by roster/start probabilities in a rational average league; LD penalizes sub-replacement starts; `CG = SAV - RSV`.
 
 ### Phase 3 contract invariants

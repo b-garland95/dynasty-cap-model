@@ -1,9 +1,15 @@
 ﻿import math
+import textwrap
 from pathlib import Path
 
 import pandas as pd
 
-from src.contracts.phase3_tables import build_contract_ledger, build_salary_schedule
+from src.contracts.phase3_tables import (
+    apply_schedule_overrides,
+    build_contract_ledger,
+    build_salary_schedule,
+    load_schedule_overrides,
+)
 from src.contracts.schedule_builder import build_rounded_salary_path
 from src.utils.config import load_league_config
 
@@ -68,3 +74,33 @@ def test_build_salary_schedule_values_and_shape():
 def test_salary_schedule_rounds_up_each_future_year():
     rounded_path = build_rounded_salary_path(base_salary=5.0, years_remaining=4, annual_inflation=0.10)
     assert rounded_path == [5.0, 6.0, 7.0, 8.0]
+
+
+def test_apply_schedule_overrides_replaces_matching_rows(tmp_path: Path):
+    ledger_df = build_contract_ledger(_fixture_roster_path())
+    config = load_league_config()
+    schedule_df = build_salary_schedule(ledger_df, config)
+
+    override_path = tmp_path / "schedule_overrides.csv"
+    override_path.write_text(
+        textwrap.dedent(
+            """\
+            player,team,position,year_index,cap_hit_real,cap_hit_current,schedule_source,needs_schedule_validation
+            Player One,A,RB,1,99,,manual_override,TRUE
+            Player Four,B,RB,1,44,,manual_override,FALSE
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    overridden = apply_schedule_overrides(schedule_df, load_schedule_overrides(override_path))
+
+    player_one = overridden[(overridden["player"] == "Player One") & (overridden["year_index"] == 1)].iloc[0]
+    assert player_one["cap_hit_real"] == 99.0
+    assert player_one["schedule_source"] == "manual_override"
+    assert bool(player_one["needs_schedule_validation"]) is True
+
+    player_four = overridden[(overridden["player"] == "Player Four") & (overridden["year_index"] == 1)].iloc[0]
+    assert player_four["cap_hit_real"] == 44.0
+    assert player_four["schedule_source"] == "manual_override"
+    assert bool(player_four["needs_schedule_validation"]) is False

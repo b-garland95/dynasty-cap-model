@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -111,7 +112,7 @@ def build_salary_schedule(ledger_df: pd.DataFrame, config: dict[str, Any]) -> pd
     for ledger_row in ledger_df.to_dict(orient="records"):
         rows.extend(build_player_schedule_rows(ledger_row, annual_inflation=annual_inflation))
 
-    return pd.DataFrame(
+    schedule_df = pd.DataFrame(
         rows,
         columns=[
             "player",
@@ -124,3 +125,60 @@ def build_salary_schedule(ledger_df: pd.DataFrame, config: dict[str, Any]) -> pd
             "needs_schedule_validation",
         ],
     )
+    return schedule_df
+
+
+def apply_schedule_overrides(
+    schedule_df: pd.DataFrame,
+    overrides_df: pd.DataFrame | None,
+) -> pd.DataFrame:
+    """Apply row-level schedule overrides keyed by player/team/position/year_index."""
+    if overrides_df is None or overrides_df.empty:
+        return schedule_df.copy()
+
+    key_cols = ["player", "team", "position", "year_index"]
+    required = set(key_cols + ["cap_hit_real", "cap_hit_current", "schedule_source", "needs_schedule_validation"])
+    missing = sorted(required - set(overrides_df.columns))
+    if missing:
+        raise ValueError(f"Schedule overrides missing required columns: {missing}")
+
+    working = schedule_df.copy()
+    overrides = overrides_df.copy()
+
+    overrides["year_index"] = pd.to_numeric(overrides["year_index"], errors="raise").astype(int)
+    overrides["cap_hit_real"] = pd.to_numeric(overrides["cap_hit_real"], errors="raise").astype(float)
+    overrides["cap_hit_current"] = pd.to_numeric(overrides["cap_hit_current"], errors="coerce").astype(float)
+    overrides["needs_schedule_validation"] = overrides["needs_schedule_validation"].map(_to_bool).astype(bool)
+
+    dup_mask = overrides.duplicated(subset=key_cols, keep=False)
+    if dup_mask.any():
+        dupes = overrides.loc[dup_mask, key_cols].drop_duplicates().to_dict(orient="records")
+        raise ValueError(f"Schedule overrides contain duplicate keys: {dupes}")
+
+    working["_row_order"] = range(len(working))
+    merged = working.merge(
+        overrides,
+        on=key_cols,
+        how="left",
+        suffixes=("", "_override"),
+    )
+
+    for col in ["cap_hit_real", "cap_hit_current", "schedule_source", "needs_schedule_validation"]:
+        override_col = f"{col}_override"
+        merged[col] = merged[override_col].combine_first(merged[col])
+
+    merged["needs_schedule_validation"] = merged["needs_schedule_validation"].map(_to_bool).astype(bool)
+
+    drop_cols = [f"{col}_override" for col in ["cap_hit_real", "cap_hit_current", "schedule_source", "needs_schedule_validation"]]
+    merged = merged.drop(columns=drop_cols).sort_values("_row_order").drop(columns="_row_order")
+    return merged.reset_index(drop=True)
+
+
+def load_schedule_overrides(path: str | Path | None) -> pd.DataFrame | None:
+    """Load schedule overrides CSV if present, otherwise return None."""
+    if path is None:
+        return None
+    path_obj = Path(path)
+    if not path_obj.exists():
+        return None
+    return pd.read_csv(path_obj)

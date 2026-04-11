@@ -5,17 +5,27 @@ from typing import Any
 
 import pandas as pd
 
-from src.contracts.phase3_tables import build_contract_ledger, build_salary_schedule
+from src.contracts.phase3_tables import (
+    apply_schedule_overrides,
+    build_contract_ledger,
+    build_salary_schedule,
+    load_schedule_overrides,
+)
 
 
 def export_phase3_tables(
     roster_csv_path: str,
     config: dict[str, Any],
     output_dir: str,
+    schedule_overrides_path: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build and export the Phase 3 ledger and salary schedule as CSV files."""
     ledger_df = build_contract_ledger(roster_csv_path)
     schedule_df = build_salary_schedule(ledger_df, config)
+    schedule_df = apply_schedule_overrides(
+        schedule_df,
+        load_schedule_overrides(schedule_overrides_path),
+    )
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)

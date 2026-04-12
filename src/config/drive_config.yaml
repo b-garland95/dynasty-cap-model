@@ -1,0 +1,95 @@
+# Google Drive file/folder IDs for cross-device data access.
+#
+# HOW TO GET A FILE ID:
+#   1. Upload the file to Google Drive.
+#   2. Right-click → "Share" → "Anyone with the link" → copy the link.
+#   3. The ID is the long string between /d/ and /view in the URL:
+#      https://drive.google.com/file/d/<FILE_ID>/view
+#
+# HOW TO GET A FOLDER ID:
+#   Open the folder in Drive; the ID is the last path segment in the URL:
+#      https://drive.google.com/drive/folders/<FOLDER_ID>
+#
+# Run:  python scripts/sync_data_from_drive.py        (download all)
+#       python scripts/sync_data_from_drive.py --force (re-download even if present)
+
+# ── Raw inputs ────────────────────────────────────────────────────────────────
+# These cannot be regenerated; they must be uploaded to Drive manually.
+raw_files:
+  - local: "data/raw/fantasydata_weekly_projections_2014_2024_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  - local: "data/raw/nflverse_player_stats_week_2015_2025_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  - local: "data/raw/roster_exports/lbb_rosters_2025.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  - local: "data/raw/roster_exports/contract_salary_schedule_overrides.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  # 2025 weekly projections — one entry per week produced
+  - local: "data/raw/fantasydata_weekly_projections_2025_week1_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week2_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week3_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week4_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week5_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week6_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week7_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week8_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week9_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week10_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week11_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week12_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week13_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week14_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week15_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week16_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week17_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+  - local: "data/raw/fantasydata_weekly_projections_2025_week18_raw.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+# ── Raw folders (downloaded as a whole directory) ─────────────────────────────
+raw_folders:
+  - local: "data/raw/rankings/redraft_adp"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+    # Upload the entire redraft_adp/ folder to Drive, then paste the folder ID here.
+
+  - local: "data/raw/rankings/redraft"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+# ── Interim files (generated, but expensive to regenerate) ────────────────────
+# These are produced by the pipeline. Sync them so you don't have to re-run
+# everything from scratch on a new machine.
+interim_files:
+  - local: "data/interim/historical_weekly_player_points_2015_2025.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  # weekly_projections_2014_2025_master_normalized.csv is committed to git,
+  # so it does not need a Drive entry unless you have a newer version locally.
+
+  - local: "data/interim/redraft_rankings_master.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  - local: "data/interim/phase2_training_dataset.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"
+
+  - local: "data/interim/phase3/tv_inputs.csv"
+    drive_id: "FILL_IN_AFTER_UPLOAD"

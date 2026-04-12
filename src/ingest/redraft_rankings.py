@@ -260,6 +260,7 @@ def build_master_redraft_rankings(
 
 # ---------------------------------------------------------------------------
 # FantasyData 2QB ADP format (data/raw/rankings/redraft_adp/)
+
 # ---------------------------------------------------------------------------
 
 def _extract_season_from_adp_path(path: Path) -> int:
@@ -363,3 +364,96 @@ def build_master_redraft_adp(
         "position", "pos_rank", "merge_name", "gsis_id",
     ]
     return master[col_order].copy()
+
+
+# ---------------------------------------------------------------------------
+# Combined ADP + FantasyPros fallback
+# ---------------------------------------------------------------------------
+
+
+def build_master_redraft_adp_with_fallback(
+    adp_dir: Path,
+    rankings_fallback_dir: Path,
+    *,
+    crosswalk: Optional[pd.DataFrame] = None,
+    name_overrides_path: Optional[Path] = None,
+    ambiguous_ids_path: Optional[Path] = None,
+) -> pd.DataFrame:
+    """Build master redraft ADP, using FantasyPros rankings as a per-season fallback.
+
+    For each season, FantasyData ADP is preferred.  When ADP data is absent for a
+    season (e.g. because FantasyData has not yet published rankings for the upcoming
+    year), the corresponding FantasyPros rankings file is used instead.
+
+    Parameters
+    ----------
+    adp_dir:
+        Directory containing ``nfl-2qb-adp-*_YYYY.csv`` FantasyData ADP files.
+    rankings_fallback_dir:
+        Directory containing ``FantasyPros_YYYY_Draft_OP_Rankings.csv`` files
+        used as a fallback when ADP is not available for a season.
+    crosswalk:
+        Optional pre-loaded nflverse crosswalk; fetched live if None.
+    name_overrides_path, ambiguous_ids_path:
+        Passed through to :func:`build_master_redraft_rankings` for the fallback
+        seasons.  See that function for defaults.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: season, rank, tier, player, team, position, pos_rank,
+                 merge_name, gsis_id, ranking_source
+
+        ``ranking_source`` is ``"fantasydata_adp"`` for rows sourced from
+        FantasyData ADP files and ``"fantasypros_rankings"`` for rows sourced
+        from FantasyPros fallback files.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no files are found in either directory.
+    """
+    if crosswalk is None:
+        crosswalk = load_player_id_crosswalk()
+
+    frames: list[pd.DataFrame] = []
+    adp_seasons: set[int] = set()
+
+    # --- Primary: FantasyData ADP -------------------------------------------
+    adp_files = sorted(adp_dir.glob("nfl-2qb-adp-*.csv"))
+    if adp_files:
+        adp_master = build_master_redraft_adp(adp_dir, crosswalk=crosswalk)
+        adp_master["ranking_source"] = "fantasydata_adp"
+        adp_seasons = set(adp_master["season"].unique())
+        frames.append(adp_master)
+
+    # --- Fallback: FantasyPros rankings for seasons not covered by ADP -------
+    rankings_files = sorted(
+        rankings_fallback_dir.glob("FantasyPros_*_Draft_OP_Rankings.csv")
+    )
+    if rankings_files:
+        rankings_master = build_master_redraft_rankings(
+            rankings_fallback_dir,
+            crosswalk=crosswalk,
+            name_overrides_path=name_overrides_path,
+            ambiguous_ids_path=ambiguous_ids_path,
+        )
+        fallback = rankings_master[
+            ~rankings_master["season"].isin(adp_seasons)
+        ].copy()
+        if not fallback.empty:
+            fallback["ranking_source"] = "fantasypros_rankings"
+            frames.append(fallback)
+
+    if not frames:
+        raise FileNotFoundError(
+            f"No ADP files found in {adp_dir} and no rankings files found in "
+            f"{rankings_fallback_dir}"
+        )
+
+    combined = pd.concat(frames, ignore_index=True)
+    col_order = [
+        "season", "rank", "tier", "player", "team",
+        "position", "pos_rank", "merge_name", "gsis_id", "ranking_source",
+    ]
+    return combined[col_order].copy()

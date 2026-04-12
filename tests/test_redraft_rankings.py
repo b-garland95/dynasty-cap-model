@@ -11,6 +11,7 @@ import pytest
 from src.ingest.player_ids import CROSSWALK_COLUMNS
 from src.ingest.redraft_rankings import (
     build_master_redraft_adp,
+    build_master_redraft_adp_with_fallback,
     build_master_redraft_rankings,
     load_single_redraft_adp,
     load_single_redraft_rankings,
@@ -388,3 +389,113 @@ def test_adp_rank_is_float(tmp_path, crosswalk):
                    ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
     master = build_master_redraft_adp(tmp_path, crosswalk=crosswalk)
     assert master.iloc[0]["rank"] == 3.2
+
+
+# ===========================================================================
+# build_master_redraft_adp_with_fallback
+# ===========================================================================
+
+
+def test_fallback_output_columns(tmp_path, crosswalk):
+    """Output schema includes ranking_source on top of the standard columns."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2024.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+
+    master = build_master_redraft_adp_with_fallback(
+        adp_dir, rankings_dir, crosswalk=crosswalk
+    )
+    expected = [
+        "season", "rank", "tier", "player", "team",
+        "position", "pos_rank", "merge_name", "gsis_id", "ranking_source",
+    ]
+    assert list(master.columns) == expected
+
+
+def test_fallback_adp_season_gets_fantasydata_source(tmp_path, crosswalk):
+    """Seasons present in ADP files are labelled fantasydata_adp."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+
+    master = build_master_redraft_adp_with_fallback(
+        adp_dir, rankings_dir, crosswalk=crosswalk
+    )
+    assert len(master) == 1
+    assert master.iloc[0]["season"] == 2025
+    assert master.iloc[0]["ranking_source"] == "fantasydata_adp"
+
+
+def test_fallback_missing_adp_season_uses_rankings(tmp_path, crosswalk):
+    """Seasons absent from ADP but present in rankings use fantasypros_rankings."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    # 2025 has ADP; 2026 only has rankings (simulates missing FantasyData publish)
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+    _write_csv(rankings_dir, "FantasyPros_2026_Draft_OP_Rankings.csv",
+               _STANDARD_HEADER,
+               ['"1",1,"Josh Allen",BUF,"QB1","1","7","2.0","0.7","-"'])
+
+    master = build_master_redraft_adp_with_fallback(
+        adp_dir, rankings_dir,
+        crosswalk=crosswalk,
+        name_overrides_path=_NO_OVERRIDES,
+        ambiguous_ids_path=_NO_AMBIG,
+    )
+
+    assert set(master["season"]) == {2025, 2026}
+    adp_row = master[master["season"] == 2025].iloc[0]
+    fallback_row = master[master["season"] == 2026].iloc[0]
+    assert adp_row["ranking_source"] == "fantasydata_adp"
+    assert fallback_row["ranking_source"] == "fantasypros_rankings"
+
+
+def test_fallback_adp_season_not_duplicated_by_rankings(tmp_path, crosswalk):
+    """When a season exists in both ADP and rankings, only the ADP rows appear."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+    # Rankings file for the same 2025 season — should be suppressed
+    _write_csv(rankings_dir, "FantasyPros_2025_Draft_OP_Rankings.csv",
+               _STANDARD_HEADER,
+               ['"1",1,"Josh Allen",BUF,"QB1","1","7","2.0","0.7","-"'])
+
+    master = build_master_redraft_adp_with_fallback(
+        adp_dir, rankings_dir,
+        crosswalk=crosswalk,
+        name_overrides_path=_NO_OVERRIDES,
+        ambiguous_ids_path=_NO_AMBIG,
+    )
+
+    assert set(master["season"]) == {2025}
+    assert len(master) == 1
+    assert master.iloc[0]["ranking_source"] == "fantasydata_adp"
+
+
+def test_fallback_raises_when_both_dirs_empty(tmp_path, crosswalk):
+    """FileNotFoundError when neither directory has any usable files."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    with pytest.raises(FileNotFoundError):
+        build_master_redraft_adp_with_fallback(
+            adp_dir, rankings_dir, crosswalk=crosswalk
+        )

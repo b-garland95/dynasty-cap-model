@@ -67,6 +67,12 @@ def build_phase2_tv_inputs_from_frames(
         target_rankings[["season", "player", "team", "position", "merge_name", "adp", "log_adp"]],
     ).rename(columns={"player": "rankings_player", "team": "nfl_team"})
 
+    # Carry ranking_source through if present (set by build_master_redraft_adp_with_fallback)
+    has_ranking_source = "ranking_source" in target_rankings.columns
+    if has_ranking_source:
+        source_lookup = target_rankings[["merge_name", "position", "ranking_source"]].copy()
+        scored = scored.merge(source_lookup, on=["merge_name", "position"], how="left")
+
     roster = ledger_df.copy()
     roster["merge_name"] = roster["player"].map(normalize_name)
     roster["position"] = roster["position"].astype(str).str.upper()
@@ -88,32 +94,51 @@ def build_phase2_tv_inputs_from_frames(
     merged["tv_y0"] = merged["rsv_hat"].fillna(0.0).astype(float)
     for col in ["tv_y1", "tv_y2", "tv_y3"]:
         merged[col] = merged["tv_y0"]
-    merged["tv_input_source"] = np.where(
-        merged["rsv_hat"].notna(),
-        "phase2_2026_redraft_flat_path",
-        "unranked_zero",
-    )
-    merged["matched_2026_rankings"] = merged["rsv_hat"].notna()
+
+    # Build tv_input_source; use ranking_source-aware labels when available
+    if has_ranking_source:
+        _source_labels = {
+            "fantasydata_adp": f"phase2_{target_season}_adp",
+            "fantasypros_rankings": f"phase2_{target_season}_rankings_fallback",
+        }
+        matched_label = merged["ranking_source"].map(_source_labels).fillna(
+            f"phase2_{target_season}_redraft_flat_path"
+        )
+        merged["tv_input_source"] = np.where(
+            merged["rsv_hat"].isna(), "unranked_zero", matched_label
+        )
+    else:
+        merged["tv_input_source"] = np.where(
+            merged["rsv_hat"].notna(),
+            f"phase2_{target_season}_redraft_flat_path",
+            "unranked_zero",
+        )
+
+    merged["matched_rankings"] = merged["rsv_hat"].notna()
     merged["is_rostered"] = merged["fantasy_team"].notna()
 
-    return merged[
-        [
-            "player",
-            "team",
-            "position",
-            "tv_y0",
-            "tv_y1",
-            "tv_y2",
-            "tv_y3",
-            "adp",
-            "rsv_hat",
-            "rsv_p25",
-            "rsv_p50",
-            "rsv_p75",
-            "rankings_player",
-            "nfl_team",
-            "matched_2026_rankings",
-            "is_rostered",
-            "tv_input_source",
-        ]
-    ].sort_values(["is_rostered", "team", "position", "player"], ascending=[False, True, True, True]).reset_index(drop=True)
+    output_cols = [
+        "player",
+        "team",
+        "position",
+        "tv_y0",
+        "tv_y1",
+        "tv_y2",
+        "tv_y3",
+        "adp",
+        "rsv_hat",
+        "rsv_p25",
+        "rsv_p50",
+        "rsv_p75",
+        "rankings_player",
+        "nfl_team",
+        "matched_rankings",
+        "is_rostered",
+        "tv_input_source",
+    ]
+    if has_ranking_source:
+        output_cols.append("ranking_source")
+
+    return merged[output_cols].sort_values(
+        ["is_rostered", "team", "position", "player"], ascending=[False, True, True, True]
+    ).reset_index(drop=True)

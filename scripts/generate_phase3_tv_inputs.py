@@ -35,7 +35,7 @@ def main() -> int:
     output_csv_path.parent.mkdir(parents=True, exist_ok=True)
     tv_inputs_df.to_csv(output_csv_path, index=False)
 
-    matched = int(tv_inputs_df["matched_2026_rankings"].sum())
+    matched = int(tv_inputs_df["matched_rankings"].sum())
     rostered = int(tv_inputs_df["is_rostered"].sum())
     print(f"Wrote {len(tv_inputs_df)} Phase 3 TV input rows to {output_csv_path}")
     print(f"Scored 2026 redraft ranks for {matched} of {len(tv_inputs_df)} projected players")

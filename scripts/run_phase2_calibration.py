@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.ingest.player_dimensions import enrich_with_player_dimensions
 from src.modeling.backtest import rolling_backtest
 from src.modeling.training_data import build_phase2_training_data
 
@@ -21,6 +22,7 @@ RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
 TRAINING_OUTPUT = REPO_ROOT / "data" / "interim" / "phase2_training_dataset.csv"
 PREDICTIONS_OUTPUT = REPO_ROOT / "data" / "processed" / "phase2_backtest_player_predictions.csv"
 SUMMARY_OUTPUT = REPO_ROOT / "data" / "processed" / "phase2_backtest_summary.csv"
+DIMS_CACHE = REPO_ROOT / "data" / "interim" / "player_dimensions_raw.csv"
 
 
 def main() -> int:
@@ -31,6 +33,14 @@ def main() -> int:
 
     # 1. Build training dataset
     training = build_phase2_training_data(season_values, rankings)
+
+    # Enrich training data with player dimensions
+    dims_kwargs = {"cache_path": DIMS_CACHE} if DIMS_CACHE.exists() else {}
+    try:
+        training = enrich_with_player_dimensions(training, season_col="season", **dims_kwargs)
+    except Exception as exc:
+        print(f"  Warning: player dimensions enrichment failed ({exc.__class__.__name__}); skipping")
+
     TRAINING_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     training.to_csv(TRAINING_OUTPUT, index=False)
     print(f"Training dataset: {len(training)} rows across {training['season'].nunique()} seasons")
@@ -38,6 +48,13 @@ def main() -> int:
 
     # 2. Run rolling backtest
     preds, summary = rolling_backtest(training, min_train_seasons=1)
+
+    # Enrich backtest predictions with player dimensions
+    try:
+        preds = enrich_with_player_dimensions(preds, season_col="season", **dims_kwargs)
+    except Exception as exc:
+        print(f"  Warning: player dimensions enrichment on preds failed ({exc.__class__.__name__}); skipping")
+
     PREDICTIONS_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     preds.to_csv(PREDICTIONS_OUTPUT, index=False)
     summary.to_csv(SUMMARY_OUTPUT, index=False)

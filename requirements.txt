@@ -5,3 +5,4 @@ pytest
 scikit-learn
 
 nflreadpy
+gdown

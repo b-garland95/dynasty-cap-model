@@ -33,3 +33,6 @@ build/
 # Editor
 .vscode/
 .idea/
+
+# Google Drive API credentials (never commit)
+credentials/

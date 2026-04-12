@@ -1,0 +1,158 @@
+team,player,position,current_salary,real_salary,extension_salary,years_remaining,ps_eligible,has_been_extended,has_been_tagged,contract_eligible,extension_eligible,tag_eligible,contract_type_bucket,needs_schedule_validation
+That One Egg Was 40 Yards,Drake Maye,QB,13.0,13.0,29.0,2,False,False,False,False,True,False,standard,False
+That One Egg Was 40 Yards,Bijan Robinson,RB,76.0,76.0,84.0,2,False,True,False,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,James Cook,RB,32.0,32.0,36.0,2,False,True,False,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,Ja'Marr Chase,WR,70.0,70.0,77.0,1,False,True,False,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,Garrett Wilson,WR,53.0,53.0,59.0,1,False,False,True,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,Jakobi Meyers,WR,12.0,12.0,14.0,2,False,True,False,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,Josh Downs,WR,4.0,4.0,5.0,2,False,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Jayden Daniels,QB,13.0,13.0,17.0,4,False,True,False,False,False,False,instrument_adjusted,True
+That One Egg Was 40 Yards,Mason Taylor,TE,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Trey Benson,RB,1.0,4.0,5.0,1,True,False,False,False,True,False,standard,False
+That One Egg Was 40 Yards,Cade Stover,TE,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Elijah Arroyo,TE,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Konata Mumpfield,WR,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Tahj Brooks,RB,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Arian Smith,WR,1.0,1.0,2.0,3,True,False,False,False,False,False,standard,False
+That One Egg Was 40 Yards,Jalen Royals,WR,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+Mike Vick In A Box,Tony Pollard,RB,51.0,51.0,57.0,1,False,True,False,False,False,False,instrument_adjusted,True
+Mike Vick In A Box,CeeDee Lamb,WR,59.0,59.0,65.0,3,False,True,False,False,False,False,instrument_adjusted,True
+Mike Vick In A Box,Chris Olave,WR,31.0,31.0,35.0,1,False,False,False,False,True,False,standard,False
+Mike Vick In A Box,DeMario Douglas,WR,4.0,4.0,5.0,2,False,False,False,False,False,False,standard,False
+Mike Vick In A Box,Bryce Young,QB,18.0,18.0,20.0,3,False,False,False,False,False,False,standard,False
+Mike Vick In A Box,Jordan Addison,WR,9.0,9.0,10.0,2,False,False,False,False,False,False,standard,False
+Mike Vick In A Box,Trey McBride,TE,27.0,27.0,30.0,2,False,False,False,False,False,False,standard,False
+Mike Vick In A Box,DeVonta Smith,WR,25.0,25.0,28.0,1,False,False,False,False,True,False,standard,False
+Mike Vick In A Box,George Pickens,WR,13.0,13.0,34.0,3,False,True,False,False,False,False,instrument_adjusted,True
+Mike Vick In A Box,Bucky Irving,RB,3.0,3.0,15.0,1,False,False,False,False,True,False,standard,False
+Mike Vick In A Box,Marvin Harrison Jr.,WR,16.0,16.0,18.0,1,False,False,False,False,True,False,standard,False
+Mike Vick In A Box,Devin Neal,RB,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+Mike Vick In A Box,Shedeur Sanders,QB,1.0,4.0,5.0,2,True,False,False,False,False,False,standard,False
+Mike Vick In A Box,Keandre Lambert-Smith,WR,2.0,5.0,6.0,1,True,False,False,False,True,False,standard,False
+Mike Vick In A Box,Jarquez Hunter,RB,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+Mike Vick In A Box,Jaylen Wright,RB,1.0,2.0,3.0,1,True,False,False,False,True,False,standard,False
+John | Turbo Team,Justin Herbert,QB,25.0,25.0,28.0,2,False,False,False,False,False,False,standard,False
+John | Turbo Team,Jahmyr Gibbs,RB,96.0,96.0,106.0,1,False,False,True,False,False,False,instrument_adjusted,True
+John | Turbo Team,Kenneth Walker III,RB,18.0,18.0,20.0,2,False,True,False,False,False,False,instrument_adjusted,True
+John | Turbo Team,Jaxon Smith-Njigba,WR,7.0,7.0,53.0,1,False,False,False,False,True,False,standard,False
+John | Turbo Team,Amon-Ra St. Brown,WR,39.0,39.0,48.0,3,False,True,False,False,False,False,instrument_adjusted,True
+John | Turbo Team,Nico Collins,WR,37.0,37.0,41.0,2,False,False,False,False,False,False,standard,False
+John | Turbo Team,Kyle Pitts,TE,16.0,16.0,18.0,2,False,True,False,False,False,False,instrument_adjusted,True
+John | Turbo Team,Brenton Strange,TE,3.0,3.0,4.0,3,False,False,False,False,False,False,standard,False
+John | Turbo Team,Bo Nix,QB,6.0,6.0,17.0,1,False,False,False,False,True,False,standard,False
+John | Turbo Team,Kaleb Johnson,RB,2.0,8.0,9.0,2,True,False,False,False,False,False,standard,False
+John | Turbo Team,Jack Bech,WR,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+John | Turbo Team,Terrance Ferguson,TE,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+John | Turbo Team,Elic Ayomanor,WR,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+John | Turbo Team,Trevor Etienne,RB,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+John | Turbo Team,Ollie Gordon II,RB,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+Kermit,Josh Allen,QB,70.0,70.0,77.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Kermit,Josh Jacobs,RB,40.0,40.0,44.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Kermit,Chuba Hubbard,RB,39.0,39.0,43.0,1,False,False,False,False,True,False,standard,False
+Kermit,Jaylen Waddle,WR,28.0,28.0,31.0,1,False,False,False,False,True,False,standard,False
+Kermit,George Kittle,TE,14.0,14.0,21.0,1,False,True,False,False,False,False,instrument_adjusted,True
+Kermit,Trevor Lawrence,QB,36.0,36.0,40.0,1,False,False,False,False,True,False,standard,False
+Kermit,Tyler Shough,QB,2.0,2.0,4.0,2,True,False,False,False,False,False,standard,False
+Kermit,Adonai Mitchell,WR,2.0,2.0,3.0,2,False,False,False,False,False,False,standard,False
+Kermit,Troy Franklin,WR,1.0,4.0,5.0,1,True,False,False,False,True,False,standard,False
+Kermit,Ben Sinnott,TE,1.0,1.0,2.0,1,True,False,False,False,True,False,standard,False
+Kermit,Pat Bryant,WR,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+Kermit,DJ Giddens,RB,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Jordan Love,QB,10.0,10.0,11.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Jonathan Taylor,RB,22.0,22.0,49.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Chase Brown,RB,54.0,54.0,60.0,2,False,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Tee Higgins,WR,27.0,27.0,30.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Drake London,WR,39.0,39.0,43.0,2,False,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Wan'Dale Robinson,WR,3.0,3.0,12.0,2,False,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Isaiah Likely,TE,4.0,4.0,5.0,3,False,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Davante Adams,WR,27.0,27.0,30.0,3,False,True,False,False,False,False,instrument_adjusted,True
+Grayson  | Bargain Bin,Travis Etienne Jr.,RB,11.0,11.0,19.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Daniel Jones,QB,2.0,2.0,10.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Kyle Monangai,RB,8.0,8.0,9.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Kyler Murray,QB,21.0,21.0,24.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Grayson  | Bargain Bin,Malik Washington,WR,2.0,2.0,3.0,1,True,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Xavier Worthy,WR,10.0,10.0,11.0,1,False,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Will Howard,QB,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+Grayson  | Bargain Bin,Jermaine Burton,WR,1.0,2.0,3.0,1,True,False,False,False,True,False,standard,False
+Grayson  | Bargain Bin,Audric Estimé,RB,1.0,1.0,2.0,1,True,False,False,False,True,False,standard,False
+Turner | Banana Breath,Jalen Hurts,QB,61.0,61.0,68.0,1,False,True,False,False,False,False,instrument_adjusted,True
+Turner | Banana Breath,Ashton Jeanty,RB,16.0,16.0,18.0,2,False,False,False,False,False,False,standard,False
+Turner | Banana Breath,Derrick Henry,RB,46.0,46.0,51.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Turner | Banana Breath,Ladd McConkey,WR,6.0,6.0,13.0,1,False,False,False,False,True,False,standard,False
+Turner | Banana Breath,Courtland Sutton,WR,5.0,5.0,20.0,1,False,False,False,False,True,False,standard,False
+Turner | Banana Breath,Brock Bowers,TE,10.0,10.0,17.0,1,False,False,False,False,True,False,standard,False
+Turner | Banana Breath,Quinshon Judkins,RB,11.0,11.0,13.0,2,False,False,False,False,False,False,standard,False
+Turner | Banana Breath,Patrick Mahomes,QB,47.0,47.0,52.0,1,False,False,False,False,True,False,standard,False
+Turner | Banana Breath,Travis Hunter,WR,14.0,14.0,16.0,2,False,False,False,False,False,False,standard,False
+Turner | Banana Breath,Jacory Croskey-Merritt,RB,2.0,2.0,3.0,2,False,False,False,False,False,False,standard,False
+Turner | Banana Breath,Zach Charbonnet,RB,6.0,6.0,7.0,3,False,True,False,False,False,False,instrument_adjusted,True
+Turner | Banana Breath,Dalton Kincaid,TE,4.0,4.0,5.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Turner | Banana Breath,Michael Penix Jr.,QB,5.0,5.0,6.0,1,False,False,False,False,True,False,standard,False
+Turner | Banana Breath,RJ Harvey,RB,9.0,9.0,10.0,2,False,False,False,False,False,False,standard,False
+Turner | Banana Breath,J.J. McCarthy,QB,2.0,8.0,9.0,1,True,False,False,False,True,False,standard,False
+Slow Striders,Jared Goff,QB,11.0,11.0,15.0,3,False,True,False,False,False,False,instrument_adjusted,True
+Slow Striders,De'Von Achane,RB,50.0,50.0,55.0,2,False,False,False,False,False,False,standard,False
+Slow Striders,Puka Nacua,WR,40.0,40.0,63.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Slow Striders,Chris Godwin,WR,15.0,15.0,17.0,1,False,False,False,False,True,False,standard,False
+Slow Striders,Tyler Warren,TE,5.0,5.0,6.0,2,False,False,False,False,False,False,standard,False
+Slow Striders,D'Andre Swift,RB,7.0,7.0,21.0,1,False,False,False,False,True,False,standard,False
+Slow Striders,Dak Prescott,QB,16.0,16.0,18.0,2,False,False,False,False,False,False,standard,False
+Slow Striders,Brandon Aiyuk,WR,15.0,15.0,17.0,1,False,False,False,False,True,False,standard,False
+Slow Striders,Zay Flowers,WR,11.0,11.0,16.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Slow Striders,Isaac Guerendo,RB,1.0,1.0,2.0,1,True,False,False,False,True,False,standard,False
+Slow Striders,Ray Davis,RB,1.0,2.0,3.0,1,True,False,False,False,True,False,standard,False
+Slow Striders,Cam Ward,QB,3.0,10.0,11.0,2,True,False,False,False,False,False,standard,False
+Slow Striders,Jalen Milroe,QB,1.0,4.0,5.0,2,True,False,False,False,False,False,standard,False
+Slow Striders,Savion Williams,WR,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Jaxson Dart,QB,5.0,5.0,9.0,2,False,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,TreVeyon Henderson,RB,11.0,11.0,13.0,2,False,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Breece Hall,RB,25.0,25.0,28.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Rashee Rice,WR,21.0,21.0,31.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Tetairoa McMillan,WR,9.0,9.0,11.0,2,False,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Emeka Egbuka,WR,5.0,5.0,7.0,2,False,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Harold Fannin Jr.,TE,3.0,3.0,7.0,3,False,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Ricky Pearsall,WR,5.0,5.0,6.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Jameson Williams,WR,3.0,3.0,15.0,2,False,True,False,False,False,False,instrument_adjusted,True
+BG | 2 Rice 2 Addison,Brock Purdy,QB,24.0,24.0,27.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,C.J. Stroud,QB,4.0,4.0,5.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Blake Corum,RB,3.0,3.0,4.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Tyler Allgeier,RB,8.0,8.0,9.0,1,False,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Jonathon Brooks,RB,2.0,6.0,7.0,1,True,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Bhayshul Tuten,RB,1.0,4.0,5.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Jaylin Noel,WR,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Colston Loveland,TE,1.0,4.0,5.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Jaydon Blue,RB,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Jalen McMillan,WR,1.0,1.0,4.0,1,True,False,False,False,True,False,standard,False
+BG | 2 Rice 2 Addison,Luther Burden III,WR,2.0,6.0,7.0,2,True,False,False,False,False,False,standard,False
+BG | 2 Rice 2 Addison,Kyle Williams,WR,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Isiah Pacheco,RB,12.0,12.0,14.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Box of Broken Toys,Jayden Reed,WR,14.0,14.0,16.0,2,False,True,False,False,False,False,instrument_adjusted,True
+Box of Broken Toys,Marvin Mims Jr.,WR,5.0,5.0,6.0,3,False,False,False,False,False,False,standard,False
+Box of Broken Toys,Dallas Goedert,TE,7.0,7.0,10.0,1,False,True,False,False,False,False,instrument_adjusted,True
+Box of Broken Toys,Rashid Shaheed,WR,9.0,9.0,10.0,2,False,False,False,False,False,False,standard,False
+Box of Broken Toys,Jayden Higgins,WR,5.0,5.0,6.0,2,False,False,False,False,False,False,standard,False
+Box of Broken Toys,Joe Burrow,QB,29.0,29.0,32.0,1,False,False,False,False,True,False,standard,False
+Box of Broken Toys,Adam Thielen,WR,6.0,6.0,7.0,1,False,False,False,False,True,False,standard,False
+Box of Broken Toys,Cam Skattebo,RB,5.0,5.0,26.0,2,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Tory Horton,WR,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Xavier Legette,WR,1.0,4.0,5.0,1,True,False,False,False,True,False,standard,False
+Box of Broken Toys,Dont'e Thornton Jr.,WR,2.0,6.0,7.0,2,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Jaylin Lane,WR,1.0,3.0,4.0,1,True,False,False,False,True,False,standard,False
+Box of Broken Toys,Jordan James,RB,1.0,3.0,4.0,3,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Roman Wilson,WR,1.0,2.0,3.0,1,True,False,False,False,True,False,standard,False
+Box of Broken Toys,Dylan Sampson,RB,1.0,2.0,3.0,2,True,False,False,False,False,False,standard,False
+Box of Broken Toys,Isaac TeSlaa,WR,2.0,8.0,9.0,1,True,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Caleb Williams,QB,18.0,18.0,20.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Tyjae Spears,RB,4.0,4.0,5.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Omarion Hampton,RB,14.0,14.0,17.0,2,False,False,False,False,False,False,standard,False
+AJJ | Turf Titans,Malik Nabers,WR,16.0,16.0,27.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Brian Thomas Jr.,WR,6.0,6.0,17.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Rome Odunze,WR,13.0,13.0,15.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Dalton Schultz,TE,2.0,2.0,3.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,DK Metcalf,WR,24.0,24.0,27.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Matthew Golden,WR,5.0,5.0,6.0,2,False,False,False,False,False,False,standard,False
+AJJ | Turf Titans,Jalen Coker,WR,2.0,2.0,3.0,2,False,False,False,False,False,False,standard,False
+AJJ | Turf Titans,Woody Marks,RB,2.0,2.0,6.0,2,False,False,False,False,False,False,standard,False
+AJJ | Turf Titans,Deebo Samuel Sr.,WR,27.0,27.0,30.0,1,False,False,False,False,True,False,standard,False
+AJJ | Turf Titans,Tre Harris,WR,1.0,4.0,5.0,2,True,False,False,False,False,False,standard,False
+AJJ | Turf Titans,Brashard Smith,RB,1.0,1.0,2.0,2,True,False,False,False,False,False,standard,False

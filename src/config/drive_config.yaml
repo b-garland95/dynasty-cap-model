@@ -17,16 +17,16 @@
 # These cannot be regenerated; they must be uploaded to Drive manually.
 raw_files:
   - local: "data/raw/fantasydata_weekly_projections_2014_2024_raw.csv"
-    drive_id: "FILL_IN_AFTER_UPLOAD"
+    drive_id: "1tRSO7eC7B9lDBbGp5otRq3JyQFAwoYUL"
 
   - local: "data/raw/nflverse_player_stats_week_2015_2025_raw.csv"
-    drive_id: "FILL_IN_AFTER_UPLOAD"
+    drive_id: ""
 
   - local: "data/raw/roster_exports/lbb_rosters_2025.csv"
-    drive_id: "FILL_IN_AFTER_UPLOAD"
+    drive_id: "1B0Uz3c1G_O5SwMiT_wM6L2zt5QabnhRL"
 
   - local: "data/raw/roster_exports/contract_salary_schedule_overrides.csv"
-    drive_id: "FILL_IN_AFTER_UPLOAD"
+    drive_id: "1qYM12SbVA8t_p8sgRBPPeKPLUEFSlT88"
 
   # 2025 weekly projections — one entry per week produced
   - local: "data/raw/fantasydata_weekly_projections_2025_week1_raw.csv"

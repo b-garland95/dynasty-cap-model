@@ -52,14 +52,48 @@ def test_build_phase2_tv_inputs_scores_target_season_and_builds_flat_path():
     bravo = tv_inputs.loc[tv_inputs["player"] == "Bravo RB"].iloc[0]
     delta = tv_inputs.loc[tv_inputs["player"] == "Delta TE"].iloc[0]
 
-    assert bool(alpha["matched_2026_rankings"]) is True
-    assert bool(bravo["matched_2026_rankings"]) is True
+    assert bool(alpha["matched_rankings"]) is True
+    assert bool(bravo["matched_rankings"]) is True
     assert alpha["tv_y0"] == alpha["tv_y1"] == alpha["tv_y2"] == alpha["tv_y3"]
     assert bravo["tv_y0"] == bravo["tv_y1"] == bravo["tv_y2"] == bravo["tv_y3"]
     assert alpha["tv_y0"] > bravo["tv_y0"]
     assert alpha["tv_input_source"] == "phase2_2026_redraft_flat_path"
     assert bool(delta["is_rostered"]) is False
     assert delta["team"] == ""
+
+def test_build_phase2_tv_inputs_ranking_source_sets_tv_input_source_labels():
+    """When redraft_rankings_df has a ranking_source column the tv_input_source
+    reflects the source: adp rows get phase2_{season}_adp, fallback rows get
+    phase2_{season}_rankings_fallback."""
+    rankings_with_source = pd.DataFrame(
+        [
+            {"season": 2026, "rank": 1, "player": "Alpha QB", "team": "BUF",
+             "position": "QB", "ranking_source": "fantasydata_adp"},
+            {"season": 2026, "rank": 10, "player": "Bravo RB", "team": "ATL",
+             "position": "RB", "ranking_source": "fantasypros_rankings"},
+            {"season": 2026, "rank": 12, "player": "Delta TE", "team": "KC",
+             "position": "TE", "ranking_source": "fantasypros_rankings"},
+        ]
+    )
+
+    tv_inputs = build_phase2_tv_inputs_from_frames(
+        _ledger_fixture(),
+        _training_fixture(),
+        rankings_with_source,
+        target_season=2026,
+    )
+
+    alpha = tv_inputs.loc[tv_inputs["player"] == "Alpha QB"].iloc[0]
+    bravo = tv_inputs.loc[tv_inputs["player"] == "Bravo RB"].iloc[0]
+    delta = tv_inputs.loc[tv_inputs["player"] == "Delta TE"].iloc[0]
+
+    assert alpha["tv_input_source"] == "phase2_2026_adp"
+    assert bravo["tv_input_source"] == "phase2_2026_rankings_fallback"
+    assert delta["tv_input_source"] == "phase2_2026_rankings_fallback"
+    assert "ranking_source" in tv_inputs.columns
+    assert alpha["ranking_source"] == "fantasydata_adp"
+    assert bravo["ranking_source"] == "fantasypros_rankings"
+
 
 def test_build_phase2_tv_inputs_uses_target_season_projection_universe_not_just_rosters():
     tv_inputs = build_phase2_tv_inputs_from_frames(

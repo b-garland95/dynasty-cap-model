@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.ingest.player_dimensions import enrich_with_player_dimensions
 from src.ingest.player_ids import (
     build_name_crosswalk_from_points,
     harmonize_projection_names,
@@ -106,6 +107,18 @@ def main() -> int:
         on=merge_cols,
         how="left",
     )
+
+    # --- Enrich season values with player dimensions -------------------------
+    DIMS_CACHE = REPO_ROOT / "data" / "interim" / "player_dimensions_raw.csv"
+    try:
+        season_values = enrich_with_player_dimensions(
+            season_values,
+            season_col="season",
+            cache_path=DIMS_CACHE if DIMS_CACHE.exists() else None,
+        )
+        print("Attached player dimensions (age, years_of_experience, draft info, …)")
+    except Exception as exc:
+        print(f"  Warning: player dimensions enrichment failed ({exc.__class__.__name__}); skipping")
 
     # --- Export --------------------------------------------------------------
     args.output_dir.mkdir(parents=True, exist_ok=True)

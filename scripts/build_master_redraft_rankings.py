@@ -1,7 +1,7 @@
-"""Build the master pre-season redraft rankings file.
+"""Build the master pre-season redraft ADP file.
 
-Reads per-year FantasyPros OP ranking CSVs from
-``data/raw/rankings/redraft/``, normalizes them, attaches nflverse IDs,
+Reads per-year FantasyData 2QB ADP CSVs from
+``data/raw/rankings/redraft_adp/``, normalizes them, attaches nflverse IDs,
 and writes the combined result to
 ``data/interim/redraft_rankings_master.csv``.
 """
@@ -15,14 +15,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.ingest.redraft_rankings import build_master_redraft_rankings
+from src.ingest.redraft_rankings import build_master_redraft_adp
 
-RAW_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft"
+RAW_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft_adp"
 OUTPUT_PATH = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
 
 
 def main() -> int:
-    master = build_master_redraft_rankings(RAW_DIR)
+    master = build_master_redraft_adp(RAW_DIR)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     master.to_csv(OUTPUT_PATH, index=False)
 

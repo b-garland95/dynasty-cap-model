@@ -23,7 +23,8 @@ function destroyChart(viewName) {
  */
 const VIEW_INIT_FNS = {
   'value-curves':    () => initValueCurves(),
-  'year-over-year':  () => initYearOverYear()
+  'year-over-year':  () => initYearOverYear(),
+  'player-timeline': () => initPlayerTimeline()
   // Remaining views wired in later milestones
 };
 

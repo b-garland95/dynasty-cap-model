@@ -57,10 +57,33 @@
       </div>
 
       <div id="panel-player-timeline" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>Player Timeline</h2>
-          <p>Coming in Milestone 2 — week-by-week breakdown per player</p>
+
+        <!-- Search -->
+        <div class="pt-search-wrapper">
+          <input id="pt-search" type="text"
+                 placeholder="Type player name…"
+                 autocomplete="off" spellcheck="false" />
+          <div id="pt-dropdown" class="pt-dropdown" hidden></div>
         </div>
+
+        <!-- Selected player chips -->
+        <div id="pt-chips" class="pt-chips"></div>
+
+        <!-- Metric cards -->
+        <div id="pt-metric-cards" class="pt-metric-cards"></div>
+
+        <!-- Mode toggle -->
+        <div class="pt-mode-toggle">
+          <button class="pt-mode-btn active" data-mode="points-start">Points + Start%</button>
+          <button class="pt-mode-btn"        data-mode="wmsv-rsv">WMSV vs RSV</button>
+          <button class="pt-mode-btn"        data-mode="season-dollar">Season $</button>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-container" style="height: 420px;">
+          <canvas id="chart-player-timeline"></canvas>
+        </div>
+
       </div>
 
       <div id="panel-value-distribution" class="tab-panel" role="tabpanel">
@@ -115,6 +138,7 @@
   <script src="data.js"></script>
   <script src="view-value-curves.js"></script>
   <script src="view-year-over-year.js"></script>
+  <script src="view-player-timeline.js"></script>
   <script src="app.js"></script>
 
 </body>

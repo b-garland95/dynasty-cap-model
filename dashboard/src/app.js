@@ -18,9 +18,19 @@ function destroyChart(viewName) {
 }
 
 /**
- * Switch the visible tab panel and update the active tab button state.
- * @param {string} tabId - matches the data-tab attribute on tab buttons
- *                         and the panel id suffix (panel-{tabId})
+ * Map of tab-id → init function. Called once on first activation; the init
+ * functions themselves guard against double-initialisation via their own flags.
+ */
+const VIEW_INIT_FNS = {
+  'value-curves':    () => initValueCurves(),
+  'year-over-year':  () => initYearOverYear()
+  // Remaining views wired in later milestones
+};
+
+/**
+ * Switch the visible tab panel, update active button state, and fire the
+ * view's init function if one is registered.
+ * @param {string} tabId - matches data-tab attribute and panel id suffix
  */
 function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(panel => {
@@ -33,6 +43,10 @@ function switchTab(tabId) {
 
   const panel = document.getElementById(`panel-${tabId}`);
   if (panel) panel.classList.add('active');
+
+  if (VIEW_INIT_FNS[tabId]) {
+    VIEW_INIT_FNS[tabId]();
+  }
 }
 
 // ── Initialisation ────────────────────────────────────────────────────────────
@@ -43,24 +57,25 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
 
-  // Show a loading state while CSVs are fetched
+  // Show loading overlay while CSVs are fetched
   document.getElementById('loading-overlay').style.display = 'flex';
 
   loadData()
     .then(() => {
       document.getElementById('loading-overlay').style.display = 'none';
 
-      // Activate the first tab by default
+      // Activate Value Curves as the landing view
       switchTab('value-curves');
-
-      console.log('Dashboard ready — chart panels will be wired in later milestones.');
     })
     .catch(err => {
       document.getElementById('loading-overlay').innerHTML =
         `<div class="load-error">
-          <span class="load-error-icon">⚠</span>
+          <span class="load-error-icon">&#9888;</span>
           <p>Failed to load data: ${err.message}</p>
-          <p class="load-error-hint">Serve this directory over HTTP (e.g. <code>python -m http.server 8080</code>)</p>
+          <p class="load-error-hint">
+            Serve this directory over HTTP, e.g.
+            <code>python -m http.server 8080</code>
+          </p>
         </div>`;
       console.error('Data load failed:', err);
     });

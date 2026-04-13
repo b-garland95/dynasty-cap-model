@@ -41,9 +41,18 @@
     <main class="tab-panels">
 
       <div id="panel-value-curves" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>Value Curves</h2>
-          <p>Coming in Milestone 1 — positional RSV curves by season</p>
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="vc-season">Season</label>
+            <select id="vc-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="vc-topn">Show top</label>
+            <select id="vc-topn"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-value-curves"></canvas>
         </div>
       </div>
 
@@ -76,9 +85,18 @@
       </div>
 
       <div id="panel-year-over-year" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>Year-over-Year</h2>
-          <p>Coming in Milestone 1 — multi-season RSV trends</p>
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="yoy-metric">Metric</label>
+            <select id="yoy-metric"></select>
+          </div>
+          <div class="control-group">
+            <label for="yoy-position">Position</label>
+            <select id="yoy-position"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-year-over-year"></canvas>
         </div>
       </div>
 
@@ -95,6 +113,8 @@
   <!-- ── Scripts ───────────────────────────────────────────────────── -->
   <script src="constants.js"></script>
   <script src="data.js"></script>
+  <script src="view-value-curves.js"></script>
+  <script src="view-year-over-year.js"></script>
   <script src="app.js"></script>
 
 </body>

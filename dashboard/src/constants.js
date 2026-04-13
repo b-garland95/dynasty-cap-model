@@ -19,6 +19,18 @@ const THEME = {
   accent:   '#6c8cff'
 };
 
+/**
+ * Convert a hex color to rgba string.
+ * @param {string} hex - e.g. '#e06c75'
+ * @param {number} alpha - 0..1
+ */
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const CHART_DEFAULTS = {
   maintainAspectRatio: false,
   responsive: true,

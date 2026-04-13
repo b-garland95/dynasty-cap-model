@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RSV Fantasy Dashboard</title>
+
+  <!-- Google Fonts: DM Sans (UI) + JetBrains Mono (metric values) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- PapaParse (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="dashboard-header">
+      <h1>RSV Fantasy Dashboard</h1>
+      <span class="subtitle">Rational Start Value Model · 2015–2025</span>
+    </header>
+
+    <!-- ── Tab Navigation ──────────────────────────────────────────── -->
+    <nav class="tab-nav" role="tablist" aria-label="Dashboard views">
+      <button class="tab-btn" data-tab="value-curves"         role="tab">Value Curves</button>
+      <button class="tab-btn" data-tab="player-timeline"      role="tab">Player Timeline</button>
+      <button class="tab-btn" data-tab="value-distribution"   role="tab">Value Distribution</button>
+      <button class="tab-btn" data-tab="wmsv-vs-rsv"          role="tab">WMSV vs RSV</button>
+      <button class="tab-btn" data-tab="positional-efficiency" role="tab">Positional Efficiency</button>
+      <button class="tab-btn" data-tab="year-over-year"       role="tab">Year-over-Year</button>
+    </nav>
+
+    <!-- ── Tab Panels ──────────────────────────────────────────────── -->
+    <main class="tab-panels">
+
+      <div id="panel-value-curves" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>Value Curves</h2>
+          <p>Coming in Milestone 1 — positional RSV curves by season</p>
+        </div>
+      </div>
+
+      <div id="panel-player-timeline" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>Player Timeline</h2>
+          <p>Coming in Milestone 2 — week-by-week breakdown per player</p>
+        </div>
+      </div>
+
+      <div id="panel-value-distribution" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>Value Distribution</h2>
+          <p>Coming in Milestone 3 — RSV histograms by position</p>
+        </div>
+      </div>
+
+      <div id="panel-wmsv-vs-rsv" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>WMSV vs RSV</h2>
+          <p>Coming in Milestone 3 — scatter: theoretical ceiling vs rational value</p>
+        </div>
+      </div>
+
+      <div id="panel-positional-efficiency" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>Positional Efficiency</h2>
+          <p>Coming in Milestone 4 — start-rate and margin efficiency by position</p>
+        </div>
+      </div>
+
+      <div id="panel-year-over-year" class="tab-panel" role="tabpanel">
+        <div class="panel-placeholder">
+          <h2>Year-over-Year</h2>
+          <p>Coming in Milestone 1 — multi-season RSV trends</p>
+        </div>
+      </div>
+
+    </main><!-- .tab-panels -->
+
+  </div><!-- #app -->
+
+  <!-- ── Loading overlay (hidden after data loads) ─────────────────── -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading RSV data…</p>
+  </div>
+
+  <!-- ── Scripts ───────────────────────────────────────────────────── -->
+  <script src="constants.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

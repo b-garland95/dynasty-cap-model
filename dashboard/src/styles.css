@@ -307,6 +307,144 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════
+   Mobile Responsiveness
+   ════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Allow natural document height */
+  body {
+    overflow-y: auto;
+  }
+
+  #app {
+    min-height: auto;
+  }
+
+  /* Tab panels no longer flex-grow to fill viewport */
+  .tab-panels {
+    flex: none;
+  }
+
+  /* Header — tighter */
+  .dashboard-header {
+    padding: 10px 12px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 16px;
+  }
+
+  /* Tab nav — horizontal scroll, no wrap */
+  .tab-nav {
+    padding: 0 8px;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  /* Tab panels — less padding */
+  .tab-panel {
+    padding: 10px;
+  }
+
+  /* Charts — fixed 320px height overrides inline styles */
+  .chart-container {
+    height: 320px !important;
+    min-height: 320px;
+    flex: none;
+  }
+
+  /* View controls — fill width, wrap naturally */
+  .view-controls {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .control-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .control-group label {
+    font-size: 11px;
+  }
+
+  .control-group select {
+    font-size: 14px;
+    padding: 8px 28px 8px 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Player Timeline — full-width search */
+  .pt-search-wrapper {
+    width: 100%;
+  }
+
+  #pt-search {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .pt-dropdown-item {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  /* Chips — slightly smaller */
+  .pt-chip {
+    font-size: 11px;
+  }
+
+  /* Mode toggle — buttons fill row */
+  .pt-mode-toggle {
+    flex-wrap: wrap;
+  }
+
+  .pt-mode-btn {
+    flex: 1;
+    text-align: center;
+    font-size: 10px;
+    padding: 8px 6px;
+  }
+
+  /* Metric cards — shrink freely, reduce padding */
+  .pt-metric-cards {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .pt-metric-card {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+  }
+
+  .pt-metric-header {
+    font-size: 10px;
+  }
+
+  .pt-metric-dv {
+    font-size: 15px;
+  }
+
+  .pt-metric-detail {
+    font-size: 9px;
+  }
+
+}
+
+/* ════════════════════════════════════════════════════════════
    Player Timeline — View 2
    ════════════════════════════════════════════════════════════ */
 

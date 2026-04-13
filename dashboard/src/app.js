@@ -25,9 +25,9 @@ const VIEW_INIT_FNS = {
   'value-curves':       () => initValueCurves(),
   'year-over-year':     () => initYearOverYear(),
   'player-timeline':    () => initPlayerTimeline(),
-  'value-distribution': () => initValueDistribution(),
-  'wmsv-vs-rsv':        () => initWmsvRsv()
-  // Positional Efficiency wired in Milestone 4
+  'value-distribution':    () => initValueDistribution(),
+  'wmsv-vs-rsv':           () => initWmsvRsv(),
+  'positional-efficiency': () => initPositionalEfficiency()
 };
 
 /**

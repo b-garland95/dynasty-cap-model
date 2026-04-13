@@ -127,9 +127,14 @@
       </div>
 
       <div id="panel-positional-efficiency" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>Positional Efficiency</h2>
-          <p>Coming in Milestone 4 — start-rate and margin efficiency by position</p>
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="pe-season">Season</label>
+            <select id="pe-season"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-positional-efficiency"></canvas>
         </div>
       </div>
 
@@ -167,6 +172,7 @@
   <script src="view-player-timeline.js"></script>
   <script src="view-value-distribution.js"></script>
   <script src="view-wmsv-rsv.js"></script>
+  <script src="view-positional-efficiency.js"></script>
   <script src="app.js"></script>
 
 </body>

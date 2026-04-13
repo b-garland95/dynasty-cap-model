@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RSV Fantasy Dashboard</title>
+
+  <!-- Google Fonts: DM Sans (UI) + JetBrains Mono (metric values) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- PapaParse (CSV parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="dashboard-header">
+      <h1>RSV Fantasy Dashboard</h1>
+      <span class="subtitle">Rational Start Value Model · 2015–2025</span>
+    </header>
+
+    <!-- ── Tab Navigation ──────────────────────────────────────────── -->
+    <nav class="tab-nav" role="tablist" aria-label="Dashboard views">
+      <button class="tab-btn" data-tab="value-curves"         role="tab">Value Curves</button>
+      <button class="tab-btn" data-tab="player-timeline"      role="tab">Player Timeline</button>
+      <button class="tab-btn" data-tab="value-distribution"   role="tab">Value Distribution</button>
+      <button class="tab-btn" data-tab="wmsv-vs-rsv"          role="tab">WMSV vs RSV</button>
+      <button class="tab-btn" data-tab="positional-efficiency" role="tab">Positional Efficiency</button>
+      <button class="tab-btn" data-tab="year-over-year"       role="tab">Year-over-Year</button>
+    </nav>
+
+    <!-- ── Tab Panels ──────────────────────────────────────────────── -->
+    <main class="tab-panels">
+
+      <div id="panel-value-curves" class="tab-panel" role="tabpanel">
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="vc-season">Season</label>
+            <select id="vc-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="vc-topn">Show top</label>
+            <select id="vc-topn"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-value-curves"></canvas>
+        </div>
+      </div>
+
+      <div id="panel-player-timeline" class="tab-panel" role="tabpanel">
+
+        <!-- Search -->
+        <div class="pt-search-wrapper">
+          <input id="pt-search" type="text"
+                 placeholder="Type player name…"
+                 autocomplete="off" spellcheck="false" />
+          <div id="pt-dropdown" class="pt-dropdown" hidden></div>
+        </div>
+
+        <!-- Selected player chips -->
+        <div id="pt-chips" class="pt-chips"></div>
+
+        <!-- Metric cards -->
+        <div id="pt-metric-cards" class="pt-metric-cards"></div>
+
+        <!-- Mode toggle -->
+        <div class="pt-mode-toggle">
+          <button class="pt-mode-btn active" data-mode="points-start">Points + Start%</button>
+          <button class="pt-mode-btn"        data-mode="wmsv-rsv">WMSV vs RSV</button>
+          <button class="pt-mode-btn"        data-mode="season-dollar">Season $</button>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-container" style="height: 420px;">
+          <canvas id="chart-player-timeline"></canvas>
+        </div>
+
+      </div>
+
+      <div id="panel-value-distribution" class="tab-panel" role="tabpanel">
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="vd-season">Season</label>
+            <select id="vd-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="vd-position">Position</label>
+            <select id="vd-position"></select>
+          </div>
+          <div class="control-group">
+            <label for="vd-minsav">Min Season SAV</label>
+            <select id="vd-minsav"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-value-distribution"></canvas>
+        </div>
+      </div>
+
+      <div id="panel-wmsv-vs-rsv" class="tab-panel" role="tabpanel">
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="wr-season">Season</label>
+            <select id="wr-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="wr-position">Position</label>
+            <select id="wr-position"></select>
+          </div>
+          <div class="control-group">
+            <label for="wr-minwmsv">Min WMSV</label>
+            <select id="wr-minwmsv"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-wmsv-rsv"></canvas>
+        </div>
+      </div>
+
+      <div id="panel-positional-efficiency" class="tab-panel" role="tabpanel">
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="pe-season">Season</label>
+            <select id="pe-season"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-positional-efficiency"></canvas>
+        </div>
+      </div>
+
+      <div id="panel-year-over-year" class="tab-panel" role="tabpanel">
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="yoy-metric">Metric</label>
+            <select id="yoy-metric"></select>
+          </div>
+          <div class="control-group">
+            <label for="yoy-position">Position</label>
+            <select id="yoy-position"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-year-over-year"></canvas>
+        </div>
+      </div>
+
+    </main><!-- .tab-panels -->
+
+  </div><!-- #app -->
+
+  <!-- ── Loading overlay (hidden after data loads) ─────────────────── -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading RSV data…</p>
+  </div>
+
+  <!-- ── Scripts ───────────────────────────────────────────────────── -->
+  <script src="constants.js"></script>
+  <script src="data.js"></script>
+  <script src="view-value-curves.js"></script>
+  <script src="view-year-over-year.js"></script>
+  <script src="view-player-timeline.js"></script>
+  <script src="view-value-distribution.js"></script>
+  <script src="view-wmsv-rsv.js"></script>
+  <script src="view-positional-efficiency.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

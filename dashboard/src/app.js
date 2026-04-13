@@ -22,10 +22,12 @@ function destroyChart(viewName) {
  * functions themselves guard against double-initialisation via their own flags.
  */
 const VIEW_INIT_FNS = {
-  'value-curves':    () => initValueCurves(),
-  'year-over-year':  () => initYearOverYear(),
-  'player-timeline': () => initPlayerTimeline()
-  // Remaining views wired in later milestones
+  'value-curves':       () => initValueCurves(),
+  'year-over-year':     () => initYearOverYear(),
+  'player-timeline':    () => initPlayerTimeline(),
+  'value-distribution': () => initValueDistribution(),
+  'wmsv-vs-rsv':        () => initWmsvRsv()
+  // Positional Efficiency wired in Milestone 4
 };
 
 /**

@@ -87,16 +87,42 @@
       </div>
 
       <div id="panel-value-distribution" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>Value Distribution</h2>
-          <p>Coming in Milestone 3 — RSV histograms by position</p>
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="vd-season">Season</label>
+            <select id="vd-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="vd-position">Position</label>
+            <select id="vd-position"></select>
+          </div>
+          <div class="control-group">
+            <label for="vd-minsav">Min Season SAV</label>
+            <select id="vd-minsav"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-value-distribution"></canvas>
         </div>
       </div>
 
       <div id="panel-wmsv-vs-rsv" class="tab-panel" role="tabpanel">
-        <div class="panel-placeholder">
-          <h2>WMSV vs RSV</h2>
-          <p>Coming in Milestone 3 — scatter: theoretical ceiling vs rational value</p>
+        <div class="view-controls">
+          <div class="control-group">
+            <label for="wr-season">Season</label>
+            <select id="wr-season"></select>
+          </div>
+          <div class="control-group">
+            <label for="wr-position">Position</label>
+            <select id="wr-position"></select>
+          </div>
+          <div class="control-group">
+            <label for="wr-minwmsv">Min WMSV</label>
+            <select id="wr-minwmsv"></select>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 460px;">
+          <canvas id="chart-wmsv-rsv"></canvas>
         </div>
       </div>
 
@@ -139,6 +165,8 @@
   <script src="view-value-curves.js"></script>
   <script src="view-year-over-year.js"></script>
   <script src="view-player-timeline.js"></script>
+  <script src="view-value-distribution.js"></script>
+  <script src="view-wmsv-rsv.js"></script>
   <script src="app.js"></script>
 
 </body>

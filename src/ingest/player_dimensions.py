@@ -36,7 +36,7 @@ DIMENSION_COLUMNS = [
     "rookie_season",    # year they first appeared on an NFL roster
     "draft_year",       # year drafted (may differ from rookie_season for taxi-squad players)
     "draft_round",      # 1–7; NaN = undrafted
-    "draft_number",     # overall pick number; NaN = undrafted
+    "draft_pick",       # overall pick number; NaN = undrafted
     "height",           # inches
     "weight",           # pounds
     "college_name",     # alma mater
@@ -148,8 +148,8 @@ def enrich_with_player_dimensions(
             ``rookie_season`` is missing (safe default — do not assume rookie).
 
         ``log_draft_number``
-            Float.  Natural log of the overall draft pick number.  ``NaN``
-            for undrafted free agents.
+            Float.  Natural log of the overall draft pick number (``draft_pick``).
+            ``NaN`` for undrafted free agents.
     """
     if dims is None:
         dims = load_player_dimensions(cache_path=cache_path, refresh=refresh)
@@ -206,8 +206,8 @@ def enrich_with_player_dimensions(
     # ------------------------------------------------------------------
     # Derived field: log_draft_number (float; NaN for undrafted)
     # ------------------------------------------------------------------
-    if "draft_number" in out.columns:
-        draft_num = pd.to_numeric(out["draft_number"], errors="coerce")
+    if "draft_pick" in out.columns:
+        draft_num = pd.to_numeric(out["draft_pick"], errors="coerce")
         out["log_draft_number"] = np.where(draft_num.notna(), np.log(draft_num), np.nan)
     else:
         out["log_draft_number"] = np.nan

@@ -178,7 +178,7 @@ def test_log_draft_number_first_overall_pick(dims):
 
 
 def test_log_draft_number_nan_for_undrafted(dims):
-    """Undrafted player (null draft_number) produces NaN log_draft_number."""
+    """Undrafted player (null draft_pick) produces NaN log_draft_number."""
     df = pd.DataFrame([{"gsis_id": UNDRAFTED_GSIS, "season": 2023}])
     out = enrich_with_player_dimensions(df, dims=dims)
     assert pd.isna(out.iloc[0]["log_draft_number"])

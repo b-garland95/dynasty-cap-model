@@ -48,24 +48,16 @@ function loadData() {
           season:     +r.season,
           week:       +r.week,
           points:     +(r.points     ?? 0) || 0,
-          margin:     +(r.margin     ?? 0) || 0,
-          rsv_week:   +(r.rsv_week   ?? 0) || 0,
-          wmsv:       +(r.wmsv       ?? 0) || 0,
-          start_prob: +(r.start_prob ?? 0) || 0
+          margin:      +(r.margin      ?? 0) || 0,
+          rsv_week:    +(r.rsv_week   ?? 0) || 0,
+          wmsv:        +(r.wmsv       ?? 0) || 0,
+          start_prob:  +(r.start_prob ?? 0) || 0,
+          dollar_value: +(r.dollar_value ?? 0) || 0
         }));
 
       // ── Season data — derived metrics ────────────────────────────────────
 
-      // 1. RSV sum per season (used for dollar_value denominator).
-      //    Sum all positive and negative RSV values as-is.
-      const seasonRsvSum = {};
-      seasonRaw.forEach(r => {
-        const season = +r.season;
-        const rsv    = +(r.rsv ?? 0) || 0;
-        seasonRsvSum[season] = (seasonRsvSum[season] || 0) + rsv;
-      });
-
-      // 2. pos_rank: rank within (season, position) by rsv desc, 1 = best.
+      // 1. pos_rank: rank within (season, position) by rsv desc, 1 = best.
       //    Build groups, sort, then write ranks into a lookup map.
       const posGroups = {};
       seasonRaw.forEach(r => {
@@ -82,23 +74,22 @@ function loadData() {
           });
       });
 
-      // 3. Assemble SEASON_DATA rows.
+      // 2. Assemble SEASON_DATA rows.
+      //    dollar_value is pre-computed by the Phase 1 pipeline; read directly.
       //    Ignore rsv_val — it can contain Excel formula strings.
       SEASON_DATA = seasonRaw
         .filter(r => r.player && r.position)
         .map(r => {
           const season = +r.season;
-          const rsv    = +(r.rsv ?? 0) || 0;
-          const rsvSum = seasonRsvSum[season] || 1;
           return {
             player:       String(r.player),
             position:     String(r.position),
             season,
-            rsv,
+            rsv:          +(r.rsv          ?? 0) || 0,
             sav:          +(r.sav          ?? 0) || 0,
             par:          +(r.par          ?? 0) || 0,
             total_points: +(r.total_points ?? 0) || 0,
-            dollar_value: (rsv / rsvSum) * 3000,
+            dollar_value: +(r.dollar_value ?? 0) || 0,
             pos_rank:     posRankMap[`${season}||${r.player}`] ?? null
           };
         });

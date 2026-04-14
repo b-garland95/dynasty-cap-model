@@ -5,6 +5,7 @@ import math
 import pandas as pd
 
 from src.utils.config import load_league_config
+from src.valuation.phase1_metrics import compute_dollar_values
 from src.valuation.phase1_pipeline import run_phase1_season
 
 
@@ -132,3 +133,58 @@ def test_run_phase1_season_with_rankings_currently_matches_start_only_capture():
     )
     assert merged["rsv_with_adp"].equals(merged["rsv_no_adp"])
     assert merged["ld_with_adp"].equals(merged["ld_no_adp"])
+
+
+def _build_season_values_for_test(result: dict, config: dict) -> pd.DataFrame:
+    """Helper: assemble the same season_values frame that run_phase1.py builds."""
+    cg_df = result["cg"]
+    par_df = result["par"]
+    return cg_df.merge(
+        par_df[["season", "gsis_id", "par"]],
+        on=["season", "gsis_id"],
+        how="left",
+    )
+
+
+def test_dollar_values_sum_to_league_cap():
+    """Season dollar values for all players must sum to base_cap × n_teams."""
+    config = load_league_config()
+    pts, proj, adp = _make_season_data()
+    result = run_phase1_season(pts, proj, adp, config)
+
+    season_values = _build_season_values_for_test(result, config)
+    season_values, _ = compute_dollar_values(season_values, result["started_weekly"], config)
+
+    total_cap = config["cap"]["base_cap"] * config["league"]["teams"]
+    season_sum = season_values["dollar_value"].sum()
+    assert math.isclose(season_sum, total_cap, rel_tol=1e-6), (
+        f"Season dollar_value sum={season_sum:.4f} != total_league_cap={total_cap}"
+    )
+
+
+def test_weekly_dollar_values_sum_to_season():
+    """Each player's weekly dollar_values must sum to their season dollar_value."""
+    config = load_league_config()
+    pts, proj, adp = _make_season_data()
+    result = run_phase1_season(pts, proj, adp, config)
+
+    season_values = _build_season_values_for_test(result, config)
+    season_values, weekly_detail = compute_dollar_values(
+        season_values, result["started_weekly"], config
+    )
+
+    weekly_sums = (
+        weekly_detail.groupby(["season", "gsis_id"])["dollar_value"]
+        .sum()
+        .reset_index()
+    )
+    merged = season_values.merge(
+        weekly_sums, on=["season", "gsis_id"], suffixes=("_season", "_weekly")
+    )
+    for _, row in merged.iterrows():
+        assert math.isclose(
+            row["dollar_value_season"], row["dollar_value_weekly"], rel_tol=1e-6, abs_tol=1e-9
+        ), (
+            f"{row['gsis_id']}: season DV={row['dollar_value_season']:.4f} "
+            f"!= weekly sum={row['dollar_value_weekly']:.4f}"
+        )

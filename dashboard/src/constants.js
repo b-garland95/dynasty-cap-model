@@ -1,4 +1,4 @@
-// Shared constants for the RSV Fantasy Dashboard
+// Shared constants for the ESV Fantasy Dashboard
 
 const POS_COLORS = {
   QB: '#e06c75',

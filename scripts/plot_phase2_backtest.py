@@ -25,7 +25,7 @@ POS_COLORS = {"QB": "#E24A33", "RB": "#348ABD", "WR": "#988ED5", "TE": "#FBC15E"
 
 
 def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path) -> None:
-    """Scatter plot of rsv_hat vs actual rsv, one panel per position."""
+    """Scatter plot of esv_hat vs actual esv, one panel per position."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
 
@@ -33,16 +33,16 @@ def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path) -> None:
         df = preds[preds["position"] == pos]
         color = POS_COLORS[pos]
 
-        ax.scatter(df["rsv_hat"], df["rsv"], alpha=0.35, s=18, color=color, edgecolors="none")
+        ax.scatter(df["esv_hat"], df["esv"], alpha=0.35, s=18, color=color, edgecolors="none")
 
         # Perfect prediction line
-        lo = min(df["rsv"].min(), df["rsv_hat"].min()) - 5
-        hi = max(df["rsv"].max(), df["rsv_hat"].max()) + 5
+        lo = min(df["esv"].min(), df["esv_hat"].min()) - 5
+        hi = max(df["esv"].max(), df["esv_hat"].max()) + 5
         ax.plot([lo, hi], [lo, hi], "k--", linewidth=0.8, alpha=0.5)
 
         # Stats annotation
-        mae = (df["rsv"] - df["rsv_hat"]).abs().mean()
-        rho = df["rsv"].rank().corr(df["rsv_hat"].rank())
+        mae = (df["esv"] - df["esv_hat"]).abs().mean()
+        rho = df["esv"].rank().corr(df["esv_hat"].rank())
         ax.text(
             0.05, 0.95,
             f"n={len(df)}  MAE={mae:.1f}  ρ={rho:.2f}",
@@ -50,12 +50,12 @@ def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path) -> None:
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
         )
 
-        ax.set_xlabel("Predicted RSV")
-        ax.set_ylabel("Actual RSV")
+        ax.set_xlabel("Predicted ESV")
+        ax.set_ylabel("Actual ESV")
         ax.set_title(pos, fontsize=13, fontweight="bold")
         ax.set_aspect("equal", adjustable="datalim")
 
-    fig.suptitle("Phase 2 Backtest: Predicted vs Actual RSV (2021–2025)", fontsize=14, y=1.01)
+    fig.suptitle("Phase 2 Backtest: Predicted vs Actual ESV (2021–2025)", fontsize=14, y=1.01)
     fig.tight_layout()
     fig.savefig(output_dir / "forecast_vs_actual_by_position.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -69,7 +69,7 @@ def plot_residuals_by_adp(preds: pd.DataFrame, output_dir: Path) -> None:
     for ax, pos in zip(axes, POSITIONS):
         df = preds[preds["position"] == pos].sort_values("adp")
         color = POS_COLORS[pos]
-        resid = df["rsv"] - df["rsv_hat"]
+        resid = df["esv"] - df["esv_hat"]
 
         ax.scatter(df["adp"], resid, alpha=0.3, s=14, color=color, edgecolors="none")
         ax.axhline(0, color="k", linewidth=0.8, linestyle="--", alpha=0.5)
@@ -92,7 +92,7 @@ def plot_residuals_by_adp(preds: pd.DataFrame, output_dir: Path) -> None:
 
 
 def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path) -> None:
-    """ADP vs RSV with isotonic fit line and p25-p75 band, per position."""
+    """ADP vs ESV with isotonic fit line and p25-p75 band, per position."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
 
@@ -100,20 +100,20 @@ def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path) -> None:
         df = preds[preds["position"] == pos].sort_values("adp")
         color = POS_COLORS[pos]
 
-        # Actual RSV scatter
-        ax.scatter(df["adp"], df["rsv"], alpha=0.25, s=14, color=color, edgecolors="none", label="Actual RSV")
+        # Actual ESV scatter
+        ax.scatter(df["adp"], df["esv"], alpha=0.25, s=14, color=color, edgecolors="none", label="Actual ESV")
 
         # Isotonic fit line (take unique ADP predictions to avoid overplotting)
         fit = df.drop_duplicates(subset=["adp"]).sort_values("adp")
-        ax.plot(fit["adp"], fit["rsv_hat"], color="black", linewidth=2, label="Isotonic fit")
+        ax.plot(fit["adp"], fit["esv_hat"], color="black", linewidth=2, label="Isotonic fit")
 
         # p25–p75 band
         ax.fill_between(
-            fit["adp"], fit["rsv_p25"], fit["rsv_p75"],
+            fit["adp"], fit["esv_p25"], fit["esv_p75"],
             alpha=0.15, color=color, label="p25–p75 band",
         )
 
-        coverage = ((df["rsv"] >= df["rsv_p25"]) & (df["rsv"] <= df["rsv_p75"])).mean()
+        coverage = ((df["esv"] >= df["esv_p25"]) & (df["esv"] <= df["esv_p75"])).mean()
         ax.text(
             0.95, 0.95,
             f"coverage={coverage:.0%}",
@@ -122,11 +122,11 @@ def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path) -> None:
         )
 
         ax.set_xlabel("ADP")
-        ax.set_ylabel("RSV")
+        ax.set_ylabel("ESV")
         ax.set_title(pos, fontsize=13, fontweight="bold")
         ax.legend(fontsize=8, loc="lower left")
 
-    fig.suptitle("Phase 2: ADP → RSV Calibration Curves with Uncertainty (2021–2025)", fontsize=14, y=1.01)
+    fig.suptitle("Phase 2: ADP → ESV Calibration Curves with Uncertainty (2021–2025)", fontsize=14, y=1.01)
     fig.tight_layout()
     fig.savefig(output_dir / "calibration_curves_by_position.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -140,7 +140,7 @@ def plot_yearly_metrics(output_dir: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     for ax, metric, label in [
-        (axes[0], "mae", "MAE (RSV)"),
+        (axes[0], "mae", "MAE (ESV)"),
         (axes[1], "spearman_rho", "Spearman ρ"),
     ]:
         pivot = summary[summary["position"] != "ALL"].pivot(

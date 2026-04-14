@@ -14,9 +14,9 @@ def _make_synthetic_training(
     positions: list[str] | None = None,
     seed: int = 42,
 ) -> pd.DataFrame:
-    """Build synthetic training data with a clear ADP→RSV relationship.
+    """Build synthetic training data with a clear ADP→ESV relationship.
 
-    Lower ADP → higher RSV, with some Gaussian noise.
+    Lower ADP → higher ESV, with some Gaussian noise.
     """
     rng = np.random.default_rng(seed)
     if positions is None:
@@ -26,8 +26,8 @@ def _make_synthetic_training(
     for pos in positions:
         adp = np.arange(1, n_per_pos + 1)
         log_adp = np.log(adp)
-        # Decreasing relationship: RSV = 100 - 20*log(ADP) + noise
-        rsv = 100 - 20 * log_adp + rng.normal(0, 5, size=n_per_pos)
+        # Decreasing relationship: ESV = 100 - 20*log(ADP) + noise
+        esv = 100 - 20 * log_adp + rng.normal(0, 5, size=n_per_pos)
         for i in range(n_per_pos):
             rows.append({
                 "season": 2022,
@@ -36,7 +36,7 @@ def _make_synthetic_training(
                 "position": pos,
                 "adp": int(adp[i]),
                 "log_adp": log_adp[i],
-                "rsv": rsv[i],
+                "esv": esv[i],
             })
     return pd.DataFrame(rows)
 
@@ -57,15 +57,15 @@ def test_predictions_monotonic_per_position():
         })
         scored = predict(cals, test)
         # Predictions should be non-increasing as log_adp increases
-        rsv_hat = scored["rsv_hat"].values
-        diffs = np.diff(rsv_hat)
+        esv_hat = scored["esv_hat"].values
+        diffs = np.diff(esv_hat)
         assert (diffs <= 1e-10).all(), (
             f"{pos}: monotonicity violated, max increase = {diffs.max():.4f}"
         )
 
 
-def test_better_adp_not_worse_rsv():
-    """A player with ADP=1 should never have worse expected RSV than ADP=50."""
+def test_better_adp_not_worse_esv():
+    """A player with ADP=1 should never have worse expected ESV than ADP=50."""
     train = _make_synthetic_training()
     cals = fit_calibration(train)
 
@@ -75,7 +75,7 @@ def test_better_adp_not_worse_rsv():
             "log_adp": [np.log(1), np.log(50)],
         })
         scored = predict(cals, test)
-        assert scored.iloc[0]["rsv_hat"] >= scored.iloc[1]["rsv_hat"]
+        assert scored.iloc[0]["esv_hat"] >= scored.iloc[1]["esv_hat"]
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +88,8 @@ def test_quantile_ordering():
     cals = fit_calibration(train)
     scored = predict(cals, train)
 
-    assert (scored["rsv_p25"] <= scored["rsv_p50"] + 1e-10).all()
-    assert (scored["rsv_p50"] <= scored["rsv_p75"] + 1e-10).all()
+    assert (scored["esv_p25"] <= scored["esv_p50"] + 1e-10).all()
+    assert (scored["esv_p50"] <= scored["esv_p75"] + 1e-10).all()
 
 
 def test_quantile_bands_non_degenerate():
@@ -97,7 +97,7 @@ def test_quantile_bands_non_degenerate():
     train = _make_synthetic_training()
     cals = fit_calibration(train)
     scored = predict(cals, train)
-    iqr = scored["rsv_p75"] - scored["rsv_p25"]
+    iqr = scored["esv_p75"] - scored["esv_p25"]
     assert iqr.mean() > 0
 
 
@@ -137,8 +137,8 @@ def test_predict_on_unseen_adp():
         "log_adp": [np.log(0.5), np.log(100), np.log(500)],
     })
     scored = predict(cals, test)
-    assert scored["rsv_hat"].notna().all()
-    assert scored["rsv_p25"].notna().all()
+    assert scored["esv_hat"].notna().all()
+    assert scored["esv_p25"].notna().all()
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ def test_synthetic_monotone_recovery():
     """On perfectly monotonic data, isotonic fit should match closely."""
     n = 30
     log_adp = np.log(np.arange(1, n + 1))
-    rsv = 100 - 20 * log_adp  # perfectly decreasing
+    esv = 100 - 20 * log_adp  # perfectly decreasing
 
     train = pd.DataFrame({
         "season": 2022,
@@ -159,13 +159,13 @@ def test_synthetic_monotone_recovery():
         "position": "QB",
         "adp": np.arange(1, n + 1),
         "log_adp": log_adp,
-        "rsv": rsv,
+        "esv": esv,
     })
     cals = fit_calibration(train)
     scored = predict(cals, train)
 
     # Should recover nearly exactly
-    mae = (scored["rsv_hat"] - scored["rsv"]).abs().mean()
+    mae = (scored["esv_hat"] - scored["esv"]).abs().mean()
     assert mae < 1.0, f"MAE on perfect data = {mae:.2f}, expected < 1.0"
 
 

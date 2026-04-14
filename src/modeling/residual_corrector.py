@@ -33,7 +33,7 @@ def fit_residual_corrector(
     train_df:
         Training DataFrame containing ``feature_names`` columns.
     residuals:
-        Stage 1 residuals (``rsv - rsv_hat``) aligned to ``train_df`` rows.
+        Stage 1 residuals (``esv - esv_hat``) aligned to ``train_df`` rows.
     feature_names:
         Columns from ``train_df`` to use as features.
     alpha:

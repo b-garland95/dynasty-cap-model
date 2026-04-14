@@ -4,7 +4,7 @@ A salary-cap dynasty fantasy football valuation framework for League Tycoon-styl
 
 This repo implements a rigorous, test-driven pipeline to:
 1) value historical player seasons beyond basic PAR
-2) calibrate preseason ADP into expected season value (RSV) and uncertainty
+2) calibrate preseason ADP into expected season value (ESV) and uncertainty
 3) translate multi-year expected value into contract surplus under League Tycoon mechanics
 4) generate actionable Phase 3 tables for trades, contract management, and instrument decisions (extensions/tags/options)
 
@@ -81,14 +81,14 @@ We compute a ladder of season values:
 
 - **PAR (naive baseline):** points above a crude position-only replacement
 - **SAV (Slot-Adjusted Value):** value relative to leaguewide slot economy (FLEX/SF correctly handled), assuming perfect capture
-- **RSV (Realized Start Value):** SAV discounted by roster/start probabilities in a rational average league
+- **ESV (Expected Start Value):** SAV discounted by roster/start probabilities in a rational average league
 - **LD (Lineup Drag):** negative value from starts below replacement (penalizes durable mediocrity traps)
-- **CG (Capture Gap):** `CG = SAV - RSV` (hindsight value that was not realistically captured)
+- **CG (Capture Gap):** `CG = SAV - ESV` (hindsight value that was not realistically captured)
 
 ### True Value vs Free Agent Value
 
 - **True Value (TV):** value for all players, regardless of availability  
-  - In v1, TV is measured in **RSV units**.
+  - In v1, TV is measured in **ESV units**.
   - Later, TV may be upgraded to a win-based unit (tWARP/WPA).
 - **Free Agent Value (FAV):** expected market-clearing auction price conditional on the FA auction pool and available cap.
   - FAV is a pricing layer, not a universal truth unit.
@@ -120,18 +120,18 @@ This ensures all QBs are valued against the same QB replacement level regardless
 ## Phase 2 Method (Predictive Modeling)
 
 ### Target
-Primary prediction target is season **RSV** (not raw points).
+Primary prediction target is season **ESV** (not raw points).
 
 ### v0: ADP-only calibration
-We fit a position-specific monotonic mapping from preseason Superflex redraft ADP to expected RSV and quantiles:
-- `RSV_hat = f_pos(log(ADP))`
+We fit a position-specific monotonic mapping from preseason Superflex redraft ADP to expected ESV and quantiles:
+- `ESV_hat = f_pos(log(ADP))`
 - Quantiles (p25/p50/p75) for uncertainty bands
 
 ### Validation
 Backtests must be time-aware:
 - train on years â‰¤ t-1, test year t
 Report:
-- MAE on RSV
+- MAE on ESV
 - Spearman rank correlation
 - interval calibration (coverage)
 
@@ -140,7 +140,7 @@ Report:
 ## Phase 3 Method (Dynasty + Contracts)
 
 ### Per-year value path
-We estimate expected True Value (RSV units) for the next 4 years:
+We estimate expected True Value (ESV units) for the next 4 years:
 `TV_y0..TV_y3`
 
 ### Dynasty PV
@@ -204,8 +204,8 @@ We build in milestones with tight scopes and golden tests:
 - **Milestone 1:** Phase 3 Tables 1â€“2 (ledger + schedule) + tests
 - **Milestone 2:** Phase 1 cutlines + shrinkage + tests
 - **Milestone 3:** Phase 1 assignment + SAV + tests (artifact regression case)
-- **Milestone 4:** Phase 1 RSV/LD/CG scaffolding + tests (shape/bounds)
-- **Milestone 5:** Phase 2 v0 ADPâ†’RSV calibration + quantiles + rolling backtest harness
+- **Milestone 4:** Phase 1 ESV/LD/CG scaffolding + tests (shape/bounds)
+- **Milestone 5:** Phase 2 v0 ADPâ†’ESV calibration + quantiles + rolling backtest harness
 - **Milestone 6:** Phase 3 Tables 3â€“7 using TV inputs + contract economics + instrument shortlists
 
 **Rules**
@@ -346,7 +346,7 @@ The normalization layer in `src/ingest/player_ids.py` bridges these gaps using `
 - [ ] Contract ledger + schedule builder (Tables 1â€“2) and tests
 - [ ] Phase 1 cutlines + shrinkage and tests
 - [ ] Phase 1 assignment + SAV and artifact regression test
-- [ ] Phase 2 v0 ADPâ†’RSV calibration + quantiles + rolling backtests
+- [ ] Phase 2 v0 ADPâ†’ESV calibration + quantiles + rolling backtests
 - [ ] Phase 3 Tables 3â€“7 populated from TV + contract economics
 - [ ] Add observed contract schedule ingestion for extended/tagged/optioned players
 - [ ] Add dynasty ADP ingestion and 4-horizon TV path model

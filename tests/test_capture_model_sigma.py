@@ -2,9 +2,9 @@
 
 Scenario: BoomRB has a very low projection (4 pts) but a huge actual score (30 pts).
 All FLEX competitors bust to 0 actual pts so BoomRB cracks the actual FLEX slot.
-Under PerfectCaptureModel, RSV == SAV.
+Under PerfectCaptureModel, ESV == SAV.
 Under RationalStartCaptureModel, σ is near-zero (BoomRB's proj is far below the
-projected FLEX cutline) so RSV << SAV.
+projected FLEX cutline) so ESV << SAV.
 """
 import math
 
@@ -16,7 +16,7 @@ from src.valuation.phase1_assignment import assign_leaguewide_starting_set, comp
 from src.valuation.phase1_cutlines import compute_position_cutlines
 from src.valuation.phase1_metrics import aggregate_sav
 from src.valuation.phase1_projected import assign_projected_leaguewide_starting_set
-from src.valuation.phase1_realized import compute_rsv_ld_from_started_weekly
+from src.valuation.phase1_esv import compute_esv_ld_from_started_weekly
 
 SEASON, WEEK = 2024, 1
 
@@ -69,7 +69,7 @@ def _make_boom_scenario(config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def _build_started_weekly_df(actual_df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """Compute the actual started set and add season/week for RSV lookup."""
+    """Compute the actual started set and add season/week for ESV lookup."""
     pts_only = actual_df[["gsis_id", "player", "position", "points"]]
     started_df = assign_leaguewide_starting_set(pts_only, config)
     pos_cutlines = compute_position_cutlines(started_df)
@@ -110,33 +110,33 @@ def test_boom_rb_actual_sav_is_positive():
 
 
 # ---------------------------------------------------------------------------
-# PerfectCaptureModel: RSV == SAV
+# PerfectCaptureModel: ESV == SAV
 # ---------------------------------------------------------------------------
 
-def test_perfect_capture_rsv_equals_sav():
-    """Under PerfectCaptureModel, RSV equals SAV for every player."""
+def test_perfect_capture_esv_equals_sav():
+    """Under PerfectCaptureModel, ESV equals SAV for every player."""
     config = load_league_config()
     _, actual_df = _make_boom_scenario(config)
     started_df = _build_started_weekly_df(actual_df, config)
 
     sav_df = aggregate_sav(started_df)
-    rsv_df = compute_rsv_ld_from_started_weekly(started_df, PerfectCaptureModel())
+    esv_df = compute_esv_ld_from_started_weekly(started_df, PerfectCaptureModel())
 
-    merged = sav_df.merge(rsv_df, on="gsis_id")
+    merged = sav_df.merge(esv_df, on="gsis_id")
     for _, row in merged.iterrows():
-        assert math.isclose(row["sav"], row["rsv"], rel_tol=1e-9), (
-            f"{row['player']}: SAV={row['sav']:.4f} != RSV={row['rsv']:.4f}"
+        assert math.isclose(row["sav"], row["esv"], rel_tol=1e-9), (
+            f"{row['player']}: SAV={row['sav']:.4f} != ESV={row['esv']:.4f}"
         )
 
 
 # ---------------------------------------------------------------------------
-# RationalStartCaptureModel: RSV < SAV for BoomRB
+# RationalStartCaptureModel: ESV < SAV for BoomRB
 # ---------------------------------------------------------------------------
 
-def test_rational_capture_discounts_boom_rb_rsv_below_sav():
-    """Under RationalStartCaptureModel, BoomRB's RSV is much less than its SAV.
+def test_rational_capture_discounts_boom_rb_esv_below_sav():
+    """Under RationalStartCaptureModel, BoomRB's ESV is much less than its SAV.
 
-    BoomRB is not in the projected starting set, so σ ≈ 0 and RSV ≈ 0.
+    BoomRB is not in the projected starting set, so σ ≈ 0 and ESV ≈ 0.
     """
     config = load_league_config()
     proj_df, actual_df = _make_boom_scenario(config)
@@ -146,24 +146,24 @@ def test_rational_capture_discounts_boom_rb_rsv_below_sav():
     boom_sav = sav_df.loc[sav_df["gsis_id"] == "G-BoomRB", "sav"].iloc[0]
 
     model = RationalStartCaptureModel(proj_df=proj_df, config=config)
-    rsv_df = compute_rsv_ld_from_started_weekly(started_df, model)
-    boom_rsv = rsv_df.loc[rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
+    esv_df = compute_esv_ld_from_started_weekly(started_df, model)
+    boom_esv = esv_df.loc[esv_df["gsis_id"] == "G-BoomRB", "esv"].iloc[0]
 
-    assert boom_rsv < boom_sav
+    assert boom_esv < boom_sav
 
 
-def test_rational_capture_boom_rb_rsv_less_than_perfect():
-    """RationalStartCaptureModel gives BoomRB lower RSV than PerfectCaptureModel."""
+def test_rational_capture_boom_rb_esv_less_than_perfect():
+    """RationalStartCaptureModel gives BoomRB lower ESV than PerfectCaptureModel."""
     config = load_league_config()
     proj_df, actual_df = _make_boom_scenario(config)
     started_df = _build_started_weekly_df(actual_df, config)
 
-    perfect_rsv_df = compute_rsv_ld_from_started_weekly(started_df, PerfectCaptureModel())
-    boom_perfect = perfect_rsv_df.loc[perfect_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
+    perfect_esv_df = compute_esv_ld_from_started_weekly(started_df, PerfectCaptureModel())
+    boom_perfect = perfect_esv_df.loc[perfect_esv_df["gsis_id"] == "G-BoomRB", "esv"].iloc[0]
 
     model = RationalStartCaptureModel(proj_df=proj_df, config=config)
-    rational_rsv_df = compute_rsv_ld_from_started_weekly(started_df, model)
-    boom_rational = rational_rsv_df.loc[rational_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
+    rational_esv_df = compute_esv_ld_from_started_weekly(started_df, model)
+    boom_rational = rational_esv_df.loc[rational_esv_df["gsis_id"] == "G-BoomRB", "esv"].iloc[0]
 
     assert boom_rational < boom_perfect
 

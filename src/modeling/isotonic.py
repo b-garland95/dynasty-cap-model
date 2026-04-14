@@ -1,7 +1,7 @@
-"""Position-specific monotonic ADP → RSV calibration with quantile bands.
+"""Position-specific monotonic ADP → ESV calibration with quantile bands.
 
 Fits a decreasing isotonic regression per position: lower ADP (better draft
-capital) maps to higher expected RSV. Uncertainty is estimated via empirical
+capital) maps to higher expected ESV. Uncertainty is estimated via empirical
 residual quantiles binned by log(ADP).
 """
 
@@ -17,7 +17,7 @@ from sklearn.isotonic import IsotonicRegression
 if TYPE_CHECKING:
     from src.modeling.residual_corrector import ResidualCorrector
 
-PREDICTION_COLUMNS = ["rsv_hat", "rsv_p25", "rsv_p50", "rsv_p75"]
+PREDICTION_COLUMNS = ["esv_hat", "esv_p25", "esv_p50", "esv_p75"]
 
 
 @dataclass
@@ -33,11 +33,11 @@ class PositionCalibration:
 
 def _fit_position_isotonic(
     log_adp: np.ndarray,
-    rsv: np.ndarray,
+    esv: np.ndarray,
 ) -> IsotonicRegression:
-    """Fit a decreasing isotonic regression from log(ADP) to RSV."""
+    """Fit a decreasing isotonic regression from log(ADP) to ESV."""
     model = IsotonicRegression(increasing=False, out_of_bounds="clip")
-    model.fit(log_adp, rsv)
+    model.fit(log_adp, esv)
     return model
 
 
@@ -84,7 +84,7 @@ def fit_calibration(
     Parameters
     ----------
     train_df:
-        Training data with columns ``position, log_adp, rsv``.
+        Training data with columns ``position, log_adp, esv``.
     positions:
         Positions to fit. Defaults to unique positions in *train_df*.
     n_quantile_bins:
@@ -104,11 +104,11 @@ def fit_calibration(
             continue
 
         log_adp = pos_df["log_adp"].values.astype(float)
-        rsv = pos_df["rsv"].values.astype(float)
+        esv = pos_df["esv"].values.astype(float)
 
-        model = _fit_position_isotonic(log_adp, rsv)
-        rsv_hat = model.predict(log_adp)
-        residuals = rsv - rsv_hat
+        model = _fit_position_isotonic(log_adp, esv)
+        esv_hat = model.predict(log_adp)
+        residuals = esv - esv_hat
 
         rq = _compute_residual_quantiles(log_adp, residuals, n_bins=n_quantile_bins)
 
@@ -136,13 +136,13 @@ def predict(
 
     Returns
     -------
-    Copy of *df* with added columns: ``rsv_hat, rsv_p25, rsv_p50, rsv_p75``.
+    Copy of *df* with added columns: ``esv_hat, esv_p25, esv_p50, esv_p75``.
     """
     out = df.copy()
-    out["rsv_hat"] = np.nan
-    out["rsv_p25"] = np.nan
-    out["rsv_p50"] = np.nan
-    out["rsv_p75"] = np.nan
+    out["esv_hat"] = np.nan
+    out["esv_p25"] = np.nan
+    out["esv_p50"] = np.nan
+    out["esv_p75"] = np.nan
 
     for pos, cal in calibrations.items():
         mask = out["position"] == pos
@@ -150,7 +150,7 @@ def predict(
             continue
 
         log_adp = out.loc[mask, "log_adp"].values.astype(float)
-        rsv_hat = cal.model.predict(log_adp)
+        esv_hat = cal.model.predict(log_adp)
 
         rq = cal.residual_quantiles
         centers = rq["bin_center"].values
@@ -158,18 +158,18 @@ def predict(
         p50_r = np.interp(log_adp, centers, rq["p50_resid"].values)
         p75_r = np.interp(log_adp, centers, rq["p75_resid"].values)
 
-        p25 = rsv_hat + p25_r
-        p50 = rsv_hat + p50_r
-        p75 = rsv_hat + p75_r
+        p25 = esv_hat + p25_r
+        p50 = esv_hat + p50_r
+        p75 = esv_hat + p75_r
 
         # Enforce quantile ordering
         p50 = np.maximum(p50, p25)
         p75 = np.maximum(p75, p50)
 
-        out.loc[mask, "rsv_hat"] = rsv_hat
-        out.loc[mask, "rsv_p25"] = p25
-        out.loc[mask, "rsv_p50"] = p50
-        out.loc[mask, "rsv_p75"] = p75
+        out.loc[mask, "esv_hat"] = esv_hat
+        out.loc[mask, "esv_p25"] = p25
+        out.loc[mask, "esv_p50"] = p50
+        out.loc[mask, "esv_p75"] = p75
 
     return out
 
@@ -183,14 +183,14 @@ def fit_calibration_two_stage(
 ) -> dict[str, PositionCalibration]:
     """Fit per-position two-stage calibrations: isotonic + Ridge residual corrector.
 
-    Stage 1 is the standard isotonic regression (ADP → RSV).
+    Stage 1 is the standard isotonic regression (ADP → ESV).
     Stage 2 fits a Ridge regression on Stage 1 residuals using ``extra_features``.
     When ``extra_features`` is empty this is identical to ``fit_calibration()``.
 
     Parameters
     ----------
     train_df:
-        Training data with ``position, log_adp, rsv`` plus any ``extra_features``.
+        Training data with ``position, log_adp, esv`` plus any ``extra_features``.
     extra_features:
         Column names from ``train_df`` to use in Stage 2. Empty list → no Stage 2.
     alpha:
@@ -220,9 +220,9 @@ def fit_calibration_two_stage(
         cal = calibrations[pos]
         pos_df = train_df[train_df["position"] == pos]
         log_adp = pos_df["log_adp"].values.astype(float)
-        rsv = pos_df["rsv"].values.astype(float)
+        esv = pos_df["esv"].values.astype(float)
 
-        stage1_residuals = rsv - cal.model.predict(log_adp)
+        stage1_residuals = esv - cal.model.predict(log_adp)
 
         corrector = fit_residual_corrector(pos_df, stage1_residuals, extra_features, alpha=alpha)
         if corrector is None:
@@ -268,15 +268,15 @@ def predict_two_stage(
 
     Returns
     -------
-    Copy of *df* with added columns: ``rsv_hat, rsv_p25, rsv_p50, rsv_p75``.
+    Copy of *df* with added columns: ``esv_hat, esv_p25, esv_p50, esv_p75``.
     """
     from src.modeling.residual_corrector import apply_residual_corrector
 
     out = df.copy()
-    out["rsv_hat"] = np.nan
-    out["rsv_p25"] = np.nan
-    out["rsv_p50"] = np.nan
-    out["rsv_p75"] = np.nan
+    out["esv_hat"] = np.nan
+    out["esv_p25"] = np.nan
+    out["esv_p50"] = np.nan
+    out["esv_p75"] = np.nan
 
     for pos, cal in calibrations.items():
         mask = out["position"] == pos
@@ -287,7 +287,7 @@ def predict_two_stage(
         log_adp = pos_df["log_adp"].values.astype(float)
         stage1_hat = cal.model.predict(log_adp)
         corrections = apply_residual_corrector(cal.corrector, pos_df)
-        rsv_hat = stage1_hat + corrections
+        esv_hat = stage1_hat + corrections
 
         rq = cal.residual_quantiles
         centers = rq["bin_center"].values
@@ -295,17 +295,17 @@ def predict_two_stage(
         p50_r = np.interp(log_adp, centers, rq["p50_resid"].values)
         p75_r = np.interp(log_adp, centers, rq["p75_resid"].values)
 
-        p25 = rsv_hat + p25_r
-        p50 = rsv_hat + p50_r
-        p75 = rsv_hat + p75_r
+        p25 = esv_hat + p25_r
+        p50 = esv_hat + p50_r
+        p75 = esv_hat + p75_r
 
         p50 = np.maximum(p50, p25)
         p75 = np.maximum(p75, p50)
 
-        out.loc[mask, "rsv_hat"] = rsv_hat
-        out.loc[mask, "rsv_p25"] = p25
-        out.loc[mask, "rsv_p50"] = p50
-        out.loc[mask, "rsv_p75"] = p75
+        out.loc[mask, "esv_hat"] = esv_hat
+        out.loc[mask, "esv_p25"] = p25
+        out.loc[mask, "esv_p50"] = p50
+        out.loc[mask, "esv_p75"] = p75
 
     return out
 

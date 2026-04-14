@@ -33,7 +33,7 @@ def build_phase2_tv_inputs_from_frames(
     target_season: int = 2026,
 ) -> pd.DataFrame:
     """Score the full target-season player universe into a flat 4-year TV path."""
-    required_training = {"season", "position", "log_adp", "rsv"}
+    required_training = {"season", "position", "log_adp", "esv"}
     missing_training = sorted(required_training - set(training_df.columns))
     if missing_training:
         raise ValueError(f"Training data missing required columns: {missing_training}")
@@ -91,7 +91,7 @@ def build_phase2_tv_inputs_from_frames(
 
     merged["player"] = merged["roster_player"].fillna(merged["rankings_player"])
     merged["team"] = merged["fantasy_team"].fillna("")
-    merged["tv_y0"] = merged["rsv_hat"].fillna(0.0).astype(float)
+    merged["tv_y0"] = merged["esv_hat"].fillna(0.0).astype(float)
     for col in ["tv_y1", "tv_y2", "tv_y3"]:
         merged[col] = merged["tv_y0"]
 
@@ -105,16 +105,16 @@ def build_phase2_tv_inputs_from_frames(
             f"phase2_{target_season}_redraft_flat_path"
         )
         merged["tv_input_source"] = np.where(
-            merged["rsv_hat"].isna(), "unranked_zero", matched_label
+            merged["esv_hat"].isna(), "unranked_zero", matched_label
         )
     else:
         merged["tv_input_source"] = np.where(
-            merged["rsv_hat"].notna(),
+            merged["esv_hat"].notna(),
             f"phase2_{target_season}_redraft_flat_path",
             "unranked_zero",
         )
 
-    merged["matched_rankings"] = merged["rsv_hat"].notna()
+    merged["matched_rankings"] = merged["esv_hat"].notna()
     merged["is_rostered"] = merged["fantasy_team"].notna()
 
     output_cols = [
@@ -126,10 +126,10 @@ def build_phase2_tv_inputs_from_frames(
         "tv_y2",
         "tv_y3",
         "adp",
-        "rsv_hat",
-        "rsv_p25",
-        "rsv_p50",
-        "rsv_p75",
+        "esv_hat",
+        "esv_p25",
+        "esv_p50",
+        "esv_p75",
         "rankings_player",
         "nfl_team",
         "matched_rankings",

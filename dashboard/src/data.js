@@ -1,4 +1,4 @@
-// Data loading and derived metric computation for RSV Fantasy Dashboard
+// Data loading and derived metric computation for ESV Fantasy Dashboard
 // Reads weekly_detail.csv and season_values.csv via PapaParse at app startup.
 
 // Paths are relative to index.html (served from dashboard/src/)
@@ -49,23 +49,23 @@ function loadData() {
           week:       +r.week,
           points:     +(r.points     ?? 0) || 0,
           margin:     +(r.margin     ?? 0) || 0,
-          rsv_week:   +(r.rsv_week   ?? 0) || 0,
+          esv_week:   +(r.esv_week   ?? 0) || 0,
           wmsv:       +(r.wmsv       ?? 0) || 0,
           start_prob: +(r.start_prob ?? 0) || 0
         }));
 
       // ── Season data — derived metrics ────────────────────────────────────
 
-      // 1. RSV sum per season (used for dollar_value denominator).
-      //    Sum all positive and negative RSV values as-is.
-      const seasonRsvSum = {};
+      // 1. ESV sum per season (used for dollar_value denominator).
+      //    Sum all positive and negative ESV values as-is.
+      const seasonEsvSum = {};
       seasonRaw.forEach(r => {
         const season = +r.season;
-        const rsv    = +(r.rsv ?? 0) || 0;
-        seasonRsvSum[season] = (seasonRsvSum[season] || 0) + rsv;
+        const esv    = +(r.esv ?? 0) || 0;
+        seasonEsvSum[season] = (seasonEsvSum[season] || 0) + esv;
       });
 
-      // 2. pos_rank: rank within (season, position) by rsv desc, 1 = best.
+      // 2. pos_rank: rank within (season, position) by esv desc, 1 = best.
       //    Build groups, sort, then write ranks into a lookup map.
       const posGroups = {};
       seasonRaw.forEach(r => {
@@ -76,29 +76,29 @@ function loadData() {
       Object.values(posGroups).forEach(group => {
         group
           .slice()
-          .sort((a, b) => (+(b.rsv) || 0) - (+(a.rsv) || 0))
+          .sort((a, b) => (+(b.esv) || 0) - (+(a.esv) || 0))
           .forEach((r, i) => {
             posRankMap[`${r.season}||${r.player}`] = i + 1;
           });
       });
 
       // 3. Assemble SEASON_DATA rows.
-      //    Ignore rsv_val — it can contain Excel formula strings.
+      //    Ignore esv_val — it can contain Excel formula strings.
       SEASON_DATA = seasonRaw
         .filter(r => r.player && r.position)
         .map(r => {
           const season = +r.season;
-          const rsv    = +(r.rsv ?? 0) || 0;
-          const rsvSum = seasonRsvSum[season] || 1;
+          const esv    = +(r.esv ?? 0) || 0;
+          const esvSum = seasonEsvSum[season] || 1;
           return {
             player:       String(r.player),
             position:     String(r.position),
             season,
-            rsv,
+            esv,
             sav:          +(r.sav          ?? 0) || 0,
             par:          +(r.par          ?? 0) || 0,
             total_points: +(r.total_points ?? 0) || 0,
-            dollar_value: (rsv / rsvSum) * 3000,
+            dollar_value: (esv / esvSum) * 3000,
             pos_rank:     posRankMap[`${season}||${r.player}`] ?? null
           };
         });
@@ -108,8 +108,8 @@ function loadData() {
       ALL_SEASONS = [...new Set(SEASON_DATA.map(r => r.season))].sort((a, b) => a - b);
 
       // ── Console summary ───────────────────────────────────────────────────
-      const sampleRow = SEASON_DATA.find(r => r.rsv > 10);
-      console.log('=== RSV Fantasy Dashboard — Data Loaded ===');
+      const sampleRow = SEASON_DATA.find(r => r.esv > 10);
+      console.log('=== ESV Fantasy Dashboard — Data Loaded ===');
       console.log(`Weekly rows  : ${WEEKLY_DATA.length.toLocaleString()}`);
       console.log(`Season rows  : ${SEASON_DATA.length.toLocaleString()}`);
       console.log(`Season range : ${ALL_SEASONS[0]}–${ALL_SEASONS[ALL_SEASONS.length - 1]}`);

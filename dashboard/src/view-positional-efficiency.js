@@ -1,5 +1,5 @@
 // View 5: Positional Efficiency
-// Shows what % of theoretical SAV owners actually capture (RSV/SAV) by rank.
+// Shows what % of theoretical SAV owners actually capture (ESV/SAV) by rank.
 // Single-season: one line per position.
 // All-Seasons: scatter (individual) + bold average line, same pattern as Value Curves.
 
@@ -49,17 +49,17 @@ function renderPositionalEfficiencyChart() {
 }
 
 // ── Data helper ───────────────────────────────────────────────────────────────
-// Top-24 players by RSV for a given (pos, season), filtered to sav > 0.
+// Top-24 players by ESV for a given (pos, season), filtered to sav > 0.
 // Returns [{x: rank, y: pct, player, position}]
 
 function _peTopData(season, pos) {
   return SEASON_DATA
     .filter(r => r.season === season && r.position === pos && r.sav > 0)
-    .sort((a, b) => b.rsv - a.rsv)
+    .sort((a, b) => b.esv - a.esv)
     .slice(0, 24)
     .map((r, i) => ({
       x:        i + 1,
-      y:        (r.rsv / r.sav) * 100,
+      y:        (r.esv / r.sav) * 100,
       player:   r.player,
       position: r.position
     }));
@@ -118,7 +118,7 @@ function _peOptions(extraTooltip, legendFilter) {
         min: 0,
         title: {
           display: true,
-          text: 'RSV / SAV (%)',
+          text: 'ESV / SAV (%)',
           color: THEME.muted,
           font: { family: 'DM Sans', size: 12 }
         },

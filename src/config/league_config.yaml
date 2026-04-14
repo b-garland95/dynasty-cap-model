@@ -99,6 +99,40 @@ rookie_scale:
   option_use_it_or_lose_it: true
   options_per_team_per_year: 1
 
+# Age-curve parameters for dynasty multi-year projections (Hybrid A+B model).
+# peak_age    – age at which a player at their expected dynasty ceiling produces
+#               the highest ESV; multiplier = 1.0 exactly at this age.
+# rise_slope  – exponential rate at which ESV rises toward the ceiling
+#               (per year before peak).  Higher → steeper pre-peak ramp.
+# decline_slope – exponential decay rate past peak (per year).
+#                 Higher → steeper post-peak decline.
+age_curves:
+  QB:
+    peak_age: 29
+    rise_slope: 0.04
+    decline_slope: 0.06
+  WR:
+    peak_age: 27
+    rise_slope: 0.07
+    decline_slope: 0.08
+  RB:
+    peak_age: 25
+    rise_slope: 0.09
+    decline_slope: 0.12
+  TE:
+    peak_age: 27
+    rise_slope: 0.05
+    decline_slope: 0.07
+
+# Scaling factor for the delta-rank trajectory correction in multi-year TV paths.
+# delta = redraft_positional_rank - dynasty_positional_rank (positive = developing).
+# Correction at year offset k = 1 + dynasty_delta_alpha * clamp(delta / N_pos, -1, 1) * k
+dynasty_delta_alpha: 0.05
+
+# Year-over-year band expansion rate for future-year uncertainty.
+# Band width at year k = base_band_width * (1 + dynasty_band_expansion * k)
+dynasty_band_expansion: 0.40
+
 phase2_variants:
   baseline:
     extra_features: []

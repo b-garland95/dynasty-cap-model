@@ -43,29 +43,21 @@ function loadData() {
       WEEKLY_DATA = weeklyRaw
         .filter(r => r.player && r.position)
         .map(r => ({
-          player:     String(r.player),
-          position:   String(r.position),
-          season:     +r.season,
-          week:       +r.week,
-          points:     +(r.points     ?? 0) || 0,
-          margin:     +(r.margin     ?? 0) || 0,
-          esv_week:   +(r.esv_week   ?? 0) || 0,
-          wmsv:       +(r.wmsv       ?? 0) || 0,
-          start_prob: +(r.start_prob ?? 0) || 0
+          player:       String(r.player),
+          position:     String(r.position),
+          season:       +r.season,
+          week:         +r.week,
+          points:       +(r.points      ?? 0) || 0,
+          margin:       +(r.margin      ?? 0) || 0,
+          esv_week:     +(r.esv_week    ?? 0) || 0,
+          wmsv:         +(r.wmsv        ?? 0) || 0,
+          start_prob:   +(r.start_prob  ?? 0) || 0,
+          dollar_value: +(r.dollar_value ?? 0) || 0
         }));
 
       // ── Season data — derived metrics ────────────────────────────────────
 
-      // 1. ESV sum per season (used for dollar_value denominator).
-      //    Sum all positive and negative ESV values as-is.
-      const seasonEsvSum = {};
-      seasonRaw.forEach(r => {
-        const season = +r.season;
-        const esv    = +(r.esv ?? 0) || 0;
-        seasonEsvSum[season] = (seasonEsvSum[season] || 0) + esv;
-      });
-
-      // 2. pos_rank: rank within (season, position) by esv desc, 1 = best.
+      // 1. pos_rank: rank within (season, position) by esv desc, 1 = best.
       //    Build groups, sort, then write ranks into a lookup map.
       const posGroups = {};
       seasonRaw.forEach(r => {
@@ -82,23 +74,22 @@ function loadData() {
           });
       });
 
-      // 3. Assemble SEASON_DATA rows.
+      // 2. Assemble SEASON_DATA rows.
+      //    dollar_value is pre-computed by the Phase 1 pipeline; read directly.
       //    Ignore esv_val — it can contain Excel formula strings.
       SEASON_DATA = seasonRaw
         .filter(r => r.player && r.position)
         .map(r => {
           const season = +r.season;
-          const esv    = +(r.esv ?? 0) || 0;
-          const esvSum = seasonEsvSum[season] || 1;
           return {
             player:       String(r.player),
             position:     String(r.position),
             season,
-            esv,
+            esv:          +(r.esv          ?? 0) || 0,
             sav:          +(r.sav          ?? 0) || 0,
             par:          +(r.par          ?? 0) || 0,
             total_points: +(r.total_points ?? 0) || 0,
-            dollar_value: (esv / esvSum) * 3000,
+            dollar_value: +(r.dollar_value ?? 0) || 0,
             pos_rank:     posRankMap[`${season}||${r.player}`] ?? null
           };
         });

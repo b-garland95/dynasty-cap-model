@@ -21,6 +21,7 @@ from src.ingest.player_ids import (
     harmonize_projection_names_by_name,
 )
 from src.utils.config import load_league_config
+from src.valuation.phase1_metrics import compute_dollar_values
 from src.valuation.phase1_pipeline import run_phase1_all_seasons
 
 HISTORICAL_CSV = REPO_ROOT / "data" / "interim" / "historical_weekly_player_points_2015_2025.csv"
@@ -120,6 +121,12 @@ def main() -> int:
     except Exception as exc:
         print(f"  Warning: player dimensions enrichment failed ({exc.__class__.__name__}); skipping")
 
+    # --- Compute implied dollar values ---------------------------------------
+    season_values, weekly_detail = compute_dollar_values(
+        season_values, results["started_weekly"], config
+    )
+    print("Computed implied dollar values (dollar_value column added to season and weekly outputs)")
+
     # --- Export --------------------------------------------------------------
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -128,8 +135,8 @@ def main() -> int:
     print(f"\nWrote {len(season_values)} rows to {sv_path}")
 
     weekly_path = args.output_dir / "phase1_weekly_detail.csv"
-    results["started_weekly"].to_csv(weekly_path, index=False)
-    print(f"Wrote {len(results['started_weekly'])} rows to {weekly_path}")
+    weekly_detail.to_csv(weekly_path, index=False)
+    print(f"Wrote {len(weekly_detail)} rows to {weekly_path}")
 
     cl_path = args.output_dir / "phase1_cutlines.csv"
     results["cutlines"].to_csv(cl_path, index=False)
@@ -141,11 +148,12 @@ def main() -> int:
     for _, row in top.iterrows():
         pos = row.get("position", "?")
         par_val = row.get("par", float("nan"))
+        dv_val = row.get("dollar_value", float("nan"))
         print(
             f"  {row['season']}  {row['player']:<25s} {pos:<3s}  "
             f"SAV={row['sav']:7.1f}  ESV={row['esv']:7.1f}  "
             f"CG={row['cg']:6.1f}  PAR={par_val:7.1f}  "
-            f"TP={row['total_points']:7.1f}"
+            f"TP={row['total_points']:7.1f}  DV=${dv_val:6.1f}"
         )
 
     return 0

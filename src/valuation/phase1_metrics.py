@@ -37,17 +37,17 @@ def compute_dollar_values(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Add implied cap dollar values to Phase 1 season and weekly outputs.
 
-    dollar_value = (rsv / season_total_rsv) * (base_cap * n_teams)
+    dollar_value = (esv / season_total_esv) * (base_cap * n_teams)
 
-    For weekly rows the same per-season RSV denominator is used, so a
+    For weekly rows the same per-season ESV denominator is used, so a
     player's weekly dollar_values sum exactly to their season dollar_value.
 
     Parameters
     ----------
     season_values:
-        Season-aggregated Phase 1 output; must contain ``season`` and ``rsv``.
+        Season-aggregated Phase 1 output; must contain ``season`` and ``esv``.
     weekly_detail:
-        Weekly Phase 1 output; must contain ``season`` and ``rsv_week``.
+        Weekly Phase 1 output; must contain ``season`` and ``esv_week``.
     config:
         League config dict (must have ``cap.base_cap`` and ``league.teams``).
 
@@ -57,17 +57,17 @@ def compute_dollar_values(
     """
     total_league_cap = config["cap"]["base_cap"] * config["league"]["teams"]
 
-    season_rsv_totals = season_values.groupby("season")["rsv"].transform("sum")
+    season_esv_totals = season_values.groupby("season")["esv"].transform("sum")
 
     season_values = season_values.copy()
     season_values["dollar_value"] = (
-        season_values["rsv"] / season_rsv_totals.clip(lower=1e-9)
+        season_values["esv"] / season_esv_totals.clip(lower=1e-9)
     ) * total_league_cap
 
-    season_totals_map = season_values.groupby("season")["rsv"].sum()
+    season_totals_map = season_values.groupby("season")["esv"].sum()
     weekly_detail = weekly_detail.copy()
     weekly_detail["dollar_value"] = (
-        weekly_detail["rsv_week"]
+        weekly_detail["esv_week"]
         / weekly_detail["season"].map(season_totals_map).clip(lower=1e-9)
     ) * total_league_cap
 

@@ -18,14 +18,14 @@ def _ledger_fixture() -> pd.DataFrame:
 def _training_fixture() -> pd.DataFrame:
     rows = []
     for season, offset in [(2024, 0.0), (2025, 2.0)]:
-        for rank, rsv in [(1, 80.0 + offset), (2, 70.0 + offset), (10, 40.0 + offset), (20, 20.0 + offset)]:
-            rows.append({"season": season, "position": "QB", "log_adp": math.log(rank), "rsv": rsv})
-        for rank, rsv in [(1, 70.0 + offset), (2, 60.0 + offset), (10, 30.0 + offset), (20, 12.0 + offset)]:
-            rows.append({"season": season, "position": "RB", "log_adp": math.log(rank), "rsv": rsv})
-        for rank, rsv in [(1, 65.0 + offset), (2, 55.0 + offset), (10, 28.0 + offset), (20, 10.0 + offset)]:
-            rows.append({"season": season, "position": "WR", "log_adp": math.log(rank), "rsv": rsv})
-        for rank, rsv in [(1, 45.0 + offset), (2, 38.0 + offset), (10, 18.0 + offset), (20, 8.0 + offset)]:
-            rows.append({"season": season, "position": "TE", "log_adp": math.log(rank), "rsv": rsv})
+        for rank, esv in [(1, 80.0 + offset), (2, 70.0 + offset), (10, 40.0 + offset), (20, 20.0 + offset)]:
+            rows.append({"season": season, "position": "QB", "log_adp": math.log(rank), "esv": esv})
+        for rank, esv in [(1, 70.0 + offset), (2, 60.0 + offset), (10, 30.0 + offset), (20, 12.0 + offset)]:
+            rows.append({"season": season, "position": "RB", "log_adp": math.log(rank), "esv": esv})
+        for rank, esv in [(1, 65.0 + offset), (2, 55.0 + offset), (10, 28.0 + offset), (20, 10.0 + offset)]:
+            rows.append({"season": season, "position": "WR", "log_adp": math.log(rank), "esv": esv})
+        for rank, esv in [(1, 45.0 + offset), (2, 38.0 + offset), (10, 18.0 + offset), (20, 8.0 + offset)]:
+            rows.append({"season": season, "position": "TE", "log_adp": math.log(rank), "esv": esv})
     return pd.DataFrame(rows)
 
 

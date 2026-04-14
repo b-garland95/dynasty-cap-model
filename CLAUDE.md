@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Dynasty Cap Model is a salary-cap dynasty fantasy football valuation framework for **League Tycoon** contract leagues. The repo is a test-driven pipeline that goes from historical weekly stats → season values (PAR/SAV/RSV/LD/CG) → predictive TV forecasts → contract surplus/dead-money/instrument-decision tables.
+Dynasty Cap Model is a salary-cap dynasty fantasy football valuation framework for **League Tycoon** contract leagues. The repo is a test-driven pipeline that goes from historical weekly stats → season values (PAR/SAV/ESV/LD/CG) → predictive TV forecasts → contract surplus/dead-money/instrument-decision tables.
 
 Platform rules reference: https://leaguetycoon.com/rules/contract-league-rules/
 nflreadpy Github and docs: https://github.com/nflverse/nflreadpy 
@@ -40,8 +40,8 @@ Source tree is organized by pipeline phase, not by data type:
 
 - `src/config/league_config.yaml` — **single source of truth** for all league rules (roster slots, escalators, dead-money %, PS/IR cap hits, rookie scale, discount rate). Never hardcode league settings elsewhere; read via `src/utils/config.py`.
 - `src/ingest/` — raw → normalized loaders (League Tycoon rosters, FantasyData weekly projections, historical weekly points). Handles both legacy (2014–2024) and current schema variants and unifies them into a common `season/week/player_id/…/projected_points` shape.
-- `src/valuation/` — **Phase 1** historical season valuation: weekly slot cutlines, shrinkage, constrained lineup assignment, SAV, RSV, LD, CG.
-- `src/modeling/` — **Phase 2** predictive layer: position-specific monotonic ADP→RSV calibration with quantiles, rolling time-aware backtests. Target is season RSV, not raw points.
+- `src/valuation/` — **Phase 1** historical season valuation: weekly slot cutlines, shrinkage, constrained lineup assignment, SAV, ESV, LD, CG.
+- `src/modeling/` — **Phase 2** predictive layer: position-specific monotonic ADP→ESV calibration with quantiles, rolling time-aware backtests. Target is season ESV, not raw points.
 - `src/contracts/` — **Phase 3** contract math: dead money, salary schedules, PV @ 25% discount, surplus, instrument (extension/tag/option) evaluation.
 - `scripts/` — thin entry points that wire ingest → valuation/modeling → contracts and write to `data/{raw,interim,processed}/`.
 - `tests/fixtures/` — tiny golden fixtures; every milestone ships with unit tests.
@@ -50,7 +50,7 @@ Source tree is organized by pipeline phase, not by data type:
 
 - **Two levels of cutlines**: **Slot cutlines** (QB, RB, WR, TE, FLEX, SF) are computed via a weekly leaguewide optimal constrained allocation and determine who starts. **Position cutlines** (the min points of any starter of that position across all slots) are used for margin/WMSV calculation. Both are shrunk toward a season baseline.
 - **Players cannot choose their best slot.** The assignment determines who starts and in which slot. Margins are computed against the player's **position cutline**, not their assigned slot's cutline. This ensures all QBs are valued against the same replacement level whether they fill the QB or SF slot.
-- Realized Start Value (RSV) discounts SAV by roster/start probabilities in a rational average league; LD penalizes sub-replacement starts; `CG = SAV - RSV`.
+- Expected Start Value (ESV) discounts SAV by roster/start probabilities in a rational average league; LD penalizes sub-replacement starts; `CG = SAV - ESV`.
 
 ### Phase 3 contract invariants
 

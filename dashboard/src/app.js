@@ -1,4 +1,4 @@
-// Tab switching logic and chart instance management for RSV Fantasy Dashboard
+// Tab switching logic and chart instance management for ESV Fantasy Dashboard
 
 /**
  * Registry of active Chart.js instances, keyed by view name.
@@ -26,7 +26,7 @@ const VIEW_INIT_FNS = {
   'year-over-year':     () => initYearOverYear(),
   'player-timeline':    () => initPlayerTimeline(),
   'value-distribution':    () => initValueDistribution(),
-  'wmsv-vs-rsv':           () => initWmsvRsv(),
+  'wmsv-vs-esv':           () => initWmsvEsv(),
   'positional-efficiency': () => initPositionalEfficiency()
 };
 

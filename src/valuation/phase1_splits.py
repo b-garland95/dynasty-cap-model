@@ -31,28 +31,28 @@ def aggregate_sav_splits(started_weekly_df: pd.DataFrame, config: dict[str, Any]
 
 
 
-def aggregate_rsv_ld_splits(realized_weekly_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
-    """Aggregate weekly RSV and LD into regular/playoff splits."""
-    phased = add_season_phase(realized_weekly_df, config)
+def aggregate_esv_ld_splits(esv_weekly_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    """Aggregate weekly ESV and LD into regular/playoff splits."""
+    phased = add_season_phase(esv_weekly_df, config)
     player_key = "gsis_id" if "gsis_id" in phased.columns else "player"
     group_cols = [col for col in ["season", player_key, "phase"] if col in phased.columns]
     if player_key not in group_cols:
         group_cols.append(player_key)
     return phased.groupby(group_cols, as_index=False).agg(
-        rsv=("rsv_week", "sum"),
+        esv=("esv_week", "sum"),
         ld=("ld_week", "sum"),
     )
 
 
 
-def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, rsv_splits_df: pd.DataFrame) -> pd.DataFrame:
-    """Compute split capture gap from split SAV and RSV tables."""
-    player_key = "gsis_id" if "gsis_id" in sav_splits_df.columns and "gsis_id" in rsv_splits_df.columns else "player"
-    join_cols = [col for col in ["season", player_key, "phase"] if col in sav_splits_df.columns and col in rsv_splits_df.columns]
+def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, esv_splits_df: pd.DataFrame) -> pd.DataFrame:
+    """Compute split capture gap from split SAV and ESV tables."""
+    player_key = "gsis_id" if "gsis_id" in sav_splits_df.columns and "gsis_id" in esv_splits_df.columns else "player"
+    join_cols = [col for col in ["season", player_key, "phase"] if col in sav_splits_df.columns and col in esv_splits_df.columns]
     if not join_cols:
         join_cols = [player_key, "phase"]
-    merged = sav_splits_df.merge(rsv_splits_df, on=join_cols, how="inner")
-    merged["cg"] = merged["sav"] - merged["rsv"]
+    merged = sav_splits_df.merge(esv_splits_df, on=join_cols, how="inner")
+    merged["cg"] = merged["sav"] - merged["esv"]
     return merged
 
 

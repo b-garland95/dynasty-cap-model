@@ -229,8 +229,8 @@ def test_derived_columns_present(dims):
 
 def test_original_columns_unchanged(dims):
     """Enrichment does not remove or rename any of the caller's existing columns."""
-    original_cols = ["gsis_id", "season", "sav", "rsv"]
-    df = pd.DataFrame([{"gsis_id": TRAVIS_GSIS, "season": 2021, "sav": 42.0, "rsv": 30.0}])
+    original_cols = ["gsis_id", "season", "sav", "esv"]
+    df = pd.DataFrame([{"gsis_id": TRAVIS_GSIS, "season": 2021, "sav": 42.0, "esv": 30.0}])
     out = enrich_with_player_dimensions(df, dims=dims)
 
     for col in original_cols:

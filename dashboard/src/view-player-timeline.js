@@ -3,7 +3,7 @@
 
 let ptInitialized = false;
 let selectedPlayers = [];   // [{ id, player, season, color }]
-let ptMode = 'points-start'; // 'points-start' | 'wmsv-rsv' | 'season-dollar'
+let ptMode = 'points-start'; // 'points-start' | 'wmsv-esv' | 'season-dollar'
 let ptNextId = 0;
 
 const PT_COLORS = ['#6c8cff', '#e06c75', '#98c379', '#d19a66', '#c678dd'];
@@ -197,7 +197,7 @@ function _ptRenderMetricCards() {
     const detail = document.createElement('div');
     detail.className = 'pt-metric-detail';
     detail.textContent =
-      `RSV: ${row.rsv.toFixed(1)} | Pts: ${row.total_points.toFixed(1)} | ${row.position}${row.pos_rank}`;
+      `ESV: ${row.esv.toFixed(1)} | Pts: ${row.total_points.toFixed(1)} | ${row.position}${row.pos_rank}`;
 
     card.appendChild(header);
     card.appendChild(dv);
@@ -226,7 +226,7 @@ function renderTimelineChart() {
   destroyChart('player-timeline');
 
   if (ptMode === 'points-start') _ptModeA();
-  else if (ptMode === 'wmsv-rsv') _ptModeB();
+  else if (ptMode === 'wmsv-esv') _ptModeB();
   else _ptModeC();
 }
 
@@ -404,7 +404,7 @@ function _ptModeA() {
   });
 }
 
-// ── Mode B: WMSV vs RSV ───────────────────────────────────────────────────────
+// ── Mode B: WMSV vs ESV ───────────────────────────────────────────────────────
 
 function _ptModeB() {
   const ctx    = document.getElementById('chart-player-timeline').getContext('2d');
@@ -417,7 +417,7 @@ function _ptModeB() {
     const c   = sel.color;
     const tag = `${sel.player} ${sel.season}`;
 
-    // Order 2 — WMSV dashed outline (behind RSV fill)
+    // Order 2 — WMSV dashed outline (behind ESV fill)
     datasets.push({
       label:              `WMSV: ${tag}`,
       data:               _ptWeeks(sel.player, sel.season, 'wmsv'),
@@ -430,10 +430,10 @@ function _ptModeB() {
       categoryPercentage: 0.85
     });
 
-    // Order 1 — RSV filled bar (in front of outline)
+    // Order 1 — ESV filled bar (in front of outline)
     datasets.push({
-      label:              `RSV: ${tag}`,
-      data:               _ptWeeks(sel.player, sel.season, 'rsv_week'),
+      label:              `ESV: ${tag}`,
+      data:               _ptWeeks(sel.player, sel.season, 'esv_week'),
       order:              1,
       backgroundColor:    hexToRgba(c, 0.6),
       borderColor:        c,
@@ -509,7 +509,7 @@ function _ptModeC() {
 
   const options = _ptOptions(scales, {});
 
-  // Custom tooltip: "{player}: ${dv} (RSV: {rsv} | {pos}{rank})"
+  // Custom tooltip: "{player}: ${dv} (ESV: {esv} | {pos}{rank})"
   options.plugins.tooltip.callbacks = {
     label: ctx => {
       const pName  = ctx.dataset.label;
@@ -517,7 +517,7 @@ function _ptModeC() {
       const row    = SEASON_DATA.find(r => r.player === pName && r.season === season);
       if (!row) return null;
       return `${pName}: $${row.dollar_value.toFixed(2)} ` +
-             `(RSV: ${row.rsv.toFixed(1)} | ${row.position}${row.pos_rank})`;
+             `(ESV: ${row.esv.toFixed(1)} | ${row.position}${row.pos_rank})`;
     }
   };
 

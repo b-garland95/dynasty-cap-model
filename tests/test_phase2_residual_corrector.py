@@ -24,7 +24,7 @@ def _make_train_df(n: int = 30) -> pd.DataFrame:
     return pd.DataFrame({
         "position": ["RB"] * n,
         "log_adp": np.linspace(0.5, 5.0, n),
-        "rsv": 100 - np.linspace(0.5, 5.0, n) * 10 + rng.normal(0, 5, n),
+        "esv": 100 - np.linspace(0.5, 5.0, n) * 10 + rng.normal(0, 5, n),
         "is_rookie": ([True] * 5 + [False] * (n - 5)),
         "years_of_experience": list(range(n)),
         "age": np.linspace(22.0, 32.0, n),
@@ -61,8 +61,8 @@ def test_quantile_ordering_preserved_two_stage():
         df, extra_features=["is_rookie", "years_of_experience", "age"], alpha=1.0
     )
     scored = predict_two_stage(calibrations, df)
-    assert (scored["rsv_p25"] <= scored["rsv_p50"]).all()
-    assert (scored["rsv_p50"] <= scored["rsv_p75"]).all()
+    assert (scored["esv_p25"] <= scored["esv_p50"]).all()
+    assert (scored["esv_p50"] <= scored["esv_p75"]).all()
 
 
 def test_two_stage_with_no_features_equals_baseline():
@@ -74,8 +74,8 @@ def test_two_stage_with_no_features_equals_baseline():
     scored_two_stage = predict_two_stage(cal_two_stage, df)
 
     np.testing.assert_array_almost_equal(
-        scored_baseline["rsv_hat"].values,
-        scored_two_stage["rsv_hat"].values,
+        scored_baseline["esv_hat"].values,
+        scored_two_stage["esv_hat"].values,
         decimal=10,
     )
 

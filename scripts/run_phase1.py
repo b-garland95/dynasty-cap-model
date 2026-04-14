@@ -100,7 +100,7 @@ def main() -> int:
     cg_df = results["cg"]
     par_df = results["par"]
 
-    # Merge CG (has sav, rsv, cg, player, position, weeks) with PAR
+    # Merge CG (has sav, esv, cg, player, position, weeks) with PAR
     player_key = "gsis_id" if "gsis_id" in cg_df.columns else "player"
     merge_cols = ["season", player_key]
     season_values = cg_df.merge(
@@ -151,7 +151,7 @@ def main() -> int:
         dv_val = row.get("dollar_value", float("nan"))
         print(
             f"  {row['season']}  {row['player']:<25s} {pos:<3s}  "
-            f"SAV={row['sav']:7.1f}  RSV={row['rsv']:7.1f}  "
+            f"SAV={row['sav']:7.1f}  ESV={row['esv']:7.1f}  "
             f"CG={row['cg']:6.1f}  PAR={par_val:7.1f}  "
             f"TP={row['total_points']:7.1f}  DV=${dv_val:6.1f}"
         )

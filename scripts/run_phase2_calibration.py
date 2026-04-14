@@ -1,4 +1,4 @@
-"""Run Phase 2 ADP → RSV calibration with rolling backtest.
+"""Run Phase 2 ADP → ESV calibration with rolling backtest.
 
 Usage:
     python scripts/run_phase2_calibration.py

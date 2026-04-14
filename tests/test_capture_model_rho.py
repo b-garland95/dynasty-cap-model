@@ -10,7 +10,7 @@ from src.valuation.capture_model import PerfectCaptureModel, RationalCaptureMode
 from src.valuation.phase1_assignment import assign_leaguewide_starting_set, compute_weekly_margins
 from src.valuation.phase1_cutlines import compute_position_cutlines
 from src.valuation.phase1_metrics import aggregate_sav
-from src.valuation.phase1_realized import compute_rsv_ld_from_started_weekly
+from src.valuation.phase1_esv import compute_esv_ld_from_started_weekly
 from src.valuation.roster_probability import compute_roster_probabilities
 
 
@@ -163,7 +163,7 @@ def test_capacity_enforcement_sanity():
     assert math.isclose(week1_total, capacity, abs_tol=0.05)
 
 
-def test_rational_capture_reduces_boom_rb_rsv():
+def test_rational_capture_reduces_boom_rb_esv():
     config = _small_config()
     config["lineup"]["flex"] = 2
     config["lineup"]["superflex"] = 1
@@ -175,13 +175,13 @@ def test_rational_capture_reduces_boom_rb_rsv():
     sav_df = aggregate_sav(started_df)
     boom_sav = sav_df.loc[sav_df["gsis_id"] == "G-BoomRB", "sav"].iloc[0]
 
-    perfect_rsv_df = compute_rsv_ld_from_started_weekly(started_df, PerfectCaptureModel())
-    boom_perfect = perfect_rsv_df.loc[perfect_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
+    perfect_esv_df = compute_esv_ld_from_started_weekly(started_df, PerfectCaptureModel())
+    boom_perfect = perfect_esv_df.loc[perfect_esv_df["gsis_id"] == "G-BoomRB", "esv"].iloc[0]
     assert math.isclose(boom_perfect, boom_sav, rel_tol=1e-9)
 
     rational_model = RationalCaptureModel(proj_df=proj_df, adp_df=adp_df, config=config)
-    rational_rsv_df = compute_rsv_ld_from_started_weekly(started_df, rational_model)
-    boom_rational = rational_rsv_df.loc[rational_rsv_df["gsis_id"] == "G-BoomRB", "rsv"].iloc[0]
+    rational_esv_df = compute_esv_ld_from_started_weekly(started_df, rational_model)
+    boom_rational = rational_esv_df.loc[rational_esv_df["gsis_id"] == "G-BoomRB", "esv"].iloc[0]
 
     assert boom_rational < boom_sav
     assert boom_rational < boom_perfect

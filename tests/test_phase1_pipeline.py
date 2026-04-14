@@ -58,13 +58,13 @@ def test_run_phase1_season_returns_expected_keys():
 
     result = run_phase1_season(pts, proj, adp, config)
 
-    assert set(result.keys()) == {"started_weekly", "sav", "rsv_ld", "cg", "par", "cutlines"}
+    assert set(result.keys()) == {"started_weekly", "sav", "esv_ld", "cg", "par", "cutlines"}
     for key, df in result.items():
         assert isinstance(df, pd.DataFrame), f"{key} is not a DataFrame"
         assert len(df) > 0, f"{key} is empty"
 
 
-def test_run_phase1_season_cg_equals_sav_minus_rsv():
+def test_run_phase1_season_cg_equals_sav_minus_esv():
     config = load_league_config()
     pts, proj, adp = _make_season_data()
 
@@ -72,13 +72,13 @@ def test_run_phase1_season_cg_equals_sav_minus_rsv():
     cg_df = result["cg"]
 
     for _, row in cg_df.iterrows():
-        expected_cg = row["sav"] - row["rsv"]
+        expected_cg = row["sav"] - row["esv"]
         assert math.isclose(row["cg"], expected_cg, abs_tol=1e-9), (
-            f"{row.get('player', '?')}: CG={row['cg']:.6f} != SAV-RSV={expected_cg:.6f}"
+            f"{row.get('player', '?')}: CG={row['cg']:.6f} != SAV-ESV={expected_cg:.6f}"
         )
 
 
-def test_run_phase1_season_rsv_lte_sav():
+def test_run_phase1_season_esv_lte_sav():
     config = load_league_config()
     pts, proj, adp = _make_season_data()
 
@@ -86,8 +86,8 @@ def test_run_phase1_season_rsv_lte_sav():
     cg_df = result["cg"]
 
     for _, row in cg_df.iterrows():
-        assert row["rsv"] <= row["sav"] + 1e-9, (
-            f"{row.get('player', '?')}: RSV={row['rsv']:.4f} > SAV={row['sav']:.4f}"
+        assert row["esv"] <= row["sav"] + 1e-9, (
+            f"{row.get('player', '?')}: ESV={row['esv']:.4f} > SAV={row['sav']:.4f}"
         )
 
 
@@ -97,15 +97,15 @@ def test_run_phase1_season_gsis_id_in_outputs():
 
     result = run_phase1_season(pts, proj, adp, config)
 
-    for key in ("sav", "rsv_ld", "cg", "par"):
+    for key in ("sav", "esv_ld", "cg", "par"):
         assert "gsis_id" in result[key].columns, f"gsis_id missing from {key}"
 
 
 def test_run_phase1_season_no_projections_uses_perfect_capture():
     """With no projections, CG = -LD under PerfectCaptureModel.
 
-    RSV = sum(start_prob × margin) = sum(margin) under perfect capture,
-    while SAV = sum(wmsv) = sum(max(0, margin)). So CG = SAV - RSV = -LD.
+    ESV = sum(start_prob × margin) = sum(margin) under perfect capture,
+    while SAV = sum(wmsv) = sum(max(0, margin)). So CG = SAV - ESV = -LD.
     """
     config = load_league_config()
     pts, _, _ = _make_season_data()
@@ -126,12 +126,12 @@ def test_run_phase1_season_with_rankings_currently_matches_start_only_capture():
     result_with_rankings = run_phase1_season(pts, proj, adp, config)
     result_without_rankings = run_phase1_season(pts, proj, None, config)
 
-    merged = result_with_rankings["rsv_ld"].merge(
-        result_without_rankings["rsv_ld"],
+    merged = result_with_rankings["esv_ld"].merge(
+        result_without_rankings["esv_ld"],
         on=["season", "gsis_id"],
         suffixes=("_with_adp", "_no_adp"),
     )
-    assert merged["rsv_with_adp"].equals(merged["rsv_no_adp"])
+    assert merged["esv_with_adp"].equals(merged["esv_no_adp"])
     assert merged["ld_with_adp"].equals(merged["ld_no_adp"])
 
 

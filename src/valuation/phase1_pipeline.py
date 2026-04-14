@@ -1,6 +1,6 @@
 """Phase 1 season-level pipeline orchestrator.
 
-Wires the individual Phase 1 modules (cutlines, assignment, SAV, RSV/LD,
+Wires the individual Phase 1 modules (cutlines, assignment, SAV, ESV/LD,
 CG, PAR) into a single ``run_phase1_season()`` call and provides a
 multi-season wrapper that concatenates results.
 """
@@ -26,7 +26,7 @@ from src.valuation.phase1_cutlines import (
 )
 from src.valuation.phase1_metrics import aggregate_sav
 from src.valuation.phase1_par import compute_par_by_player, compute_position_replacement_level_par
-from src.valuation.phase1_realized import compute_capture_gap, compute_rsv_ld_from_started_weekly, compute_rsv_ld_weekly
+from src.valuation.phase1_esv import compute_capture_gap, compute_esv_ld_from_started_weekly, compute_esv_ld_weekly
 
 
 def run_phase1_season(
@@ -57,7 +57,7 @@ def run_phase1_season(
     Returns
     -------
     dict with keys:
-        ``started_weekly``, ``sav``, ``rsv_ld``, ``cg``, ``par``, ``cutlines``.
+        ``started_weekly``, ``sav``, ``esv_ld``, ``cg``, ``par``, ``cutlines``.
     """
     season = int(season_points["season"].iloc[0])
 
@@ -113,7 +113,7 @@ def run_phase1_season(
         started["season"] = season
         started["week"] = week
         started_frames.append(started)
-        # Full player pool (all players with points >= 0.1) for RSV.
+        # Full player pool (all players with points >= 0.1) for ESV.
         full_pool = compute_full_pool_margins(week_df, shrunk_pos_cl, config, min_points=0.1)
         full_pool["season"] = season
         full_pool["week"] = week
@@ -123,7 +123,7 @@ def run_phase1_season(
     full_pool_weekly = pd.concat(full_pool_frames, ignore_index=True)
     sav_df = aggregate_sav(started_weekly)
 
-    # --- Capture model + RSV / LD ------------------------------------------
+    # --- Capture model + ESV / LD ------------------------------------------
     if season_proj is not None and len(season_proj) > 0:
         proj_renamed = season_proj.rename(columns={"projected_points": "proj_points"})
 
@@ -131,7 +131,7 @@ def run_phase1_season(
         # heuristic is behaving sensibly in production Phase 1 runs.
         #
         # The rankings/ADP plumbing is intentionally left in place so we can
-        # revisit rho without re-threading the pipeline, but for now RSV uses
+        # revisit rho without re-threading the pipeline, but for now ESV uses
         # sigma-only start capture.
         #
         # Interesting review cases from the current rho heuristic:
@@ -142,21 +142,21 @@ def run_phase1_season(
     else:
         capture_model = PerfectCaptureModel()
 
-    # Compute weekly RSV/LD over the full player pool (not just starters).
-    realized_weekly = compute_rsv_ld_weekly(full_pool_weekly, capture_model)
-    rsv_ld_df = compute_rsv_ld_from_started_weekly(full_pool_weekly, capture_model)
+    # Compute weekly ESV/LD over the full player pool (not just starters).
+    esv_weekly = compute_esv_ld_weekly(full_pool_weekly, capture_model)
+    esv_ld_df = compute_esv_ld_from_started_weekly(full_pool_weekly, capture_model)
 
     # --- Capture gap --------------------------------------------------------
-    cg_df = compute_capture_gap(sav_df, rsv_ld_df)
+    cg_df = compute_capture_gap(sav_df, esv_ld_df)
 
     # --- PAR ----------------------------------------------------------------
     r_par = compute_position_replacement_level_par(season_points, config)
     par_df = compute_par_by_player(season_points, r_par)
 
     return {
-        "started_weekly": realized_weekly,
+        "started_weekly": esv_weekly,
         "sav": sav_df,
-        "rsv_ld": rsv_ld_df,
+        "esv_ld": esv_ld_df,
         "cg": cg_df,
         "par": par_df,
         "cutlines": cutlines_df,
@@ -197,7 +197,7 @@ def run_phase1_all_seasons(
     all_results: dict[str, list[pd.DataFrame]] = {
         "started_weekly": [],
         "sav": [],
-        "rsv_ld": [],
+        "esv_ld": [],
         "cg": [],
         "par": [],
         "cutlines": [],

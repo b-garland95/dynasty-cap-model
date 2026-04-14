@@ -34,7 +34,7 @@ def _build_tv_path_columns(tv_df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
             working[col] = pd.to_numeric(working[col], errors="raise").astype(float)
         return working, "explicit_path"
 
-    for baseline_col in ("tv_baseline", "rsv_hat", "rsv"):
+    for baseline_col in ("tv_baseline", "esv_hat", "esv"):
         if baseline_col in working.columns:
             baseline = pd.to_numeric(working[baseline_col], errors="raise").astype(float)
             for col in TV_PATH_COLUMNS:
@@ -172,7 +172,7 @@ def build_contract_surplus_table(
     production_value_df: pd.DataFrame,
     contract_economics_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Build Phase 3 Table 5 as the RSV-unit contract surplus bridge."""
+    """Build Phase 3 Table 5 as the ESV-unit contract surplus bridge."""
     merged = production_value_df.merge(
         contract_economics_df[
             PLAYER_KEY_COLUMNS + ["pv_cap", "cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]

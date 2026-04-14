@@ -12,13 +12,17 @@ if str(REPO_ROOT) not in sys.path:
 from src.contracts.tv_inputs import build_phase2_tv_inputs
 from src.ingest.player_dimensions import enrich_with_player_dimensions
 from src.ingest.player_ids import attach_gsis_id_by_name, load_player_id_crosswalk
+from src.ingest.redraft_rankings import ensure_redraft_ranking_season
 
 DEFAULT_ROSTER_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "lbb_rosters_2025.csv"
 DEFAULT_TRAINING_CSV = REPO_ROOT / "data" / "interim" / "phase2_training_dataset.csv"
 DEFAULT_RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
+DEFAULT_ADP_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft_adp"
+DEFAULT_RANKINGS_FALLBACK_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft"
 DEFAULT_OUTPUT_CSV = REPO_ROOT / "data" / "interim" / "phase3" / "tv_inputs.csv"
 DEFAULT_TARGET_SEASON = 2026
 DIMS_CACHE = REPO_ROOT / "data" / "interim" / "player_dimensions_raw.csv"
+CROSSWALK_CACHE = REPO_ROOT / "data" / "interim" / "player_id_crosswalk.csv"
 
 
 def main() -> int:
@@ -27,6 +31,21 @@ def main() -> int:
 
     training_df = pd.read_csv(DEFAULT_TRAINING_CSV, dtype={"gsis_id": "string"})
     rankings_df = pd.read_csv(DEFAULT_RANKINGS_CSV, dtype={"gsis_id": "string"})
+    crosswalk = load_player_id_crosswalk(cache_path=CROSSWALK_CACHE)
+    refreshed_rankings_df = ensure_redraft_ranking_season(
+        rankings_df,
+        target_season=DEFAULT_TARGET_SEASON,
+        adp_dir=DEFAULT_ADP_DIR,
+        rankings_fallback_dir=DEFAULT_RANKINGS_FALLBACK_DIR,
+        crosswalk=crosswalk,
+    )
+    if len(refreshed_rankings_df) != len(rankings_df) or not refreshed_rankings_df.equals(rankings_df):
+        refreshed_rankings_df.to_csv(DEFAULT_RANKINGS_CSV, index=False)
+        rankings_df = refreshed_rankings_df
+        print(
+            f"Refreshed redraft rankings master with season {DEFAULT_TARGET_SEASON} "
+            f"coverage at {DEFAULT_RANKINGS_CSV}"
+        )
 
     tv_inputs_df = build_phase2_tv_inputs(
         roster_csv_path=str(roster_csv_path),
@@ -38,7 +57,6 @@ def main() -> int:
     # Attach gsis_id via player-name crosswalk so we can join player dimensions.
     # tv_inputs have no id column (League Tycoon roster exports are name-only).
     try:
-        crosswalk = load_player_id_crosswalk()
         tv_inputs_df = attach_gsis_id_by_name(
             tv_inputs_df, name_col="player", position_col="position", crosswalk=crosswalk
         )

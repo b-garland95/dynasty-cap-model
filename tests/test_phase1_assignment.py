@@ -5,6 +5,7 @@ import pandas as pd
 from src.utils.config import load_league_config
 from src.valuation.phase1_assignment import (
     assign_leaguewide_starting_set,
+    compute_full_pool_margins,
     compute_sav_for_week,
     compute_weekly_margins,
 )
@@ -178,3 +179,46 @@ def test_aggregate_sav_sums_wmsv_by_player():
     assert player_a["player"] == "A"
     assert player_a["position"] == "RB"
     assert math.isclose(player_b["sav"], 0.0, rel_tol=1e-12)
+
+
+def test_compute_full_pool_margins_keeps_active_low_scorers():
+    config = load_league_config()
+    week_df = _make_assignment_week()
+    week_df["games_played"] = 1
+
+    week_df = pd.concat(
+        [
+            week_df,
+            pd.DataFrame(
+                [
+                    {
+                        "gsis_id": "G-QB13",
+                        "player": "QB13",
+                        "position": "QB",
+                        "points": 0.02,
+                        "games_played": 1,
+                    },
+                    {
+                        "gsis_id": "G-QB14",
+                        "player": "QB14",
+                        "position": "QB",
+                        "points": 0.0,
+                        "games_played": 0,
+                    },
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    started_df = assign_leaguewide_starting_set(week_df, config)
+    pos_cutlines = compute_position_cutlines(started_df)
+    full_pool = compute_full_pool_margins(week_df, pos_cutlines, config, min_points=0.1)
+
+    assert "QB13" in full_pool["player"].values
+    assert "QB14" not in full_pool["player"].values
+
+    qb13 = full_pool.loc[full_pool["player"] == "QB13"].iloc[0]
+    assert qb13["assigned_slot"] == "SF"
+    assert qb13["rank_within_slot"] == 0
+    assert math.isclose(qb13["points"], 0.02, rel_tol=1e-12)

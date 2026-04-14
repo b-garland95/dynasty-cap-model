@@ -13,6 +13,7 @@ from src.ingest.redraft_rankings import (
     build_master_redraft_adp,
     build_master_redraft_adp_with_fallback,
     build_master_redraft_rankings,
+    ensure_redraft_ranking_season,
     load_single_redraft_adp,
     load_single_redraft_rankings,
 )
@@ -499,3 +500,55 @@ def test_fallback_raises_when_both_dirs_empty(tmp_path, crosswalk):
         build_master_redraft_adp_with_fallback(
             adp_dir, rankings_dir, crosswalk=crosswalk
         )
+
+
+def test_ensure_redraft_ranking_season_rebuilds_missing_target_season(tmp_path, crosswalk):
+    """Stale masters are rebuilt so a missing target season can come from fallback rankings."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(
+        adp_dir,
+        "nfl-2qb-adp-abc_2025.csv",
+        ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"],
+    )
+    _write_csv(
+        rankings_dir,
+        "FantasyPros_2026_Draft_OP_Rankings.csv",
+        _STANDARD_HEADER,
+        ['"1",1,"Josh Allen",BUF,"QB1","1","7","2.0","0.7","-"'],
+    )
+
+    stale_master = pd.DataFrame(
+        [
+            {
+                "season": 2025,
+                "rank": 3.2,
+                "tier": pd.NA,
+                "player": "Justin Jefferson",
+                "team": "MIN",
+                "position": "WR",
+                "pos_rank": 1,
+                "merge_name": "justin jefferson",
+                "gsis_id": "00-0036322",
+                "ranking_source": "fantasydata_adp",
+            }
+        ]
+    )
+
+    refreshed = ensure_redraft_ranking_season(
+        stale_master,
+        target_season=2026,
+        adp_dir=adp_dir,
+        rankings_fallback_dir=rankings_dir,
+        crosswalk=crosswalk,
+        name_overrides_path=_NO_OVERRIDES,
+        ambiguous_ids_path=_NO_AMBIG,
+    )
+
+    assert set(refreshed["season"]) == {2025, 2026}
+    fallback_row = refreshed.loc[refreshed["season"] == 2026].iloc[0]
+    assert fallback_row["player"] == "Josh Allen"
+    assert fallback_row["ranking_source"] == "fantasypros_rankings"

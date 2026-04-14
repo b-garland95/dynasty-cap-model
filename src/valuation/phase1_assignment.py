@@ -97,19 +97,27 @@ def compute_full_pool_margins(
     ----------
     week_df:
         Full weekly player pool with columns: gsis_id, player, position, points.
+        If a ``games_played`` column is present, active players are retained
+        even when their fantasy points fall below ``min_points``.
     position_cutlines:
         Shrunk cutlines keyed by position (QB, RB, WR, TE).
     config:
         League config dict.
     min_points:
-        Minimum actual points to include a player (filters out zeroes/inactives).
+        Minimum actual points to include a player when ``games_played`` is not
+        available. This remains a fallback for datasets that do not expose
+        participation directly.
 
     Returns
     -------
     DataFrame with all players and their margin, wmsv, wdrag, assigned_slot.
     """
-    # Filter to players meeting minimum threshold.
-    pool = week_df[week_df["points"] >= min_points].copy()
+    # Prefer explicit participation when available so active zero/negative
+    # scorers are preserved in the RSV detail output.
+    if "games_played" in week_df.columns:
+        pool = week_df[week_df["games_played"] > 0].copy()
+    else:
+        pool = week_df[week_df["points"] >= min_points].copy()
     if pool.empty:
         return pd.DataFrame()
 

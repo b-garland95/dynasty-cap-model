@@ -457,3 +457,41 @@ def build_master_redraft_adp_with_fallback(
         "position", "pos_rank", "merge_name", "gsis_id", "ranking_source",
     ]
     return combined[col_order].copy()
+
+
+def ensure_redraft_ranking_season(
+    rankings_df: pd.DataFrame,
+    *,
+    target_season: int,
+    adp_dir: Path,
+    rankings_fallback_dir: Path,
+    crosswalk: Optional[pd.DataFrame] = None,
+    name_overrides_path: Optional[Path] = None,
+    ambiguous_ids_path: Optional[Path] = None,
+) -> pd.DataFrame:
+    """Ensure the rankings master includes ``target_season`` coverage.
+
+    If the supplied master already contains the requested season, it is
+    returned unchanged. Otherwise the master is rebuilt from raw ADP files
+    plus the FantasyPros fallback, preserving the source-priority rule that
+    ADP wins whenever a season exists in both places.
+    """
+    if "season" not in rankings_df.columns:
+        raise ValueError("Redraft rankings DataFrame is missing required column: season")
+
+    if int(target_season) in set(pd.to_numeric(rankings_df["season"], errors="coerce").dropna().astype(int)):
+        return rankings_df
+
+    rebuilt = build_master_redraft_adp_with_fallback(
+        adp_dir=adp_dir,
+        rankings_fallback_dir=rankings_fallback_dir,
+        crosswalk=crosswalk,
+        name_overrides_path=name_overrides_path,
+        ambiguous_ids_path=ambiguous_ids_path,
+    )
+    rebuilt_seasons = set(pd.to_numeric(rebuilt["season"], errors="coerce").dropna().astype(int))
+    if int(target_season) not in rebuilt_seasons:
+        raise ValueError(
+            f"Target season {target_season} is missing after rebuilding redraft rankings master"
+        )
+    return rebuilt

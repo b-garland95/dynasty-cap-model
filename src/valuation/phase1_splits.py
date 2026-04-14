@@ -4,6 +4,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.utils.dataframe_utils import resolve_id_column
+
 
 
 def add_season_phase(weekly_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
@@ -34,7 +36,7 @@ def aggregate_sav_splits(started_weekly_df: pd.DataFrame, config: dict[str, Any]
 def aggregate_esv_ld_splits(esv_weekly_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
     """Aggregate weekly ESV and LD into regular/playoff splits."""
     phased = add_season_phase(esv_weekly_df, config)
-    player_key = "gsis_id" if "gsis_id" in phased.columns else "player"
+    player_key = resolve_id_column(phased)
     group_cols = [col for col in ["season", player_key, "phase"] if col in phased.columns]
     if player_key not in group_cols:
         group_cols.append(player_key)
@@ -47,7 +49,7 @@ def aggregate_esv_ld_splits(esv_weekly_df: pd.DataFrame, config: dict[str, Any])
 
 def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, esv_splits_df: pd.DataFrame) -> pd.DataFrame:
     """Compute split capture gap from split SAV and ESV tables."""
-    player_key = "gsis_id" if "gsis_id" in sav_splits_df.columns and "gsis_id" in esv_splits_df.columns else "player"
+    player_key = resolve_id_column(sav_splits_df, esv_splits_df)
     join_cols = [col for col in ["season", player_key, "phase"] if col in sav_splits_df.columns and col in esv_splits_df.columns]
     if not join_cols:
         join_cols = [player_key, "phase"]
@@ -58,7 +60,7 @@ def compute_capture_gap_splits(sav_splits_df: pd.DataFrame, esv_splits_df: pd.Da
 
 
 def _aggregate_by_phase(weekly_df: pd.DataFrame, value_col: str, output_col: str) -> pd.DataFrame:
-    player_key = "gsis_id" if "gsis_id" in weekly_df.columns else "player"
+    player_key = resolve_id_column(weekly_df)
     group_cols = [col for col in ["season", player_key, "phase"] if col in weekly_df.columns]
     if player_key not in group_cols:
         group_cols.append(player_key)

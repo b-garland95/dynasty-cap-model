@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.contracts.tv_inputs import apply_dynasty_tv_path
+from src.contracts.phase3_dynasty import apply_dynasty_tv_path
 
 
 # ---------------------------------------------------------------------------

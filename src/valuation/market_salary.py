@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 
@@ -31,7 +33,17 @@ def compute_market_salary(adp_df: pd.DataFrame, config: dict[str, Any]) -> pd.Da
     season_alpha: dict[int, float] = {}
     for season, group in salary_df.groupby("season", sort=False):
         denom = float(group["s_raw"].head(top_k).sum())
-        season_alpha[int(season)] = 0.0 if denom <= 0.0 else (teams * cap_scale) / denom
+        if denom <= 0.0:
+            warnings.warn(
+                f"market_salary: zero or negative ADP denominator for season {season} "
+                f"(top_k={top_k}, rows={len(group)}). All market salaries for this season "
+                "will be NaN. Check that ADP data covers the full player pool.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            season_alpha[int(season)] = float("nan")
+        else:
+            season_alpha[int(season)] = (teams * cap_scale) / denom
 
     salary_df["market_salary"] = salary_df["season"].map(season_alpha).astype(float) * salary_df["s_raw"]
     return salary_df.drop(columns=["s_raw"]).reset_index(drop=True)

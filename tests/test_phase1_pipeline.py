@@ -101,11 +101,11 @@ def test_run_phase1_season_gsis_id_in_outputs():
         assert "gsis_id" in result[key].columns, f"gsis_id missing from {key}"
 
 
-def test_run_phase1_season_no_projections_uses_perfect_capture():
-    """With no projections, CG = -LD under PerfectCaptureModel.
+def test_run_phase1_season_no_projections_uses_zero_start_prob():
+    """With no projections, the FixedProbCaptureModel (start_prob=0.0) is used.
 
-    ESV = sum(start_prob × margin) = sum(margin) under perfect capture,
-    while SAV = sum(wmsv) = sum(max(0, margin)). So CG = SAV - ESV = -LD.
+    ESV = 0, LD = 0 for all players because start_prob=0.
+    Therefore CG = SAV - 0 = SAV for every player.
     """
     config = load_league_config()
     pts, _, _ = _make_season_data()
@@ -114,8 +114,14 @@ def test_run_phase1_season_no_projections_uses_perfect_capture():
     cg_df = result["cg"]
 
     for _, row in cg_df.iterrows():
-        assert math.isclose(row["cg"], -row["ld"], abs_tol=1e-9), (
-            f"{row.get('player', '?')}: CG={row['cg']:.6f} != -LD={-row['ld']:.6f}"
+        assert math.isclose(row["esv"], 0.0, abs_tol=1e-9), (
+            f"{row.get('player', '?')}: ESV={row['esv']:.6f} != 0"
+        )
+        assert math.isclose(row["ld"], 0.0, abs_tol=1e-9), (
+            f"{row.get('player', '?')}: LD={row['ld']:.6f} != 0"
+        )
+        assert math.isclose(row["cg"], row["sav"], abs_tol=1e-9), (
+            f"{row.get('player', '?')}: CG={row['cg']:.6f} != SAV={row['sav']:.6f}"
         )
 
 
@@ -160,6 +166,32 @@ def test_dollar_values_sum_to_league_cap():
     assert math.isclose(season_sum, total_cap, rel_tol=1e-6), (
         f"Season dollar_value sum={season_sum:.4f} != total_league_cap={total_cap}"
     )
+
+
+def test_partial_season_shrinkage_produces_valid_outputs():
+    """Players missing some weeks (bye/injury) still produce finite SAV, ESV, and CG.
+
+    Shrinkage of weekly cutlines toward a seasonal baseline must handle gaps
+    gracefully — no NaN propagation from missing-week imputation.
+    """
+    config = load_league_config()
+    pts, proj, adp = _make_season_data()
+
+    # Remove QB1 from week 15 to simulate a bye week / injury gap
+    pts = pts[~((pts["gsis_id"] == "G-QB1") & (pts["week"] == 15))].copy()
+    proj = proj[~((proj["gsis_id"] == "G-QB1") & (proj["week"] == 15))].copy()
+
+    result = run_phase1_season(pts, proj, adp, config)
+    cg_df = result["cg"]
+
+    qb1 = cg_df[cg_df["gsis_id"] == "G-QB1"]
+    assert len(qb1) == 1, "QB1 should appear exactly once in CG output"
+    row = qb1.iloc[0]
+    assert math.isfinite(row["sav"]), f"QB1 SAV is not finite: {row['sav']}"
+    assert math.isfinite(row["esv"]), f"QB1 ESV is not finite: {row['esv']}"
+    assert math.isfinite(row["cg"]), f"QB1 CG is not finite: {row['cg']}"
+    # CG == SAV - ESV must still hold with missing weeks
+    assert math.isclose(row["cg"], row["sav"] - row["esv"], abs_tol=1e-9)
 
 
 def test_weekly_dollar_values_sum_to_season():

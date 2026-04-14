@@ -12,6 +12,11 @@ lineup:
   te: 1
   flex: 2           # RB/WR/TE
   superflex: 1      # QB/RB/WR/TE
+  fallback_slots:   # slot assigned to non-starters for capture model probability estimation
+    QB: SF
+    RB: FLEX
+    WR: FLEX
+    TE: FLEX
 
 roster:
   bench: 8
@@ -24,6 +29,18 @@ cap:
   discount_rate: 0.25
 
 valuation:
+  # Start probability assumed for players with no projection data.
+  # 0.0 is the conservative default: unranked players are typically buried on
+  # depth charts and would not be started in a rational league.
+  unranked_start_prob: 0.0
+  # shrinkage_lambdas control how far each weekly raw cutline is pulled toward
+  # the season median baseline (lambda=0 → no shrinkage; lambda=1 → use baseline
+  # entirely).  These values were hand-tuned to produce stable cutlines across
+  # 2020–2024 historical data.  Higher lambda for TE reflects the thinner position
+  # depth; lower lambda for FLEX allows more week-to-week variation in the flex
+  # competition.
+  # TODO: add a sensitivity analysis script (scripts/analyze_shrinkage_sensitivity.py)
+  # that sweeps lambda values and reports variance in replacement-level stability.
   shrinkage_lambdas:
     QB: 0.55
     RB: 0.45
@@ -78,6 +95,10 @@ dead_money:
 season:
   regular_weeks: [1,14]
   playoff_weeks: [15,17]
+  num_regular_weeks: 18       # total weeks in the regular season; used in projection loops
+  current_season: 2025        # season of the active roster/projection data
+  target_season: 2026         # upcoming season being forecast in Phase 3
+  history_start_season: 2015  # earliest season of historical nflverse data loaded
 
 rookie_scale:
   round1:

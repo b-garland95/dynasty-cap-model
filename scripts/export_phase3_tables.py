@@ -10,14 +10,16 @@ if str(REPO_ROOT) not in sys.path:
 from src.contracts.phase3_exports import export_phase3_tables
 from src.utils.config import load_league_config
 
-DEFAULT_ROSTER_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "lbb_rosters_2025.csv"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "interim" / "rosters"
 DEFAULT_SCHEDULE_OVERRIDES_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "contract_salary_schedule_overrides.csv"
 DEFAULT_TV_INPUTS_CSV = REPO_ROOT / "data" / "interim" / "phase3" / "tv_inputs.csv"
 
 
 def main() -> int:
-    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_ROSTER_CSV
+    config = load_league_config()
+    current_season = int(config["season"]["current_season"])
+    default_roster_csv = REPO_ROOT / "data" / "raw" / "roster_exports" / f"lbb_rosters_{current_season}.csv"
+    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_roster_csv
     output_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUTPUT_DIR
 
     if not roster_csv_path.exists():
@@ -27,7 +29,7 @@ def main() -> int:
 
     exported = export_phase3_tables(
         roster_csv_path=str(roster_csv_path),
-        config=load_league_config(),
+        config=config,
         output_dir=str(output_dir),
         schedule_overrides_path=str(DEFAULT_SCHEDULE_OVERRIDES_CSV),
         tv_inputs_path=str(DEFAULT_TV_INPUTS_CSV),

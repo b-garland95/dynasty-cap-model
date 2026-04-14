@@ -172,7 +172,22 @@ def build_contract_surplus_table(
     production_value_df: pd.DataFrame,
     contract_economics_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Build Phase 3 Table 5 as the ESV-unit contract surplus bridge."""
+    """Build Phase 3 Table 5 as the ESV-unit contract surplus bridge.
+
+    ``surplus_value = pv_tv - pv_cap``
+
+    .. note::
+        Surplus is a heuristic comparison of demand-based TV (Phase 2 ADP→ESV
+        regression, enriched with age-curve and delta corrections in Phase 3)
+        against cap-accounting present value.  These two quantities are not on
+        the same cardinal scale — ``pv_tv`` is denominated in ESV-equivalent
+        dollars while ``pv_cap`` is nominal cap dollars discounted at the
+        league discount rate.  A positive surplus therefore indicates *relative
+        opportunity* (the player appears under-contracted versus their expected
+        production value), not a risk-free arbitrage.  Cross-position and
+        cross-season comparisons should be made with awareness of this
+        approximation.
+    """
     merged = production_value_df.merge(
         contract_economics_df[
             PLAYER_KEY_COLUMNS + ["pv_cap", "cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]
@@ -246,6 +261,25 @@ def _build_shortlist(
     additional_filter_col: str | None = None,
     final_year_only: bool = False,
 ) -> pd.DataFrame:
+    """Filter players eligible for a contract instrument who have positive surplus.
+
+    Instrument recommendations are based solely on:
+      - ``eligibility_col`` flag (e.g. extension_eligible, tag_eligible)
+      - ``contract_eligible`` flag
+      - ``surplus_value > 0``  (TV present value exceeds cap present value)
+
+    Age-curve risk and positional depth are intentionally NOT used as
+    filters here because:
+      (a) Dynasty TV already prices multi-year decline via the position age
+          curve in Phase 2; a player approaching their decline will already
+          have lower pv_tv.
+      (b) Short extensions (1–2 years) can still be value-positive for older
+          players depending on their contract situation — hard-coding an age
+          gate would prevent surfacing legitimate opportunities.
+
+    Analysts should review player age and situation context before acting on
+    any recommendation produced by this shortlist.
+    """
     merged = ledger_df.copy()
     merged["has_been_optioned"] = _coerce_optional_bool_column(merged, "has_been_optioned")
     merged["option_eligible"] = _coerce_optional_bool_column(merged, "option_eligible")

@@ -2,7 +2,7 @@ import math
 
 import pandas as pd
 
-from src.contracts.tv_inputs import build_phase2_tv_inputs_from_frames
+from src.modeling.phase2_tv_scorer import build_phase2_tv_inputs_from_frames
 
 
 def _ledger_fixture() -> pd.DataFrame:

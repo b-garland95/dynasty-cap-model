@@ -3,6 +3,8 @@ numpy
 pyyaml
 pytest
 scikit-learn
+matplotlib
+scipy
 
 nflreadpy
 gdown

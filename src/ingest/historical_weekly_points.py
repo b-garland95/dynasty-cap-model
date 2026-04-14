@@ -60,8 +60,19 @@ def normalize_historical_weekly_points(
     end_season: int,
     loaded_at: str,
     source: str = "nflverse.player_stats",
+    include_playoffs: bool = False,
 ) -> pd.DataFrame:
-    """Normalize nflverse player stats into the model's canonical weekly points schema."""
+    """Normalize nflverse player stats into the model's canonical weekly points schema.
+
+    Parameters
+    ----------
+    include_playoffs:
+        When ``False`` (default), only regular-season weeks (``season_type == "REG"``)
+        are included. This is controlled by ``valuation.include_playoffs`` in
+        ``league_config.yaml`` (default ``False``). Dynasty league value is based on
+        regular-season performance; playoff weeks are excluded by default to keep
+        the replacement-level calculation stable across teams.
+    """
     player_col = _first_present(raw_df, ["player_display_name", "player_name", "player"])
     position_col = _first_present(raw_df, ["position", "position_group"])
     team_col = _first_present(raw_df, ["recent_team", "team"])
@@ -74,10 +85,15 @@ def normalize_historical_weekly_points(
 
     positions = get_config_player_positions(config)
     normalized = raw_df.copy()
+    season_type_filter = (
+        normalized["season_type"].notna()  # keep all weeks
+        if include_playoffs
+        else normalized["season_type"].eq("REG")
+    )
     normalized = normalized.loc[
         normalized["season"].between(int(start_season), int(end_season))
         & normalized[position_col].isin(positions)
-        & normalized["season_type"].eq("REG")
+        & season_type_filter
     ].copy()
 
     normalized["player"] = normalized[player_col].fillna("")
@@ -152,7 +168,13 @@ def get_config_player_positions(config: dict[str, Any]) -> list[str]:
 
 
 def compute_weekly_fantasy_points(raw_df: pd.DataFrame, config: dict[str, Any]) -> pd.Series:
-    """Compute weekly fantasy points from nflverse stats using league scoring config."""
+    """Compute weekly fantasy points from nflverse stats using league scoring config.
+
+    nflverse ``fantasy_points`` column = standard scoring: 6 pts/passing TD,
+    4 pts/rushing-or-receiving TD, 0.1 pts/passing yard, 0.1 pts/rushing-or-receiving yard.
+    Half-PPR scoring adds 0.5 * receptions additively on top of the base column.
+    This is the correct interpretation of the nflverse ``fantasy_points`` base column.
+    """
     if bool(config["league"]["scoring"].get("half_ppr", False)):
         return raw_df["fantasy_points"].astype(float) + 0.5 * raw_df["receptions"].astype(float)
     return raw_df["fantasy_points"].astype(float)

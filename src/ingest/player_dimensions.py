@@ -135,8 +135,11 @@ def enrich_with_player_dimensions(
         four derived columns:
 
         ``age``
-            Float.  Player age as of September 1 of ``season_col``'s year
-            (NFL standard measurement date).  ``NaN`` when ``birth_date`` is
+            Int (stored as float for NaN compatibility).  Player's integer age
+            as of September 1 of ``season_col``'s year — the NFL standard
+            measurement date and dynasty convention.  A player born after
+            September 1 has not yet reached that birthday; one born on
+            September 1 has just turned it.  ``NaN`` when ``birth_date`` is
             missing or unparseable.
 
         ``years_of_experience``
@@ -164,13 +167,22 @@ def enrich_with_player_dimensions(
     out = df.merge(dims_right, on="gsis_id", how="left")
 
     # ------------------------------------------------------------------
-    # Derived field: age (float, as of Sep 1 of the season year)
+    # Derived field: age (integer as of Sep 1 of the season year)
+    # Dynasty convention: age = full years elapsed by September 1.
+    # Players born after Sep 1 have not yet turned that year's age.
     # ------------------------------------------------------------------
     if season_col in out.columns and "birth_date" in out.columns:
         bd = pd.to_datetime(out["birth_date"], errors="coerce")
         # Build a Sep-1 timestamp for each row's season year.
         cutoff = out[season_col].map(lambda s: pd.Timestamp(int(s), 9, 1))
-        out["age"] = (cutoff - bd).dt.days / 365.25
+        year_diff = cutoff.dt.year - bd.dt.year
+        # Subtract 1 if the player's birthday has not yet occurred by Sep 1
+        # (i.e., birthday is after Sep 1 in month/day terms).
+        birthday_on_or_before_sep1 = (bd.dt.month < 9) | (
+            (bd.dt.month == 9) & (bd.dt.day <= 1)
+        )
+        integer_age = year_diff - (~birthday_on_or_before_sep1).astype(int)
+        out["age"] = np.where(bd.notna(), integer_age.astype(float), np.nan)
     else:
         out["age"] = np.nan
         if season_col not in out.columns:

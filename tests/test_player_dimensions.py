@@ -79,21 +79,48 @@ def test_load_player_dimensions_raises_on_missing_columns(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_age_travis_etienne_season_2021(dims):
-    """Travis Etienne born 1999-06-13; age as of Sep 1 2021 ≈ 22.21."""
+    """Travis Etienne born 1999-06-13; integer age at Sep 1 2021 == 22."""
     df = pd.DataFrame([{"gsis_id": TRAVIS_GSIS, "season": 2021}])
     out = enrich_with_player_dimensions(df, dims=dims)
-
-    expected = (pd.Timestamp(2021, 9, 1) - pd.Timestamp("1999-06-13")).days / 365.25
-    assert abs(out.iloc[0]["age"] - expected) < 0.01
+    assert out.iloc[0]["age"] == 22.0
 
 
 def test_age_aj_brown_season_2023(dims):
-    """A.J. Brown born 1997-06-30; age as of Sep 1 2023 ≈ 26.17."""
+    """A.J. Brown born 1997-06-30; integer age at Sep 1 2023 == 26."""
     df = pd.DataFrame([{"gsis_id": AJ_GSIS, "season": 2023}])
     out = enrich_with_player_dimensions(df, dims=dims)
+    assert out.iloc[0]["age"] == 26.0
 
-    expected = (pd.Timestamp(2023, 9, 1) - pd.Timestamp("1997-06-30")).days / 365.25
-    assert abs(out.iloc[0]["age"] - expected) < 0.01
+
+def test_age_sep1_boundary(dims):
+    """Dynasty convention: a player born on Sep 2 has NOT turned that age yet
+    at the Sep 1 cutoff; a player born on Sep 1 has just turned it."""
+    # Use a synthetic dims table so we don't depend on real fixture players.
+    synthetic_dims = pd.DataFrame([
+        {"gsis_id": "SYN-SEPT1", "birth_date": "1995-09-01",
+         "display_name": "Sep1 Player", "rookie_season": 2017,
+         "draft_year": 2017, "draft_round": 1, "draft_pick": 10,
+         "height": 72, "weight": 200, "college_name": "Test",
+         "status": "Active", "pfr_id": None, "espn_id": None},
+        {"gsis_id": "SYN-SEPT2", "birth_date": "1995-09-02",
+         "display_name": "Sep2 Player", "rookie_season": 2017,
+         "draft_year": 2017, "draft_round": 1, "draft_pick": 11,
+         "height": 72, "weight": 200, "college_name": "Test",
+         "status": "Active", "pfr_id": None, "espn_id": None},
+    ])
+    df = pd.DataFrame([
+        {"gsis_id": "SYN-SEPT1", "season": 2024},
+        {"gsis_id": "SYN-SEPT2", "season": 2024},
+    ])
+    out = enrich_with_player_dimensions(df, dims=synthetic_dims)
+
+    sep1_age = float(out.loc[out["gsis_id"] == "SYN-SEPT1", "age"].iloc[0])
+    sep2_age = float(out.loc[out["gsis_id"] == "SYN-SEPT2", "age"].iloc[0])
+
+    # Born Sep 1 1995: turns 29 on Sep 1 2024 — exactly at the cutoff
+    assert sep1_age == 29.0, f"Expected 29, got {sep1_age}"
+    # Born Sep 2 1995: turns 29 on Sep 2 2024 — one day AFTER the cutoff → still 28
+    assert sep2_age == 28.0, f"Expected 28, got {sep2_age}"
 
 
 def test_age_is_nan_for_unmatched_gsis(dims):

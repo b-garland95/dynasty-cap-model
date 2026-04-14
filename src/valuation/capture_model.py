@@ -5,6 +5,7 @@ from typing import Any, Protocol
 
 import pandas as pd
 
+from src.utils.dataframe_utils import resolve_id_column
 from src.valuation.market_salary import compute_market_salary
 from src.valuation.phase1_projected import (
     assign_projected_leaguewide_starting_set,
@@ -31,14 +32,27 @@ class PerfectCaptureModel:
         return pd.Series(1.0, index=df.index, dtype=float)
 
 
-class _ProjectedStartModelMixin:
-    _FALLBACK_SLOT: dict[str, str] = {
-        "QB": "SF",
-        "RB": "FLEX",
-        "WR": "FLEX",
-        "TE": "FLEX",
-    }
+class FixedProbCaptureModel:
+    """Capture model with configurable fixed start probability.
 
+    Used as the no-projection fallback. Unranked players lack projections
+    because they are low on depth charts and would not be started in a
+    rational league. A 0% assumed start probability is the conservative
+    and rational default (``unranked_start_prob`` in league_config.yaml).
+    """
+
+    def __init__(self, start_prob: float = 0.0, roster_prob: float = 1.0) -> None:
+        self._start_prob = float(start_prob)
+        self._roster_prob = float(roster_prob)
+
+    def roster_prob(self, df: pd.DataFrame) -> pd.Series:
+        return pd.Series(self._roster_prob, index=df.index, dtype=float)
+
+    def start_prob(self, df: pd.DataFrame) -> pd.Series:
+        return pd.Series(self._start_prob, index=df.index, dtype=float)
+
+
+class _ProjectedStartModelMixin:
     def _init_start_model(self, proj_df: pd.DataFrame, config: dict[str, Any]) -> None:
         self._config = config
         self._proj_cutlines: dict[tuple[int, int], dict[str, float]] = {}
@@ -49,7 +63,7 @@ class _ProjectedStartModelMixin:
             self._proj_cutlines[key] = compute_projected_raw_cutlines(week_df, config)
             assignment_frames.append(assign_projected_leaguewide_starting_set(week_df, config))
 
-        self._id_col = "gsis_id" if "gsis_id" in proj_df.columns else "player"
+        self._id_col = resolve_id_column(proj_df)
         self._proj_assignments = (
             pd.concat(assignment_frames, ignore_index=True)
             if assignment_frames
@@ -74,10 +88,13 @@ class _ProjectedStartModelMixin:
             how="left",
         )
 
+        fallback_slots: dict[str, str] = self._config["lineup"].get(
+            "fallback_slots", {"QB": "SF", "RB": "FLEX", "WR": "FLEX", "TE": "FLEX"}
+        )
         in_proj_set = working["proj_assigned_slot"].notna()
         working["slot_hat"] = working["proj_assigned_slot"].where(
             in_proj_set,
-            working["position"].map(self._FALLBACK_SLOT),
+            working["position"].map(fallback_slots),
         )
 
         missing_pts = working["proj_points"].isna()

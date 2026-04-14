@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RSV Fantasy Dashboard</title>
+  <title>ESV Fantasy Dashboard</title>
 
   <!-- Google Fonts: DM Sans (UI) + JetBrains Mono (metric values) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,7 @@
 
     <!-- ── Header ──────────────────────────────────────────────────── -->
     <header class="dashboard-header">
-      <h1>RSV Fantasy Dashboard</h1>
+      <h1>ESV Fantasy Dashboard</h1>
       <span class="subtitle">Rational Start Value Model · 2015–2025</span>
     </header>
 
@@ -32,7 +32,7 @@
       <button class="tab-btn" data-tab="value-curves"         role="tab">Value Curves</button>
       <button class="tab-btn" data-tab="player-timeline"      role="tab">Player Timeline</button>
       <button class="tab-btn" data-tab="value-distribution"   role="tab">Value Distribution</button>
-      <button class="tab-btn" data-tab="wmsv-vs-rsv"          role="tab">WMSV vs RSV</button>
+      <button class="tab-btn" data-tab="wmsv-vs-esv"          role="tab">WMSV vs ESV</button>
       <button class="tab-btn" data-tab="positional-efficiency" role="tab">Positional Efficiency</button>
       <button class="tab-btn" data-tab="year-over-year"       role="tab">Year-over-Year</button>
     </nav>
@@ -75,7 +75,7 @@
         <!-- Mode toggle -->
         <div class="pt-mode-toggle">
           <button class="pt-mode-btn active" data-mode="points-start">Points + Start%</button>
-          <button class="pt-mode-btn"        data-mode="wmsv-rsv">WMSV vs RSV</button>
+          <button class="pt-mode-btn"        data-mode="wmsv-esv">WMSV vs ESV</button>
           <button class="pt-mode-btn"        data-mode="season-dollar">Season $</button>
         </div>
 
@@ -106,7 +106,7 @@
         </div>
       </div>
 
-      <div id="panel-wmsv-vs-rsv" class="tab-panel" role="tabpanel">
+      <div id="panel-wmsv-vs-esv" class="tab-panel" role="tabpanel">
         <div class="view-controls">
           <div class="control-group">
             <label for="wr-season">Season</label>
@@ -122,7 +122,7 @@
           </div>
         </div>
         <div class="chart-container" style="height: 460px;">
-          <canvas id="chart-wmsv-rsv"></canvas>
+          <canvas id="chart-wmsv-esv"></canvas>
         </div>
       </div>
 
@@ -161,7 +161,7 @@
   <!-- ── Loading overlay (hidden after data loads) ─────────────────── -->
   <div id="loading-overlay">
     <div class="spinner"></div>
-    <p>Loading RSV data…</p>
+    <p>Loading ESV data…</p>
   </div>
 
   <!-- ── Scripts ───────────────────────────────────────────────────── -->
@@ -171,7 +171,7 @@
   <script src="view-year-over-year.js"></script>
   <script src="view-player-timeline.js"></script>
   <script src="view-value-distribution.js"></script>
-  <script src="view-wmsv-rsv.js"></script>
+  <script src="view-wmsv-esv.js"></script>
   <script src="view-positional-efficiency.js"></script>
   <script src="app.js"></script>
 

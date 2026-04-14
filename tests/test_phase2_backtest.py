@@ -17,7 +17,7 @@ def _make_multiyear_data(
 ) -> pd.DataFrame:
     """Build synthetic multi-year training data.
 
-    Clear decreasing ADP→RSV relationship per position with noise.
+    Clear decreasing ADP→ESV relationship per position with noise.
     """
     rng = np.random.default_rng(seed)
     if seasons is None:
@@ -29,7 +29,7 @@ def _make_multiyear_data(
         for pos in positions:
             adp = np.arange(1, n_per_pos + 1)
             log_adp = np.log(adp)
-            rsv = 80 - 15 * log_adp + rng.normal(0, 4, size=n_per_pos)
+            esv = 80 - 15 * log_adp + rng.normal(0, 4, size=n_per_pos)
             for i in range(n_per_pos):
                 rows.append({
                     "season": season,
@@ -41,7 +41,7 @@ def _make_multiyear_data(
                     "is_rookie": (i == 0),
                     "years_of_experience": i,
                     "age": 22.0 + i * 0.5,
-                    "rsv": rsv[i],
+                    "esv": esv[i],
                 })
     return pd.DataFrame(rows)
 
@@ -114,7 +114,7 @@ def test_summary_has_all_position_aggregate():
 def test_prediction_columns():
     data = _make_multiyear_data()
     preds, _ = rolling_backtest(data)
-    for col in ["rsv_hat", "rsv_p25", "rsv_p50", "rsv_p75"]:
+    for col in ["esv_hat", "esv_p25", "esv_p50", "esv_p75"]:
         assert col in preds.columns
 
 

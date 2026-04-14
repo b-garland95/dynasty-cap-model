@@ -113,7 +113,7 @@ def compute_full_pool_margins(
     DataFrame with all players and their margin, wmsv, wdrag, assigned_slot.
     """
     # Prefer explicit participation when available so active zero/negative
-    # scorers are preserved in the RSV detail output.
+    # scorers are preserved in the ESV detail output.
     if "games_played" in week_df.columns:
         pool = week_df[week_df["games_played"] > 0].copy()
     else:

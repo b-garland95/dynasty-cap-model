@@ -15,7 +15,7 @@ function initYearOverYear() {
   const metricSel = document.getElementById('yoy-metric');
   [
     { value: 'dollar_value', label: 'Dollar Value' },
-    { value: 'rsv',          label: 'RSV' },
+    { value: 'esv',          label: 'ESV' },
     { value: 'total_points', label: 'Total Points' }
   ].forEach(({ value, label }) => {
     const opt = document.createElement('option');
@@ -90,7 +90,7 @@ function _computeYoyStats(pos, metricKey) {
 
 const YOY_METRIC_LABELS = {
   dollar_value: 'Dollar Value ($)',
-  rsv:          'RSV',
+  esv:          'ESV',
   total_points: 'Total Points'
 };
 

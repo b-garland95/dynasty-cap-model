@@ -1,4 +1,4 @@
-"""Rolling year-forward backtests for Phase 2 ADP → RSV calibration."""
+"""Rolling year-forward backtests for Phase 2 ADP → ESV calibration."""
 
 from __future__ import annotations
 
@@ -25,18 +25,18 @@ SUMMARY_COLUMNS = [
 
 def _compute_metrics(scored: pd.DataFrame) -> dict:
     """Compute MAE, Spearman rho, and interval coverage for a scored group."""
-    rsv = scored["rsv"]
-    rsv_hat = scored["rsv_hat"]
+    esv = scored["esv"]
+    esv_hat = scored["esv_hat"]
     n = len(scored)
 
-    mae = (rsv - rsv_hat).abs().mean()
+    mae = (esv - esv_hat).abs().mean()
 
     if n >= 3:
-        spearman_rho = rsv.rank().corr(rsv_hat.rank())
+        spearman_rho = esv.rank().corr(esv_hat.rank())
     else:
         spearman_rho = np.nan
 
-    in_band = (rsv >= scored["rsv_p25"]) & (rsv <= scored["rsv_p75"])
+    in_band = (esv >= scored["esv_p25"]) & (esv <= scored["esv_p75"])
     coverage = in_band.mean()
 
     return {
@@ -62,7 +62,7 @@ def rolling_backtest(
     ----------
     training_data:
         Full training dataset from ``build_phase2_training_data()``.
-        Must include ``season, position, log_adp, rsv``.
+        Must include ``season, position, log_adp, esv``.
     min_train_seasons:
         Minimum number of training seasons before testing begins.
     n_quantile_bins:
@@ -78,7 +78,7 @@ def rolling_backtest(
 
     player_predictions
         One row per player-season scored, with columns from the input
-        plus ``rsv_hat, rsv_p25, rsv_p50, rsv_p75``.
+        plus ``esv_hat, esv_p25, esv_p50, esv_p75``.
     summary
         Per-season per-position metrics plus an ``ALL`` aggregate per
         season and an overall row. Includes a ``variant`` column.

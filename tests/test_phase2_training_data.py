@@ -11,16 +11,16 @@ from src.modeling.training_data import TRAINING_COLUMNS, build_phase2_training_d
 
 def _make_season_values() -> pd.DataFrame:
     return pd.DataFrame([
-        {"season": 2022, "gsis_id": "G-QB1", "player": "QB One", "position": "QB", "rsv": 80.0, "is_rookie": False, "years_of_experience": 5, "age": 28.0},
-        {"season": 2022, "gsis_id": "G-RB1", "player": "RB One", "position": "RB", "rsv": 60.0, "is_rookie": True,  "years_of_experience": 0, "age": 22.0},
-        {"season": 2022, "gsis_id": "G-WR1", "player": "WR One", "position": "WR", "rsv": 50.0, "is_rookie": False, "years_of_experience": 3, "age": 25.0},
-        {"season": 2022, "gsis_id": "G-TE1", "player": "TE One", "position": "TE", "rsv": 20.0, "is_rookie": False, "years_of_experience": 2, "age": 24.0},
-        {"season": 2023, "gsis_id": "G-QB1", "player": "QB One", "position": "QB", "rsv": 75.0, "is_rookie": False, "years_of_experience": 6, "age": 29.0},
-        {"season": 2023, "gsis_id": "G-RB1", "player": "RB One", "position": "RB", "rsv": 55.0, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
+        {"season": 2022, "gsis_id": "G-QB1", "player": "QB One", "position": "QB", "esv": 80.0, "is_rookie": False, "years_of_experience": 5, "age": 28.0},
+        {"season": 2022, "gsis_id": "G-RB1", "player": "RB One", "position": "RB", "esv": 60.0, "is_rookie": True,  "years_of_experience": 0, "age": 22.0},
+        {"season": 2022, "gsis_id": "G-WR1", "player": "WR One", "position": "WR", "esv": 50.0, "is_rookie": False, "years_of_experience": 3, "age": 25.0},
+        {"season": 2022, "gsis_id": "G-TE1", "player": "TE One", "position": "TE", "esv": 20.0, "is_rookie": False, "years_of_experience": 2, "age": 24.0},
+        {"season": 2023, "gsis_id": "G-QB1", "player": "QB One", "position": "QB", "esv": 75.0, "is_rookie": False, "years_of_experience": 6, "age": 29.0},
+        {"season": 2023, "gsis_id": "G-RB1", "player": "RB One", "position": "RB", "esv": 55.0, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
         # No gsis_id — should be excluded
-        {"season": 2022, "gsis_id": None, "player": "Ghost", "position": "WR", "rsv": 10.0, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
-        # Null RSV — should be excluded
-        {"season": 2022, "gsis_id": "G-WR2", "player": "WR Two", "position": "WR", "rsv": None, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
+        {"season": 2022, "gsis_id": None, "player": "Ghost", "position": "WR", "esv": 10.0, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
+        # Null ESV — should be excluded
+        {"season": 2022, "gsis_id": "G-WR2", "player": "WR Two", "position": "WR", "esv": None, "is_rookie": False, "years_of_experience": 1, "age": 23.0},
     ])
 
 
@@ -56,7 +56,7 @@ def test_null_gsis_id_excluded():
     assert df["gsis_id"].notna().all()
 
 
-def test_null_rsv_excluded():
+def test_null_esv_excluded():
     df = build_phase2_training_data(_make_season_values(), _make_rankings())
     assert "G-WR2" not in df["gsis_id"].values
 

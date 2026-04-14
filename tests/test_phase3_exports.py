@@ -11,11 +11,11 @@ def test_export_phase3_tables_writes_all_phase3_csvs(tmp_path: Path):
     tv_inputs_path = tmp_path / "tv_inputs.csv"
     pd.DataFrame(
         [
-            {"player": "Player One", "team": "A", "position": "RB", "rsv_hat": 20.0},
-            {"player": "Player Two", "team": "A", "position": "QB", "rsv_hat": 25.0},
-            {"player": "Player Three", "team": "B", "position": "WR", "rsv_hat": 3.0},
-            {"player": "Player Four", "team": "B", "position": "RB", "rsv_hat": 50.0},
-            {"player": "Player Five", "team": "B", "position": "TE", "rsv_hat": 8.0},
+            {"player": "Player One", "team": "A", "position": "RB", "esv_hat": 20.0},
+            {"player": "Player Two", "team": "A", "position": "QB", "esv_hat": 25.0},
+            {"player": "Player Three", "team": "B", "position": "WR", "esv_hat": 3.0},
+            {"player": "Player Four", "team": "B", "position": "RB", "esv_hat": 50.0},
+            {"player": "Player Five", "team": "B", "position": "TE", "esv_hat": 8.0},
         ]
     ).to_csv(tv_inputs_path, index=False)
 

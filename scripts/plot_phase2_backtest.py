@@ -17,19 +17,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from src.ingest.historical_weekly_points import get_config_player_positions
+from src.utils.config import load_league_config
+
 PREDICTIONS_CSV = REPO_ROOT / "data" / "processed" / "phase2_backtest_player_predictions.csv"
 OUTPUT_DIR = REPO_ROOT / "data" / "processed" / "phase2_plots"
 
-POSITIONS = ["QB", "RB", "WR", "TE"]
+# Colour palette keyed by position name; extend if new positions are added to config.
 POS_COLORS = {"QB": "#E24A33", "RB": "#348ABD", "WR": "#988ED5", "TE": "#FBC15E"}
 
 
-def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path) -> None:
+def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path, positions: list[str]) -> None:
     """Scatter plot of esv_hat vs actual esv, one panel per position."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
 
-    for ax, pos in zip(axes, POSITIONS):
+    for ax, pos in zip(axes, positions):
         df = preds[preds["position"] == pos]
         color = POS_COLORS[pos]
 
@@ -61,12 +64,12 @@ def plot_forecast_vs_actual(preds: pd.DataFrame, output_dir: Path) -> None:
     plt.close(fig)
 
 
-def plot_residuals_by_adp(preds: pd.DataFrame, output_dir: Path) -> None:
+def plot_residuals_by_adp(preds: pd.DataFrame, output_dir: Path, positions: list[str]) -> None:
     """Residual (actual - predicted) vs ADP, with quantile bands, per position."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
 
-    for ax, pos in zip(axes, POSITIONS):
+    for ax, pos in zip(axes, positions):
         df = preds[preds["position"] == pos].sort_values("adp")
         color = POS_COLORS[pos]
         resid = df["esv"] - df["esv_hat"]
@@ -91,12 +94,12 @@ def plot_residuals_by_adp(preds: pd.DataFrame, output_dir: Path) -> None:
     plt.close(fig)
 
 
-def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path) -> None:
+def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path, positions: list[str]) -> None:
     """ADP vs ESV with isotonic fit line and p25-p75 band, per position."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
 
-    for ax, pos in zip(axes, POSITIONS):
+    for ax, pos in zip(axes, positions):
         df = preds[preds["position"] == pos].sort_values("adp")
         color = POS_COLORS[pos]
 
@@ -132,7 +135,7 @@ def plot_calibration_curves(preds: pd.DataFrame, output_dir: Path) -> None:
     plt.close(fig)
 
 
-def plot_yearly_metrics(output_dir: Path) -> None:
+def plot_yearly_metrics(output_dir: Path, positions: list[str]) -> None:
     """Bar chart of MAE and Spearman by season, faceted by position."""
     summary = pd.read_csv(REPO_ROOT / "data" / "processed" / "phase2_backtest_summary.csv")
     summary = summary[~summary["season"].isin(["OVERALL"])]
@@ -146,9 +149,9 @@ def plot_yearly_metrics(output_dir: Path) -> None:
         pivot = summary[summary["position"] != "ALL"].pivot(
             index="season", columns="position", values=metric,
         )
-        pivot = pivot[POSITIONS]
+        pivot = pivot[[p for p in positions if p in pivot.columns]]
         pivot.plot(
-            kind="bar", ax=ax, color=[POS_COLORS[p] for p in POSITIONS],
+            kind="bar", ax=ax, color=[POS_COLORS.get(p, "#999999") for p in pivot.columns],
             width=0.7, edgecolor="none",
         )
         ax.set_ylabel(label)
@@ -164,13 +167,15 @@ def plot_yearly_metrics(output_dir: Path) -> None:
 
 
 def main() -> int:
+    config = load_league_config()
+    positions = get_config_player_positions(config)
     preds = pd.read_csv(PREDICTIONS_CSV)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    plot_forecast_vs_actual(preds, OUTPUT_DIR)
-    plot_residuals_by_adp(preds, OUTPUT_DIR)
-    plot_calibration_curves(preds, OUTPUT_DIR)
-    plot_yearly_metrics(OUTPUT_DIR)
+    plot_forecast_vs_actual(preds, OUTPUT_DIR, positions)
+    plot_residuals_by_adp(preds, OUTPUT_DIR, positions)
+    plot_calibration_curves(preds, OUTPUT_DIR, positions)
+    plot_yearly_metrics(OUTPUT_DIR, positions)
 
     print(f"Wrote 4 plots to {OUTPUT_DIR}/")
     for f in sorted(OUTPUT_DIR.glob("*.png")):

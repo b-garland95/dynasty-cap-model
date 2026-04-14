@@ -171,6 +171,13 @@ v1 focuses on these outputs (DataFrames/CSVs):
 6) Team Cap Health Dashboard (current vs real cap usage, PV burdens, validation exposure)
 7) Instrument Candidate Shortlists (extension/tag/option; â€œuse only if surplus-positiveâ€)
 
+**Note on instrument shortlists (Table 7):** Recommendations are based solely on the
+`surplus_value > 0` condition plus instrument-specific eligibility flags. Age-curve risk
+and positional depth are not used as hard filters because dynasty TV already prices
+multi-year decline via position age curves, and short extensions can still be value-positive
+for older players depending on their situation. Always review player age and context before
+acting on any shortlist recommendation.
+
 ---
 
 ## Invariants (Do Not Violate)

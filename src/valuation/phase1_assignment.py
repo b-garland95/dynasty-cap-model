@@ -4,6 +4,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.utils.dataframe_utils import resolve_id_column
+
 SLOTS: tuple[str, ...] = ("QB", "RB", "WR", "TE", "FLEX", "SF")
 
 
@@ -71,15 +73,6 @@ def compute_sav_for_week(
     return compute_weekly_margins(started_df, position_cutlines)
 
 
-# Fallback slot for players not in the leaguewide starting set.
-_FALLBACK_SLOT: dict[str, str] = {
-    "QB": "SF",
-    "RB": "FLEX",
-    "WR": "FLEX",
-    "TE": "FLEX",
-}
-
-
 def compute_full_pool_margins(
     week_df: pd.DataFrame,
     position_cutlines: dict[str, float],
@@ -125,12 +118,13 @@ def compute_full_pool_margins(
     started_df = assign_leaguewide_starting_set(pool, config)
 
     # Build the non-starter pool: everyone not in the starting set.
-    id_col = "gsis_id" if "gsis_id" in pool.columns else "player"
+    id_col = resolve_id_column(pool)
     started_ids = set(started_df[id_col].values)
     non_starters = pool[~pool[id_col].isin(started_ids)].copy()
 
-    # Assign fallback slots to non-starters.
-    non_starters["assigned_slot"] = non_starters["position"].map(_FALLBACK_SLOT)
+    # Assign fallback slots to non-starters using the league format from config.
+    fallback_slots: dict[str, str] = config["lineup"]["fallback_slots"]
+    non_starters["assigned_slot"] = non_starters["position"].map(fallback_slots)
     non_starters["rank_within_slot"] = 0
 
     id_cols = [id_col] if id_col != "player" else []

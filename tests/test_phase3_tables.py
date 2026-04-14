@@ -13,6 +13,8 @@ from src.contracts.phase3_tables import (
 from src.contracts.schedule_builder import build_rounded_salary_path
 from src.utils.config import load_league_config
 
+_CONFIG = load_league_config()
+
 
 def _fixture_roster_path() -> str:
     return str(Path(__file__).parent / "fixtures" / "tiny_roster.csv")
@@ -48,8 +50,11 @@ def test_build_salary_schedule_values_and_shape():
 
     assert len(schedule_df) == 10
 
+    inflation = float(_CONFIG["cap"]["annual_inflation"])
+
     player_one = schedule_df.loc[schedule_df["player"] == "Player One"].sort_values("year_index")
-    assert player_one["cap_hit_real"].tolist() == [10.0, 11.0]
+    expected_p1 = [10.0, float(math.ceil(10.0 * (1.0 + inflation)))]
+    assert player_one["cap_hit_real"].tolist() == expected_p1
     assert (player_one["schedule_source"] == "standard_rule").all()
     assert not player_one["needs_schedule_validation"].any()
 

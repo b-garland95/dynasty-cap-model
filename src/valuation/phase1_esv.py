@@ -2,6 +2,7 @@
 
 import pandas as pd
 
+from src.utils.dataframe_utils import resolve_id_column
 from src.valuation.capture_model import CaptureModel
 
 
@@ -26,7 +27,7 @@ def compute_esv_ld_from_started_weekly(started_weekly_df: pd.DataFrame, capture_
     """Aggregate ESV and LD per player-season from weekly started rows."""
     weekly_df = compute_esv_ld_weekly(started_weekly_df, capture_model)
 
-    player_key = "gsis_id" if "gsis_id" in weekly_df.columns else "player"
+    player_key = resolve_id_column(weekly_df)
     group_cols = [player_key]
     if "season" in weekly_df.columns:
         group_cols = ["season", player_key]
@@ -40,7 +41,7 @@ def compute_esv_ld_from_started_weekly(started_weekly_df: pd.DataFrame, capture_
 
 def compute_capture_gap(sav_df: pd.DataFrame, esv_df: pd.DataFrame) -> pd.DataFrame:
     """Join SAV and ESV outputs and compute capture gap."""
-    player_key = "gsis_id" if "gsis_id" in sav_df.columns and "gsis_id" in esv_df.columns else "player"
+    player_key = resolve_id_column(sav_df, esv_df)
     join_cols = [col for col in ["season", player_key] if col in sav_df.columns and col in esv_df.columns]
     if not join_cols:
         join_cols = [player_key]

@@ -31,3 +31,11 @@ def test_phase3_qa_summary_uses_ledger_and_schedule_outputs():
     assert "ROW_COUNTS" in report
     assert "VALIDATION_PLAYERS" in report
     assert "Player Four" in report
+    # The formatted report must cover all major QA sections
+    for section in ("BOOLEAN_COUNTS", "NUMERIC_NULLS", "YEARS_RANGE"):
+        assert section in report, f"Expected section {section!r} in QA report"
+    # Team cap salary check: team A has Player One ($20 current) + Player Two ($20 current) = $30
+    assert float(summary["team_current_salary"].loc["A"]) == 30.0
+    # Numeric nulls must be zero for all key salary fields
+    for field in ("current_salary", "real_salary", "extension_salary", "years_remaining"):
+        assert summary["numeric_nulls"][field] == 0, f"Unexpected nulls in {field}"

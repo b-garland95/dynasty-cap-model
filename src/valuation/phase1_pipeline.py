@@ -11,7 +11,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.valuation.capture_model import PerfectCaptureModel, RationalStartCaptureModel
+from src.valuation.capture_model import FixedProbCaptureModel, RationalStartCaptureModel
 from src.valuation.phase1_assignment import (
     assign_leaguewide_starting_set,
     compute_full_pool_margins,
@@ -140,7 +140,15 @@ def run_phase1_season(
         _ = season_adp
         capture_model = RationalStartCaptureModel(proj_renamed, config)
     else:
-        capture_model = PerfectCaptureModel()
+        # No projection data available for this season. Unranked players are
+        # typically buried on depth charts and would not be started in a
+        # rational league, so 0% assumed start probability is the conservative
+        # and rational default. This is configurable via
+        # valuation.unranked_start_prob in league_config.yaml.
+        unranked_start_prob = float(
+            config.get("valuation", {}).get("unranked_start_prob", 0.0)
+        )
+        capture_model = FixedProbCaptureModel(start_prob=unranked_start_prob)
 
     # Compute weekly ESV/LD over the full player pool (not just starters).
     esv_weekly = compute_esv_ld_weekly(full_pool_weekly, capture_model)

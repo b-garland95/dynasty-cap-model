@@ -11,13 +11,15 @@ from src.ingest.historical_weekly_points import export_historical_weekly_points
 from src.utils.config import load_league_config
 
 
-
 def main() -> int:
-    output_path = REPO_ROOT / "data" / "interim" / "historical_weekly_player_points_2015_2025.csv"
+    config = load_league_config()
+    start_season = int(sys.argv[1]) if len(sys.argv) > 1 else int(config["season"]["history_start_season"])
+    end_season = int(sys.argv[2]) if len(sys.argv) > 2 else int(config["season"]["current_season"])
+    output_path = REPO_ROOT / "data" / "interim" / f"historical_weekly_player_points_{start_season}_{end_season}.csv"
     weekly_df = export_historical_weekly_points(
-        start_season=2015,
-        end_season=2025,
-        config=load_league_config(),
+        start_season=start_season,
+        end_season=end_season,
+        config=config,
         output_path=str(output_path),
     )
     print(f"Wrote {len(weekly_df)} rows to {output_path}")

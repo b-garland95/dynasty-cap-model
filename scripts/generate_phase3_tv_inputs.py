@@ -9,25 +9,31 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.contracts.tv_inputs import apply_dynasty_tv_path, build_phase2_tv_inputs
+from src.contracts.phase3_dynasty import apply_dynasty_tv_path
+from src.modeling.phase2_tv_scorer import build_phase2_tv_inputs
 from src.ingest.player_dimensions import enrich_with_player_dimensions
 from src.ingest.player_ids import attach_gsis_id_by_name, load_player_id_crosswalk
 from src.ingest.redraft_rankings import ensure_redraft_ranking_season
+from src.utils.config import load_league_config
 
-DEFAULT_ROSTER_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "lbb_rosters_2025.csv"
 DEFAULT_TRAINING_CSV = REPO_ROOT / "data" / "interim" / "phase2_training_dataset.csv"
 DEFAULT_RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
 DEFAULT_DYNASTY_RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "dynasty_rankings_master.csv"
 DEFAULT_ADP_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft_adp"
 DEFAULT_RANKINGS_FALLBACK_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft"
 DEFAULT_OUTPUT_CSV = REPO_ROOT / "data" / "interim" / "phase3" / "tv_inputs.csv"
-DEFAULT_TARGET_SEASON = 2026
 DIMS_CACHE = REPO_ROOT / "data" / "interim" / "player_dimensions_raw.csv"
 CROSSWALK_CACHE = REPO_ROOT / "data" / "interim" / "player_id_crosswalk.csv"
 
 
 def main() -> int:
-    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_ROSTER_CSV
+    config = load_league_config()
+    # target_season comes from config; the roster CSV default uses current_season filename convention
+    target_season = int(config["season"]["target_season"])
+    current_season = int(config["season"]["current_season"])
+    default_roster_csv = REPO_ROOT / "data" / "raw" / "roster_exports" / f"lbb_rosters_{current_season}.csv"
+
+    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_roster_csv
     output_csv_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUTPUT_CSV
     # Optional: path to dynasty rankings CSV (same schema as redraft_rankings_master.csv)
     dynasty_csv_path: Path | None = Path(sys.argv[3]) if len(sys.argv) > 3 else None
@@ -39,7 +45,7 @@ def main() -> int:
     crosswalk = load_player_id_crosswalk(cache_path=CROSSWALK_CACHE)
     refreshed_rankings_df = ensure_redraft_ranking_season(
         rankings_df,
-        target_season=DEFAULT_TARGET_SEASON,
+        target_season=target_season,
         adp_dir=DEFAULT_ADP_DIR,
         rankings_fallback_dir=DEFAULT_RANKINGS_FALLBACK_DIR,
         crosswalk=crosswalk,
@@ -48,7 +54,7 @@ def main() -> int:
         refreshed_rankings_df.to_csv(DEFAULT_RANKINGS_CSV, index=False)
         rankings_df = refreshed_rankings_df
         print(
-            f"Refreshed redraft rankings master with season {DEFAULT_TARGET_SEASON} "
+            f"Refreshed redraft rankings master with season {target_season} "
             f"coverage at {DEFAULT_RANKINGS_CSV}"
         )
 
@@ -56,7 +62,7 @@ def main() -> int:
         roster_csv_path=str(roster_csv_path),
         training_df=training_df,
         redraft_rankings_df=rankings_df,
-        target_season=DEFAULT_TARGET_SEASON,
+        target_season=target_season,
     )
 
     # Attach gsis_id via player-name crosswalk so we can join player dimensions.
@@ -72,7 +78,7 @@ def main() -> int:
 
         # Enrich with player dimensions using a temporary season column.
         dims_kwargs = {"cache_path": DIMS_CACHE} if DIMS_CACHE.exists() else {}
-        tv_inputs_df["_season"] = DEFAULT_TARGET_SEASON
+        tv_inputs_df["_season"] = target_season
         tv_inputs_df = enrich_with_player_dimensions(tv_inputs_df, season_col="_season", **dims_kwargs)
         tv_inputs_df = tv_inputs_df.drop(columns=["_season"])
         print("Attached gsis_id and player dimensions (age, draft info, …)")
@@ -88,7 +94,7 @@ def main() -> int:
                 tv_inputs_df,
                 dynasty_df,
                 training_df,
-                target_season=DEFAULT_TARGET_SEASON,
+                target_season=target_season,
             )
             n_dynasty = int(tv_inputs_df.get("dynasty_tv_applied", pd.Series(False)).sum())
             print(
@@ -109,7 +115,7 @@ def main() -> int:
     matched = int(tv_inputs_df["matched_rankings"].sum())
     rostered = int(tv_inputs_df["is_rostered"].sum())
     print(f"Wrote {len(tv_inputs_df)} Phase 3 TV input rows to {output_csv_path}")
-    print(f"Scored 2026 redraft ranks for {matched} of {len(tv_inputs_df)} projected players")
+    print(f"Scored {target_season} redraft ranks for {matched} of {len(tv_inputs_df)} projected players")
     print(f"Matched fantasy-roster slots for {rostered} of {len(tv_inputs_df)} projected players")
     print(f"Unscored players defaulted to zero TV for v1: {len(tv_inputs_df) - matched}")
     return 0

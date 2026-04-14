@@ -16,22 +16,25 @@ def main() -> int:
     if len(sys.argv) < 2:
         print(
             "Usage: python scripts/normalize_historical_weekly_points.py "
-            "<raw_nflverse_csv_path> [output_path]"
+            "<raw_nflverse_csv_path> [start_season] [end_season] [output_path]"
         )
         return 1
 
     raw_csv_path = Path(sys.argv[1])
+    config = load_league_config()
+    start_season = int(sys.argv[2]) if len(sys.argv) > 2 else int(config["season"]["history_start_season"])
+    end_season = int(sys.argv[3]) if len(sys.argv) > 3 else int(config["season"]["current_season"])
     output_path = (
-        Path(sys.argv[2])
-        if len(sys.argv) > 2
-        else REPO_ROOT / "data" / "interim" / "historical_weekly_player_points_2015_2025.csv"
+        Path(sys.argv[4])
+        if len(sys.argv) > 4
+        else REPO_ROOT / "data" / "interim" / f"historical_weekly_player_points_{start_season}_{end_season}.csv"
     )
 
     weekly_df = normalize_historical_weekly_points_csv(
         raw_csv_path=str(raw_csv_path),
-        config=load_league_config(),
-        start_season=2015,
-        end_season=2025,
+        config=config,
+        start_season=start_season,
+        end_season=end_season,
         output_path=str(output_path),
     )
     print(f"Wrote {len(weekly_df)} rows to {output_path}")

@@ -5,6 +5,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.utils.dataframe_utils import resolve_id_column
+
 
 POSITION_SLOTS: tuple[str, ...] = ("QB", "RB", "WR", "TE")
 
@@ -48,7 +50,7 @@ def compute_par_by_player(season_points_df: pd.DataFrame, r_par: dict[str, float
         axis=1,
     )
 
-    player_key = "gsis_id" if "gsis_id" in weekly_df.columns else "player"
+    player_key = resolve_id_column(weekly_df)
     group_cols = [player_key]
     if "season" in weekly_df.columns:
         group_cols = ["season", player_key]

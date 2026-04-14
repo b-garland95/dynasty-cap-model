@@ -98,3 +98,20 @@ rookie_scale:
   option_years: 1
   option_use_it_or_lose_it: true
   options_per_team_per_year: 1
+
+phase2_variants:
+  baseline:
+    extra_features: []
+    stage2_alpha: 1.0
+  v1_rookie_xp:
+    extra_features: ["is_rookie", "years_of_experience"]
+    stage2_alpha: 1.0
+  v2_all_demo:
+    extra_features: ["is_rookie", "years_of_experience", "age"]
+    stage2_alpha: 1.0
+  v3_age_only:
+    extra_features: ["age"]
+    stage2_alpha: 1.0
+  v4_rookie_only:
+    extra_features: ["is_rookie"]
+    stage2_alpha: 1.0

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 
-from src.modeling.isotonic import fit_calibration, predict
+from src.modeling.isotonic import fit_calibration, fit_calibration_two_stage, predict, predict_two_stage
+
+if TYPE_CHECKING:
+    from src.modeling.variant_config import ModelVariantConfig
 
 SUMMARY_COLUMNS = [
+    "variant",
     "season",
     "position",
     "n",
@@ -45,6 +51,7 @@ def rolling_backtest(
     training_data: pd.DataFrame,
     min_train_seasons: int = 1,
     n_quantile_bins: int = 10,
+    variant: "ModelVariantConfig | None" = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run rolling year-forward backtests.
 
@@ -60,6 +67,10 @@ def rolling_backtest(
         Minimum number of training seasons before testing begins.
     n_quantile_bins:
         Passed to ``fit_calibration()`` for quantile estimation.
+    variant:
+        Optional ``ModelVariantConfig``. When ``extra_features`` is non-empty
+        the two-stage (isotonic + Ridge residual corrector) path is used.
+        ``None`` or an empty ``extra_features`` list uses the baseline path.
 
     Returns
     -------
@@ -70,8 +81,11 @@ def rolling_backtest(
         plus ``rsv_hat, rsv_p25, rsv_p50, rsv_p75``.
     summary
         Per-season per-position metrics plus an ``ALL`` aggregate per
-        season and an overall row.
+        season and an overall row. Includes a ``variant`` column.
     """
+    variant_name = variant.name if variant is not None else "baseline"
+    use_two_stage = variant is not None and len(variant.extra_features) > 0
+
     seasons = sorted(training_data["season"].unique())
     all_preds: list[pd.DataFrame] = []
     all_metrics: list[dict] = []
@@ -86,8 +100,18 @@ def rolling_backtest(
         if train.empty or test.empty:
             continue
 
-        calibrations = fit_calibration(train, n_quantile_bins=n_quantile_bins)
-        scored = predict(calibrations, test)
+        if use_two_stage:
+            calibrations = fit_calibration_two_stage(
+                train,
+                extra_features=variant.extra_features,
+                alpha=variant.stage2_alpha,
+                n_quantile_bins=n_quantile_bins,
+            )
+            scored = predict_two_stage(calibrations, test)
+        else:
+            calibrations = fit_calibration(train, n_quantile_bins=n_quantile_bins)
+            scored = predict(calibrations, test)
+
         all_preds.append(scored)
 
         # Per-position metrics
@@ -96,12 +120,14 @@ def rolling_backtest(
             if len(pos_scored) < 1:
                 continue
             m = _compute_metrics(pos_scored)
+            m["variant"] = variant_name
             m["season"] = test_season
             m["position"] = pos
             all_metrics.append(m)
 
         # ALL-positions aggregate
         m_all = _compute_metrics(scored)
+        m_all["variant"] = variant_name
         m_all["season"] = test_season
         m_all["position"] = "ALL"
         all_metrics.append(m_all)
@@ -114,11 +140,13 @@ def rolling_backtest(
         for pos in sorted(player_predictions["position"].unique()):
             pos_all = player_predictions[player_predictions["position"] == pos]
             m = _compute_metrics(pos_all)
+            m["variant"] = variant_name
             m["season"] = "OVERALL"
             m["position"] = pos
             all_metrics.append(m)
 
         m_overall = _compute_metrics(player_predictions)
+        m_overall["variant"] = variant_name
         m_overall["season"] = "OVERALL"
         m_overall["position"] = "ALL"
         all_metrics.append(m_overall)

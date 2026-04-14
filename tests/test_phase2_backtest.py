@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from src.modeling.backtest import SUMMARY_COLUMNS, rolling_backtest
+from src.modeling.variant_config import ModelVariantConfig
 
 
 def _make_multiyear_data(
@@ -37,6 +38,9 @@ def _make_multiyear_data(
                     "position": pos,
                     "adp": int(adp[i]),
                     "log_adp": log_adp[i],
+                    "is_rookie": (i == 0),
+                    "years_of_experience": i,
+                    "age": 22.0 + i * 0.5,
                     "rsv": rsv[i],
                 })
     return pd.DataFrame(rows)
@@ -168,3 +172,49 @@ def test_end_to_end_small():
     # Coverage should be reasonable (between 20% and 80% for p25-p75 band)
     assert overall.iloc[0]["coverage_p25_p75"] > 0.1
     assert overall.iloc[0]["coverage_p25_p75"] < 0.95
+
+
+# ---------------------------------------------------------------------------
+# Variant support
+# ---------------------------------------------------------------------------
+
+
+def test_variant_column_stamped_in_summary():
+    data = _make_multiyear_data()
+    variant = ModelVariantConfig(name="test_v", extra_features=["age"])
+    _, summary = rolling_backtest(data, variant=variant)
+    assert "variant" in summary.columns
+    assert (summary["variant"] == "test_v").all()
+
+
+def test_baseline_variant_identical_to_no_variant():
+    data = _make_multiyear_data()
+    baseline_cfg = ModelVariantConfig(name="baseline", extra_features=[])
+    _, summary_none = rolling_backtest(data)
+    _, summary_baseline = rolling_backtest(data, variant=baseline_cfg)
+
+    overall_none = summary_none[
+        (summary_none["season"] == "OVERALL") & (summary_none["position"] == "ALL")
+    ]["mae"].iloc[0]
+    overall_baseline = summary_baseline[
+        (summary_baseline["season"] == "OVERALL") & (summary_baseline["position"] == "ALL")
+    ]["mae"].iloc[0]
+    assert abs(overall_none - overall_baseline) < 1e-10
+
+
+def test_two_stage_variant_runs_without_error():
+    data = _make_multiyear_data()
+    variant = ModelVariantConfig(name="v1_rookie_xp", extra_features=["is_rookie", "years_of_experience"])
+    preds, summary = rolling_backtest(data, variant=variant)
+    assert len(preds) > 0
+    assert len(summary) > 0
+    assert summary.shape == rolling_backtest(data)[1].shape
+
+
+def test_leakage_still_absent_with_variant():
+    data = _make_multiyear_data(seasons=[2020, 2021, 2022, 2023])
+    variant = ModelVariantConfig(name="v2_all_demo", extra_features=["is_rookie", "years_of_experience", "age"])
+    preds, _ = rolling_backtest(data, min_train_seasons=1, variant=variant)
+    pred_seasons = sorted(preds["season"].unique())
+    assert pred_seasons[0] == 2021
+    assert 2020 not in preds["season"].values

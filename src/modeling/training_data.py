@@ -14,8 +14,13 @@ TRAINING_COLUMNS = [
     "position",
     "adp",
     "log_adp",
+    "is_rookie",
+    "years_of_experience",
+    "age",
     "rsv",
 ]
+
+_EXTRA_FEATURE_COLUMNS = ["is_rookie", "years_of_experience", "age"]
 
 
 def build_phase2_training_data(
@@ -29,6 +34,8 @@ def build_phase2_training_data(
     ----------
     season_values:
         Phase 1 output with at least ``season, gsis_id, player, position, rsv``.
+        May optionally include ``is_rookie``, ``years_of_experience``, ``age``;
+        missing columns are filled with NaN.
     redraft_rankings:
         Redraft rankings with at least ``season, gsis_id, rank``.
         The ``rank`` column is the overall FantasyPros ADP.
@@ -42,7 +49,12 @@ def build_phase2_training_data(
     if positions is None:
         positions = POSITIONS
 
-    sv = season_values[["season", "gsis_id", "player", "position", "rsv"]].copy()
+    sv_cols = ["season", "gsis_id", "player", "position", "rsv"] + _EXTRA_FEATURE_COLUMNS
+    sv = season_values.copy()
+    for col in _EXTRA_FEATURE_COLUMNS:
+        if col not in sv.columns:
+            sv[col] = np.nan
+    sv = sv[sv_cols].copy()
     sv = sv.dropna(subset=["gsis_id", "rsv"])
 
     rr = redraft_rankings[["season", "gsis_id", "rank"]].copy()

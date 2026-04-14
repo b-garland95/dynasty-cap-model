@@ -13,8 +13,8 @@ __pycache__/
 # Pytest
 .pytest_cache/
 
-# Data directories (raw inputs are local only)
-data/raw/
+# Data directories
+data/
 
 # Distribution / packaging
 dist/

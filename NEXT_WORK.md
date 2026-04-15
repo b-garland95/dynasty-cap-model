@@ -37,40 +37,6 @@ This ticket is about the evaluation framework and presentation layer, not about 
 - Use naming that matches how a fantasy manager would naturally think, such as current-year surplus, 3-year annualized surplus, and 5-year annualized surplus
 - Watch for hidden dependencies in charts or downstream tables that still expect legacy PV/TV field names
 
-
-### League Config Screen in app for manual adjustments
-
-**Outcome:** User can manually enter team-level cap adjustment inputs that are not captured in the roster export so app-level cap calculations match League Tycoon more closely.
-
-**Description:** Current cap remaining is partly implied from roster data, but the export does not capture all components required to match actual league cap space. To close that gap, we should add a League Config screen where a user can input team-level cap adjustment values directly. For now, this is preferable to reconstructing those values from transaction history.
-
-Initial manual adjustment inputs should include:
-- Dead Money
-- Cap Transactions
-- Rollover from previous year
-
-These values should be persisted in the backend and incorporated into cap calculations used by league analysis outputs. The most important downstream surface is the Cap Health dashboard, which should show a cap remaining figure aligned to the configured values.
-
-This ticket is about creating a durable manual adjustment workflow, not building a full transaction ledger.
-
-**Done when:**
-- [ ] League Config screen allows manual input of cap adjustment fields for every team
-- [ ] User can save cap adjustment inputs and reload them later
-- [ ] Backend stores team-level values for dead money, cap transactions, and rollover
-- [ ] App recalculates relevant outputs after config changes without requiring manual code edits
-- [ ] Cap Health screen shows Cap Remaining using configured adjustments
-- [ ] Cap Remaining is calculated as: Starting Team Cap - Current Contract Value - Dead Money - Cap Transactions + Rollover
-- [ ] Inputs are validated to prevent invalid or malformed values
-- [ ] UI clearly indicates what each cap lever means
-- [ ] Tests cover persistence, recalculation, and displayed cap remaining values
-
-**Notes for agent:**
-- Treat these values as league configuration inputs and make them easy to update over time
-- Keep the schema extensible in case future manual cap levers need to be added
-- Make sure recalculation behavior is predictable after edits; avoid requiring the user to run opaque backend steps if the app can do it directly
-- Confirm whether Cap Transactions should support positive and negative values depending on league convention, and implement consistently
-- Surface these adjustments in a way that makes debugging mismatches against League Tycoon straightforward
-
 ### Add Draft Pick Ownership Management
 
 Outcome: User can assign and persist rookie draft pick ownership by team for the current league year and future draft years, and that information is visible in the app for later valuation work.
@@ -145,36 +111,57 @@ Notes for agent:
   * Keep this scoped to narrowing the displayed comparison window, not redefining similarity logic
   * Confirm whether the selected player itself should remain visually included between the above/below groups, but do not include extra surrounding players beyond the intended window
 
-### Add Scalable League Config Management Screen
+### Add Scalable League Config and League Data Management Screen
 
-Outcome: User can manage league configuration inputs from a dedicated app screen, write those changes back to the backend config source of truth, and trigger a refresh of downstream analytical outputs from the UI.
+Outcome: User can manage league-level configuration, upload refreshed roster data, persist those changes back to the backend source-of-truth files, and trigger a refresh of downstream analytical outputs from the UI.
 
-Description: We need a more scalable way to manage league configuration than editing backend files manually. The app should include a League Config management screen that connects directly to the backend config file, exposes editable configuration inputs in a structured UI, and provides a clear action to recompute or refresh analytical outputs after changes are made.
+Description: We need a scalable way to manage league configuration and core league data without manually editing backend files. The app should include a dedicated League Config management screen that acts as the operational control center for league-level settings and key uploaded inputs.
 
-This should serve as the central management surface for league-level settings and manual overrides that drive analysis. The backend config file should remain the source of truth, but users should be able to safely update that source through the app. After edits are saved, the screen should include a button to update all analytical outputs so downstream views reflect the new configuration state.
+This screen should read from backend source-of-truth files, expose supported configuration fields in a structured UI, allow users to save changes back to the backend config, support uploading a refreshed Rosters file via file drop, and provide a clear action to update all downstream analytical outputs after edits are made.
 
-This ticket is about the management workflow and config synchronization pattern, not about redesigning every individual config field at once.
+This should serve as the long-term home for league-level settings and manual overrides that affect analysis. That includes both broader configuration controls and team-level cap adjustment inputs that are not reliably available from roster exports.
+
+Initial manual adjustment inputs should include:
+- Dead Money
+- Cap Transactions
+- Rollover from previous year
+
+These values should be persisted in the backend config layer and incorporated into downstream calculations. The most important immediate downstream surface is Cap Health, which should show Cap Remaining using the configured values.
+
+The screen should also support replacing or refreshing the backend Rosters source via file drop so users can update league data without manual backend intervention. After config changes or file uploads, the user should be able to trigger a recomputation of analytical outputs so the app reflects the latest configuration and roster state.
+
+This ticket is about the config management workflow, backend synchronization, roster file ingestion entry point, and recompute pattern. It is not about building a full transaction ledger or redesigning every config field at once.
 
 Done when:
 
-  * App has a dedicated League Config management screen for league-level settings
-  * Screen reads current values from the backend config file/source of truth
+  * App has a dedicated League Config / league data management screen for league-level settings and operational inputs
+  * Screen reads current values from the backend config source of truth
   * User can edit supported config fields from the UI
-  * Saving from the UI writes changes back to the backend config source of truth
-  * Screen includes a clear action to update or recompute analytical outputs after config changes
-  * Analytical outputs reflect updated config values after recomputation
-  * App gives user clear feedback for save success, recompute success, and failure states
-  * Validation prevents invalid config values from being written
-  * Config editing flow does not require manual backend file edits for supported fields
-  * Tests cover config load, config save, and downstream analysis refresh behavior
+  * League Config screen supports team-level manual cap adjustment inputs for every team
+  * Initial cap adjustment fields include Dead Money, Cap Transactions, and Rollover from previous year
+  * Saving from the UI writes config changes back to the backend config source of truth
+  * Screen supports file drop upload for refreshing the backend Rosters file
+  * Uploaded roster file is validated before being accepted
+  * Successful roster upload updates the backend roster source of truth for supported workflows
+  * Screen includes a clear action to update or recompute analytical outputs after config changes or roster uploads
+  * Analytical outputs reflect updated config values and roster inputs after recomputation
+  * Cap Health screen shows Cap Remaining using configured adjustments
+  * Cap Remaining is calculated as: Starting Team Cap - Current Contract Value - Dead Money - Cap Transactions + Rollover
+  * App provides clear feedback for save success, roster upload success, recompute success, validation issues, and failure states
+  * Validation prevents invalid config values or malformed roster files from being written
+  * Config editing and roster refresh workflows do not require manual backend file edits for supported operations
+  * Tests cover config load, config save, roster upload validation, roster persistence, recomputation behavior, and displayed cap remaining values
 
 Notes for agent:
 
-  * Keep the backend config file as the source of truth, but add an app-layer workflow for editing supported fields safely
-  * Separate “save config changes” from “refresh analytical outputs” unless existing architecture strongly favors combining them
-  * Design the UI and schema mapping so new config sections can be added over time without rebuilding the whole screen
-  * Reuse this screen as the long-term home for league-wide knobs such as forecast settings, draft-pick settings, and cap adjustment inputs where appropriate
-  * Make failure states debuggable, especially when config write succeeds but analytical refresh fails
+  * Keep backend config and backend roster data files as source-of-truth inputs, but add an app-layer workflow for editing and replacing supported inputs safely
+  * Separate “save config changes,” “upload roster file,” and “refresh analytical outputs” into distinct actions unless the existing architecture strongly favors combining some of them
+  * Treat manual cap adjustments as league configuration inputs, not as a transaction-history reconstruction system
+  * Keep the schema and screen structure extensible so additional config sections and uploaded league data sources can be added over time without rebuilding the whole screen
+  * Validate uploaded roster files against the expected shape before replacing the backend source
+  * Confirm whether Cap Transactions should support positive and negative values depending on league convention, and implement consistently
+  * Make failure states debuggable, especially when config save succeeds but recomputation fails, or roster upload succeeds but downstream parsing fails
+  * Surface values and upload results in a way that makes debugging mismatches against League Tycoon straightforward
 
 ### Add Contract Schedule Validation Workflow
 
@@ -208,15 +195,6 @@ Notes for agent:
   * Make sure downstream contract schedule consumers read from the override layer consistently after validation
 
 ## Later
-### Import updated Roster CSV into app + Update Phase 2 and 3 Outputs
-**Outcome:** User can upload new version of rosters file, and reports in Forecasted and League Analysis tabs update accordingly
-
-**Done when:**
-- [ ] 
-
-**Notes for agent:**
-- Should be a one-stop shop for all player analysis
-- Feel free to add other views you think would be valuable within the context of the league
 
 ---
 

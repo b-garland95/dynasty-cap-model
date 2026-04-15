@@ -1,19 +1,20 @@
 // Phase 2 — Forecasted Values
-// Two sub-tabs: TV Forecast (bar chart + sortable table) and ADP→ESV scatter.
+// Two sub-tabs: TV Forecast (sortable table with sparklines) and ADP→ESV scatter.
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
-  let tvChartInstance  = null;
-  let adpChartInstance = null;
-  let tvSortKey        = 'tv_y0';
-  let tvSortAsc        = false;
-  let tvFilter         = { position: 'All', team: 'All', rosteredOnly: false };
-  let adpFilter        = { position: 'All' };
+  let adpChartInstance  = null;
+  let tvSortKey         = 'tv_y0';
+  let tvSortAsc         = false;
+  let tvFilter          = { position: 'All', team: 'All', rosteredOnly: false };
+  let tvSelectedPlayers = [];   // player name strings currently filtered via chips
+  let adpFilter         = { position: 'All' };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  function fmt1(v) { return typeof v === 'number' ? v.toFixed(1) : '–'; }
-  function fmtInt(v) { return typeof v === 'number' ? Math.round(v) : '–'; }
+  function fmt1(v)      { return typeof v === 'number' ? v.toFixed(1) : '–'; }
+  function fmtInt(v)    { return typeof v === 'number' ? Math.round(v) : '–'; }
+  function fmtDollar(v) { return typeof v === 'number' ? `$${v.toFixed(1)}` : '–'; }
 
   function buildTeamOptions(selectId) {
     const sel = document.getElementById(selectId);
@@ -35,76 +36,42 @@
       if (tvFilter.position !== 'All' && r.position !== tvFilter.position) return false;
       if (tvFilter.team !== 'All' && r.team !== tvFilter.team) return false;
       if (tvFilter.rosteredOnly && !r.is_rostered) return false;
+      if (tvSelectedPlayers.length > 0 && !tvSelectedPlayers.includes(r.player)) return false;
       return true;
     });
   }
 
-  function renderTVChart(rows) {
-    if (tvChartInstance) { tvChartInstance.destroy(); tvChartInstance = null; }
-    const ctx = document.getElementById('chart-tv-forecast');
-    if (!ctx || !rows.length) return;
+  // ── Sparkline (pure inline SVG, no library) ───────────────────────────────
 
-    // Top 30 by tv_y0 descending for the chart
-    const top = rows
-      .slice()
-      .sort((a, b) => b.tv_y0 - a.tv_y0)
-      .slice(0, 30);
+  function tvSparkline(r) {
+    const vals = [r.tv_y0, r.tv_y1, r.tv_y2, r.tv_y3];
+    const W = 60, H = 22, PAD = 3;
+    const min   = Math.min(...vals);
+    const max   = Math.max(...vals);
+    const range = max - min || 1;   // avoid divide-by-zero for flat trajectories
 
-    tvChartInstance = new Chart(ctx.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: top.map(r => r.player),
-        datasets: [
-          {
-            label: 'TV Y0',
-            data: top.map(r => +r.tv_y0.toFixed(1)),
-            backgroundColor: top.map(r => hexToRgba(POS_COLORS[r.position] || THEME.accent, 0.65)),
-            borderColor:     top.map(r => POS_COLORS[r.position] || THEME.accent),
-            borderWidth: 1,
-            borderRadius: 3,
-          },
-          {
-            label: 'ESV p50',
-            data: top.map(r => +r.esv_p50.toFixed(1)),
-            backgroundColor: hexToRgba(THEME.muted, 0.25),
-            borderColor:     THEME.muted,
-            borderWidth: 1,
-            borderRadius: 3,
-          },
-        ]
-      },
-      options: {
-        ...CHART_DEFAULTS,
-        indexAxis: 'y',
-        plugins: {
-          ...CHART_DEFAULTS.plugins,
-          legend: { ...CHART_DEFAULTS.plugins.legend, display: true },
-          tooltip: {
-            ...CHART_DEFAULTS.plugins.tooltip,
-            callbacks: {
-              title: ctx2 => {
-                const r = top[ctx2[0].dataIndex];
-                return r ? `${r.player} (${r.position}) · ${r.team}` : '';
-              },
-              label: ctx2 => {
-                const r = top[ctx2[0]?.dataIndex ?? ctx2.dataIndex];
-                if (!r) return '';
-                return [
-                  ` TV Y0: ${fmt1(r.tv_y0)}  Y1: ${fmt1(r.tv_y1)}  Y2: ${fmt1(r.tv_y2)}  Y3: ${fmt1(r.tv_y3)}`,
-                  ` ESV p25/p50/p75: ${fmt1(r.esv_p25)} / ${fmt1(r.esv_p50)} / ${fmt1(r.esv_p75)}`,
-                  ` ADP: ${fmtInt(r.adp)}`,
-                ];
-              }
-            }
-          }
-        },
-        scales: {
-          x: { ...CHART_DEFAULTS.scales.x, title: { display: true, text: '$ Value', color: THEME.muted, font: { size: 11 } } },
-          y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, font: { family: 'DM Sans', size: 10 } } }
-        }
-      }
-    });
+    const yPx = v => PAD + (H - 2 * PAD) * (1 - (v - min) / range);
+    const xPx = i => PAD + i * ((W - 2 * PAD) / 3);
+
+    const points = vals.map((v, i) => `${xPx(i).toFixed(1)},${yPx(v).toFixed(1)}`).join(' ');
+
+    // Color-code direction: blue = rising, red = declining, gray = flat (±0.5 threshold)
+    const delta  = r.tv_y3 - r.tv_y0;
+    const stroke = delta > 0.5  ? '#6c8cff'
+                 : delta < -0.5 ? '#e06c75'
+                 :                '#8b90a5';
+
+    // End dot marks the Y3 value
+    const ex = xPx(3).toFixed(1);
+    const ey = yPx(r.tv_y3).toFixed(1);
+
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible;">` +
+      `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>` +
+      `<circle cx="${ex}" cy="${ey}" r="2.5" fill="${stroke}"/>` +
+      `</svg>`;
   }
+
+  // ── TV Table ──────────────────────────────────────────────────────────────
 
   function renderTVTable(rows) {
     const tbody = document.getElementById('tv-table-body');
@@ -121,20 +88,109 @@
         <td>${playerLink(r.player)}</td>
         <td>${r.team}</td>
         <td><span class="pos-badge pos-${r.position.toLowerCase()}">${r.position}</span></td>
-        <td class="num">${fmt1(r.tv_y0)}</td>
-        <td class="num">${fmt1(r.tv_y1)}</td>
-        <td class="num">${fmt1(r.tv_y2)}</td>
-        <td class="num">${fmt1(r.tv_y3)}</td>
+        <td class="num tv-sparkline-cell">${tvSparkline(r)}</td>
+        <td class="num">${fmtDollar(r.tv_y0)}</td>
+        <td class="num">${fmtDollar(r.tv_y1)}</td>
+        <td class="num">${fmtDollar(r.tv_y2)}</td>
+        <td class="num">${fmtDollar(r.tv_y3)}</td>
         <td class="num">${fmtInt(r.adp)}</td>
-        <td class="num">${fmt1(r.esv_p25)} / ${fmt1(r.esv_p50)} / ${fmt1(r.esv_p75)}</td>
+        <td class="num">${fmtDollar(r.esv_p25)}</td>
+        <td class="num">${fmtDollar(r.esv_p50)}</td>
+        <td class="num">${fmtDollar(r.esv_p75)}</td>
       </tr>
     `).join('');
   }
 
   function refreshTV() {
-    const rows = getFilteredTV();
-    renderTVChart(rows);
-    renderTVTable(rows);
+    renderTVTable(getFilteredTV());
+  }
+
+  // ── TV Player Search ──────────────────────────────────────────────────────
+
+  function _tvWireSearch() {
+    const input    = document.getElementById('tv-search');
+    const dropdown = document.getElementById('tv-dropdown');
+    if (!input || !dropdown) return;
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      if (q.length < 2) { dropdown.hidden = true; return; }
+      _tvRenderDropdown(_tvBuildItems(q));
+    });
+
+    // blur hides the dropdown; mousedown on items uses preventDefault()
+    // so blur fires only after the mousedown handler completes.
+    input.addEventListener('blur', () => { dropdown.hidden = true; });
+  }
+
+  function _tvBuildItems(query) {
+    const lq = query.toLowerCase();
+    return ALL_TV_PLAYERS
+      .filter(p => p.toLowerCase().includes(lq))
+      .slice(0, 12);
+  }
+
+  function _tvRenderDropdown(players) {
+    const input    = document.getElementById('tv-search');
+    const dropdown = document.getElementById('tv-dropdown');
+    dropdown.innerHTML = '';
+
+    if (players.length === 0) { dropdown.hidden = true; return; }
+
+    players.forEach(player => {
+      const el = document.createElement('div');
+      el.className = 'pt-dropdown-item';   // reuse existing class
+      el.textContent = player;
+
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        _tvAddPlayer(player);
+        input.value = '';
+        dropdown.hidden = true;
+      });
+
+      dropdown.appendChild(el);
+    });
+
+    dropdown.hidden = false;
+  }
+
+  function _tvAddPlayer(player) {
+    if (tvSelectedPlayers.includes(player)) return;   // no duplicates
+    tvSelectedPlayers.push(player);
+    _tvRenderChips();
+    refreshTV();
+  }
+
+  function _tvRemovePlayer(player) {
+    tvSelectedPlayers = tvSelectedPlayers.filter(p => p !== player);
+    _tvRenderChips();
+    refreshTV();
+  }
+
+  function _tvRenderChips() {
+    const container = document.getElementById('tv-chips');
+    if (!container) return;
+    container.innerHTML = '';
+
+    tvSelectedPlayers.forEach(player => {
+      const chip = document.createElement('div');
+      chip.className = 'pt-chip';           // reuse existing class
+
+      const lbl = document.createElement('span');
+      lbl.className = 'pt-chip-label';
+      lbl.textContent = player;
+
+      const rm = document.createElement('button');
+      rm.className = 'pt-chip-remove';
+      rm.setAttribute('aria-label', `Remove ${player}`);
+      rm.textContent = '×';
+      rm.addEventListener('click', () => _tvRemovePlayer(player));
+
+      chip.appendChild(lbl);
+      chip.appendChild(rm);
+      container.appendChild(chip);
+    });
   }
 
   // ── ADP → ESV scatter ────────────────────────────────────────────────────
@@ -228,6 +284,7 @@
     _initialized = true;
 
     buildTeamOptions('tv-team');
+    _tvWireSearch();
 
     // Sub-tab buttons
     document.querySelectorAll('#panel-forecasted .sub-tab-btn').forEach(btn => {

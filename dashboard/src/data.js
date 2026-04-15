@@ -24,8 +24,9 @@ let ALL_SEASONS  = [];
 let HEADSHOT_MAP = {};
 
 // ── Phase 2 (Forecasted) ─────────────────────────────────────────────────────
-let TV_DATA      = [];   // tv_inputs rows
-let ALL_TV_TEAMS = [];   // sorted unique fantasy team names from TV_DATA
+let TV_DATA        = [];   // tv_inputs rows
+let ALL_TV_TEAMS   = [];   // sorted unique fantasy team names from TV_DATA
+let ALL_TV_PLAYERS = [];   // sorted unique player names from TV_DATA
 
 // ── Phase 3 (League Analysis) ────────────────────────────────────────────────
 let SURPLUS_DATA    = [];
@@ -170,7 +171,8 @@ function loadData() {
         esv_p75:    +(r.esv_p75    ?? 0) || 0,
         is_rostered: r.is_rostered === true || r.is_rostered === 'True',
       }));
-    ALL_TV_TEAMS = [...new Set(TV_DATA.map(r => r.team).filter(Boolean))].sort();
+    ALL_TV_TEAMS   = [...new Set(TV_DATA.map(r => r.team).filter(Boolean))].sort();
+    ALL_TV_PLAYERS = [...new Set(TV_DATA.map(r => r.player))].sort();
 
     // ── Phase 3 Contract Surplus ─────────────────────────────────────────────
     SURPLUS_DATA = surplusRaw

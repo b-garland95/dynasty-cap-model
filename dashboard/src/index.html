@@ -194,10 +194,16 @@
                 Rostered only
               </label>
             </div>
+            <div class="control-group">
+              <div class="tv-search-wrapper">
+                <input id="tv-search" type="text"
+                       placeholder="Filter players…"
+                       autocomplete="off" spellcheck="false" />
+                <div id="tv-dropdown" class="pt-dropdown" hidden></div>
+              </div>
+            </div>
           </div>
-          <div class="chart-container" style="height: 460px;">
-            <canvas id="chart-tv-forecast"></canvas>
-          </div>
+          <div id="tv-chips" class="pt-chips"></div>
           <div class="table-wrapper">
             <table id="tv-table" class="data-table">
               <thead>
@@ -205,12 +211,15 @@
                   <th>Player</th>
                   <th>Team</th>
                   <th>Pos</th>
+                  <th class="num">Trend</th>
                   <th data-sort="tv_y0" class="num sort-desc">TV Y0 ↕</th>
                   <th data-sort="tv_y1" class="num">TV Y1 ↕</th>
                   <th data-sort="tv_y2" class="num">TV Y2 ↕</th>
                   <th data-sort="tv_y3" class="num">TV Y3 ↕</th>
                   <th data-sort="adp"   class="num">ADP ↕</th>
-                  <th class="num">ESV p25/p50/p75</th>
+                  <th data-sort="esv_p25" class="num">ESV p25 ↕</th>
+                  <th data-sort="esv_p50" class="num">ESV p50 ↕</th>
+                  <th data-sort="esv_p75" class="num">ESV p75 ↕</th>
                 </tr>
               </thead>
               <tbody id="tv-table-body"></tbody>

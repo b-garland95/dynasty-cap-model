@@ -187,7 +187,8 @@ function _ptRenderMetricCards() {
 
     const header = document.createElement('div');
     header.className = 'pt-metric-header';
-    header.textContent = `${sel.player} ${sel.season}`;
+    // Player name is a clickable link that opens the modal
+    header.innerHTML = `${playerLink(sel.player)} <span style="font-weight:400;">${sel.season}</span>`;
 
     const dv = document.createElement('div');
     dv.className = 'pt-metric-dv';

@@ -172,6 +172,15 @@ function renderWmsvEsvChart() {
       maintainAspectRatio: false,
       parsing: false,
       animation: { duration: 200 },
+      onClick: (_event, elements) => {
+        if (!elements.length) return;
+        const el = elements[0];
+        const pt = datasets[el.datasetIndex]?.data[el.index];
+        if (pt?.player) openPlayerModal(pt.player);
+      },
+      onHover: (_event, elements, chart) => {
+        chart.canvas.style.cursor = elements.length ? 'pointer' : 'default';
+      },
       plugins: {
         legend: {
           position: 'top',

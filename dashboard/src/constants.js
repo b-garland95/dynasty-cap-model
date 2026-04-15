@@ -31,6 +31,17 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * Wrap a player name in a clickable span that triggers the player modal.
+ * Safe to inject via innerHTML; escapes double-quotes in the data attribute.
+ * @param {string} name
+ * @returns {string} HTML string
+ */
+function playerLink(name) {
+  const safe = String(name).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return `<span class="player-link" data-player="${safe}">${name}</span>`;
+}
+
 const CHART_DEFAULTS = {
   maintainAspectRatio: false,
   responsive: true,

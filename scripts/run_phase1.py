@@ -1,7 +1,7 @@
 """Run the Phase 1 valuation pipeline and export results to CSV.
 
 Usage:
-    python scripts/run_phase1.py [--start-season 2020] [--end-season 2025]
+    python scripts/run_phase1.py [--start-season 2015] [--end-season 2025]
 """
 
 from __future__ import annotations
@@ -31,16 +31,18 @@ OUTPUT_DIR = REPO_ROOT / "data" / "processed" / "phase1"
 
 
 def main() -> int:
+    config = load_league_config()
+    default_start_season = int(config["season"]["history_start_season"])
+    default_end_season = int(config["season"]["current_season"])
+
     parser = argparse.ArgumentParser(description="Run Phase 1 valuation pipeline")
-    parser.add_argument("--start-season", type=int, default=2020)
-    parser.add_argument("--end-season", type=int, default=2025)
+    parser.add_argument("--start-season", type=int, default=default_start_season)
+    parser.add_argument("--end-season", type=int, default=default_end_season)
     parser.add_argument("--points-csv", type=Path, default=HISTORICAL_CSV)
     parser.add_argument("--projections-csv", type=Path, default=PROJECTIONS_CSV)
     parser.add_argument("--rankings-csv", type=Path, default=RANKINGS_CSV)
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     args = parser.parse_args()
-
-    config = load_league_config()
     seasons = list(range(args.start_season, args.end_season + 1))
 
     # --- Load historical points ---------------------------------------------

@@ -459,6 +459,106 @@ def build_master_redraft_adp_with_fallback(
     return combined[col_order].copy()
 
 
+# ---------------------------------------------------------------------------
+# FantasyData Dynasty ADP format (data/raw/rankings/dynasty_adp/)
+# ---------------------------------------------------------------------------
+
+
+def load_single_dynasty_adp(path: Path, *, season: Optional[int] = None) -> pd.DataFrame:
+    """Load and normalize a single FantasyData dynasty ADP CSV.
+
+    Parameters
+    ----------
+    path:
+        Path to a ``nfl-dynasty-adp-*_YYYY.csv`` file.
+    season:
+        Override the season year; if None it is extracted from the filename.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: season, rank, tier, player, team, position, pos_rank, fantasy_data_id
+
+        ``rank`` contains the ``adp_dynasty`` float value (true ADP).
+        ``tier`` is always ``pd.NA`` (not present in this format).
+        ``fantasy_data_id`` is the raw ``id`` column as a string for crosswalk join.
+    """
+    if season is None:
+        season = _extract_season_from_adp_path(path)
+
+    df = pd.read_csv(path, dtype={"id": "string"})
+
+    # Drop DST/team rows — their ``id`` is a team abbreviation, not numeric
+    df = df[pd.to_numeric(df["id"], errors="coerce").notna()].copy()
+
+    # Filter to skill positions only
+    df = df[df["pos"].isin({"QB", "RB", "WR", "TE"})].copy()
+
+    # Split adp_dynasty_pos_rank (e.g. "WR1") into position + pos_rank
+    pos_parts = df["adp_dynasty_pos_rank"].str.extract(r"^([A-Z]+)(\d+)$")
+    df["position"] = pos_parts[0]
+    df["pos_rank"] = pd.to_numeric(pos_parts[1], errors="coerce").astype("Int64")
+
+    # Use adp_dynasty as the rank (true ADP float); drop the integer ordinal rank
+    df = df.drop(columns=["rank"])
+    df = df.rename(columns={"adp_dynasty": "rank"})
+    df["tier"] = pd.NA
+    df["season"] = season
+    df["fantasy_data_id"] = df["id"].astype("string")
+
+    return df[["season", "rank", "tier", "player", "team", "position", "pos_rank", "fantasy_data_id"]].copy().reset_index(drop=True)
+
+
+def build_master_dynasty_adp(
+    raw_dir: Path,
+    *,
+    crosswalk: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Load all per-year FantasyData dynasty ADP CSVs, stack, and attach gsis_id.
+
+    Parameters
+    ----------
+    raw_dir:
+        Directory containing ``nfl-dynasty-adp-*_YYYY.csv`` files.
+    crosswalk:
+        Optional pre-loaded nflverse crosswalk; fetched live if None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: season, rank, tier, player, team, position, pos_rank,
+                 merge_name, gsis_id
+
+        ``rank`` is the ``adp_dynasty`` float value. ``tier`` is always NA.
+    """
+    files = sorted(raw_dir.glob("nfl-dynasty-adp-*.csv"))
+    if not files:
+        raise FileNotFoundError(f"No dynasty ADP CSVs found in {raw_dir}")
+
+    frames = [load_single_dynasty_adp(p) for p in files]
+    master = pd.concat(frames, ignore_index=True)
+
+    master["merge_name"] = master["player"].map(normalize_name)
+
+    if crosswalk is None:
+        crosswalk = load_player_id_crosswalk()
+
+    # Join via fantasy_data_id — convert both sides to nullable Int64
+    cw = crosswalk[["fantasy_data_id", "gsis_id"]].copy()
+    cw["_fd_int"] = pd.to_numeric(cw["fantasy_data_id"], errors="coerce").astype("Int64")
+    cw = cw.dropna(subset=["_fd_int"]).drop_duplicates(subset=["_fd_int"])
+
+    master["_fd_int"] = pd.to_numeric(master["fantasy_data_id"], errors="coerce").astype("Int64")
+    master = master.merge(cw[["_fd_int", "gsis_id"]], on="_fd_int", how="left")
+    master = master.drop(columns=["_fd_int", "fantasy_data_id"])
+
+    col_order = [
+        "season", "rank", "tier", "player", "team",
+        "position", "pos_rank", "merge_name", "gsis_id",
+    ]
+    return master[col_order].copy()
+
+
 def ensure_redraft_ranking_season(
     rankings_df: pd.DataFrame,
     *,

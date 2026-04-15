@@ -90,11 +90,24 @@ def main() -> int:
     if dynasty_csv_path is not None:
         try:
             dynasty_df = pd.read_csv(dynasty_csv_path, dtype={"gsis_id": "string"})
+            # Fall back to the most recent available season when target_season
+            # rankings haven't been published yet (e.g. 2026 ADP not yet out).
+            available_seasons = sorted(dynasty_df["season"].dropna().unique())
+            dynasty_scoring_season = (
+                target_season
+                if target_season in available_seasons
+                else max(available_seasons)
+            )
+            if dynasty_scoring_season != target_season:
+                print(
+                    f"  Dynasty ADP for {target_season} not available; "
+                    f"using {dynasty_scoring_season} rankings for scoring"
+                )
             tv_inputs_df = apply_dynasty_tv_path(
                 tv_inputs_df,
                 dynasty_df,
                 training_df,
-                target_season=target_season,
+                target_season=dynasty_scoring_season,
             )
             n_dynasty = int(tv_inputs_df.get("dynasty_tv_applied", pd.Series(False)).sum())
             print(

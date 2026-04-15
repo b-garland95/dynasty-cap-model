@@ -753,7 +753,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 28px 28px 24px;
-  width: 720px;
+  width: 860px;
   max-width: 95vw;
   max-height: 90vh;
   overflow-y: auto;
@@ -832,6 +832,89 @@ body {
   font-size: 13px;
   text-align: center;
   padding: 20px 0;
+}
+
+/* ════════════════════════════════════════════════════════════
+   Player Modal — Enriched additions
+   ════════════════════════════════════════════════════════════ */
+
+/* Contract / roster context strip */
+.modal-contract-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.modal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+}
+
+.modal-pill-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.modal-pill-value {
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.modal-pill--accent .modal-pill-value {
+  color: var(--accent);
+}
+
+/* Modal internal tab bar */
+.modal-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin: 16px 0 0;
+}
+
+.modal-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.modal-tab-btn:hover {
+  color: var(--text);
+}
+
+.modal-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.modal-tab-panel {
+  padding-top: 16px;
+}
+
+/* Comparables controls */
+.modal-comp-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -946,6 +1029,12 @@ body {
   }
 
   .modal-bio h2 { font-size: 17px; }
+
+  .modal-tab-btn { font-size: 12px; padding: 7px 12px; }
+
+  .modal-pill { font-size: 10.5px; padding: 3px 8px; }
+
+  .modal-comp-controls { gap: 10px; }
 
   .data-table { font-size: 11.5px; }
   .data-table thead th { font-size: 10px; padding: 8px 8px; }

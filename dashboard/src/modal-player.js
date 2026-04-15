@@ -1,10 +1,18 @@
 // Player modal — opens when any .player-link is clicked.
-// Shows headshot, bio, career timeline chart, and latest-season weekly chart.
+// Shows headshot, bio, contract context, career timeline (historical + forecast),
+// year-clickable weekly breakdown, and a Comparables tab.
 
 (function () {
   // ── Chart instance refs ───────────────────────────────────────────────────
-  let careerChart  = null;
-  let weeklyChart  = null;
+  let careerChart = null;
+  let weeklyChart = null;
+
+  // ── Per-open state ────────────────────────────────────────────────────────
+  let _currentPlayer      = null;
+  let _activeModalTab     = 'profile';
+  let _compMetric         = 'tv_y0';   // 'tv_y0' | 'tv_sum' | 'surplus'
+  let _compSamePos        = false;
+  let _weeklyActiveSeason = null;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -34,93 +42,223 @@
     return `${sign}$${v.toFixed(1)}`;
   }
 
+  /** Format a number to 1 decimal or '–' if null/undefined. */
+  function fmt1(v) {
+    return (v !== null && v !== undefined && !isNaN(v)) ? (+v).toFixed(1) : '–';
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  function _switchModalTab(tabId, skipRender) {
+    _activeModalTab = tabId;
+    document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.modaltab === tabId);
+    });
+    const profilePanel     = document.getElementById('modal-tab-profile');
+    const comparablesPanel = document.getElementById('modal-tab-comparables');
+    if (profilePanel)     profilePanel.hidden     = (tabId !== 'profile');
+    if (comparablesPanel) comparablesPanel.hidden = (tabId !== 'comparables');
+    if (!skipRender && tabId === 'comparables' && _currentPlayer) {
+      renderComparables(_currentPlayer);
+    }
+  }
+
   // ── Modal open/close ──────────────────────────────────────────────────────
 
   function closeModal() {
     const overlay = document.getElementById('player-modal');
     if (overlay) overlay.hidden = true;
-    if (careerChart)  { careerChart.destroy();  careerChart  = null; }
-    if (weeklyChart)  { weeklyChart.destroy();   weeklyChart  = null; }
+    if (careerChart) { careerChart.destroy(); careerChart = null; }
+    if (weeklyChart) { weeklyChart.destroy(); weeklyChart = null; }
+    _currentPlayer      = null;
+    _weeklyActiveSeason = null;
+    _switchModalTab('profile', /* skipRender= */ true);
   }
 
-  function openPlayerModal(playerName) {
-    const overlay = document.getElementById('player-modal');
-    if (!overlay) return;
+  // ── Contract / roster context strip ──────────────────────────────────────
 
-    // ── Bio / headshot ────────────────────────────────────────────────────
-    const bio = HEADSHOT_MAP[playerName] || {};
-    const img = document.getElementById('modal-headshot');
+  function buildContractStrip(playerName) {
+    const strip = document.getElementById('modal-contract-strip');
+    if (!strip) return;
 
-    if (bio.headshot_url) {
-      img.src = bio.headshot_url;
-      img.alt = playerName;
-      img.hidden = false;
-    } else {
-      img.src = '';
-      img.alt = '';
-      img.hidden = true;
+    const tv      = (typeof TV_DATA      !== 'undefined' ? TV_DATA      : []).find(r => r.player === playerName);
+    const surplus = (typeof SURPLUS_DATA !== 'undefined' ? SURPLUS_DATA : []).find(r => r.player === playerName);
+    const ledger  = (typeof LEDGER_DATA  !== 'undefined' ? LEDGER_DATA  : []).find(r => r.player === playerName);
+
+    const pills = [];
+
+    // Team
+    const team = tv?.team || surplus?.team || ledger?.team || null;
+    if (team) pills.push({ label: 'Team', value: team });
+
+    // Roster status (from TV_DATA)
+    if (tv) {
+      pills.push({
+        label: 'Rostered',
+        value: tv.is_rostered ? 'Yes' : 'No',
+        accent: tv.is_rostered,
+      });
     }
 
-    document.getElementById('modal-name').textContent = playerName;
+    // Contract details
+    if (ledger) {
+      if (ledger.current_salary > 0)
+        pills.push({ label: 'Cap Hit', value: `$${ledger.current_salary.toFixed(1)}` });
+      if (ledger.real_salary > 0 && ledger.real_salary !== ledger.current_salary)
+        pills.push({ label: 'Real Salary', value: `$${ledger.real_salary.toFixed(1)}` });
+      if (ledger.years_remaining > 0)
+        pills.push({ label: 'Yrs Left', value: String(ledger.years_remaining) });
+      if (ledger.contract_type_bucket)
+        pills.push({ label: 'Contract', value: ledger.contract_type_bucket });
+      if (ledger.extension_eligible)
+        pills.push({ label: 'Ext Eligible', value: '✓', accent: true });
+      if (ledger.tag_eligible)
+        pills.push({ label: 'Tag Eligible', value: '✓', accent: true });
+    }
 
-    const age        = calcAge(bio.birth_date);
-    const heightStr  = fmtHeight(bio.height);
-    const draftStr   = bio.draft_year
-      ? `${bio.draft_year} Rd ${bio.draft_round}, Pick ${bio.draft_pick}`
-      : null;
+    // Surplus value (color-coded)
+    if (surplus) {
+      const sv = surplus.surplus_value;
+      const color = sv > 20  ? '#98c379'   // strong positive
+                  : sv > 0   ? '#61afef'   // positive
+                  : sv > -10 ? '#d19a66'   // slightly negative
+                  :             '#e06c75'; // deeply negative
+      pills.push({ label: 'Surplus', value: `$${sv.toFixed(1)}`, color });
+    }
 
-    const bioLines = [
-      bio.position || null,
-      (age ? `Age ${age}` : null),
-      (heightStr && bio.weight ? `${heightStr} / ${bio.weight} lbs` : null),
-      bio.college_name || null,
-      draftStr,
-    ].filter(Boolean);
+    // TV Y0 forecast
+    if (tv && tv.tv_y0) {
+      pills.push({ label: 'TV Y0', value: `$${tv.tv_y0.toFixed(1)}` });
+    }
 
-    document.getElementById('modal-bio-details').innerHTML =
-      bioLines.map(l => `<span>${l}</span>`).join('<span class="bio-sep">·</span>');
+    if (pills.length === 0) {
+      strip.hidden = true;
+      return;
+    }
 
-    // ── Career timeline chart ─────────────────────────────────────────────
-    const careerRows = SEASON_DATA
-      .filter(r => r.player === playerName)
-      .sort((a, b) => a.season - b.season);
+    strip.hidden = false;
+    strip.innerHTML = pills.map(p => {
+      const colorStyle = p.color ? ` style="color:${p.color};font-weight:600;"` : '';
+      const accentClass = p.accent ? ' modal-pill--accent' : '';
+      return `<span class="modal-pill${accentClass}">` +
+        `<span class="modal-pill-label">${p.label}</span>` +
+        `<span class="modal-pill-value"${colorStyle}>${p.value}</span>` +
+        `</span>`;
+    }).join('');
+  }
 
+  // ── Career timeline chart ─────────────────────────────────────────────────
+
+  function buildCareerChart(playerName, careerRows, posColor) {
     if (careerChart) { careerChart.destroy(); careerChart = null; }
 
-    const careerCtx = document.getElementById('chart-modal-career').getContext('2d');
-    const position  = (careerRows[0]?.position) || (bio.position) || 'WR';
-    const posColor  = POS_COLORS[position] || THEME.accent;
+    // Forecast rows: TV Y0=2026, Y1=2027, Y2=2028, Y3=2029
+    const tv = (typeof TV_DATA !== 'undefined' ? TV_DATA : []).find(r => r.player === playerName);
+    const historicalSeasons = new Set(careerRows.map(r => r.season));
 
-    careerChart = new Chart(careerCtx, {
-      data: {
-        labels: careerRows.map(r => String(r.season)),
-        datasets: [
-          {
-            type: 'bar',
-            label: 'Dollar Value',
-            data: careerRows.map(r => +r.dollar_value.toFixed(1)),
-            backgroundColor: hexToRgba(posColor, 0.55),
-            borderColor: posColor,
-            borderWidth: 1,
-            borderRadius: 3,
-            yAxisID: 'y',
-          },
-          {
-            type: 'line',
-            label: 'ESV',
-            data: careerRows.map(r => +r.esv.toFixed(1)),
-            borderColor: THEME.accent,
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: THEME.accent,
-            tension: 0.3,
-            yAxisID: 'y',
-          },
-        ]
+    const forecastYears = [
+      { season: 2026, value: tv?.tv_y0 ?? null },
+      { season: 2027, value: tv?.tv_y1 ?? null },
+      { season: 2028, value: tv?.tv_y2 ?? null },
+      { season: 2029, value: tv?.tv_y3 ?? null },
+    ].filter(y => y.value !== null && y.value > 0 && !historicalSeasons.has(y.season));
+
+    const histLen   = careerRows.length;
+    const fcstLen   = forecastYears.length;
+    const allLabels = [
+      ...careerRows.map(r => String(r.season)),
+      ...forecastYears.map(y => String(y.season)),
+    ];
+
+    // Dataset arrays: historical values then nulls for forecast slots (and vice versa)
+    const histDvData  = [...careerRows.map(r => +r.dollar_value.toFixed(1)), ...Array(fcstLen).fill(null)];
+    const fcstDvData  = [...Array(histLen).fill(null), ...forecastYears.map(y => +y.value.toFixed(1))];
+    const esvData     = [...careerRows.map(r => +r.esv.toFixed(1)),          ...Array(fcstLen).fill(null)];
+    const esvFcstData = tv && fcstLen > 0
+      ? [...Array(histLen).fill(null), ...forecastYears.map(() => tv.esv_p50 != null ? +tv.esv_p50.toFixed(1) : null)]
+      : [];
+
+    const datasets = [
+      // Historical bars (solid)
+      {
+        type: 'bar',
+        label: 'Dollar Value',
+        data: histDvData,
+        backgroundColor: hexToRgba(posColor, 0.55),
+        borderColor: posColor,
+        borderWidth: 1,
+        borderRadius: 3,
+        yAxisID: 'y',
       },
+      // Historical ESV line
+      {
+        type: 'line',
+        label: 'ESV',
+        data: esvData,
+        borderColor: THEME.accent,
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: THEME.accent,
+        tension: 0.3,
+        spanGaps: false,
+        yAxisID: 'y',
+      },
+    ];
+
+    // Forecast bars (dashed outline, light fill) — only if data exists
+    if (fcstLen > 0) {
+      datasets.push({
+        type: 'bar',
+        label: 'TV Forecast',
+        data: fcstDvData,
+        backgroundColor: hexToRgba(posColor, 0.18),
+        borderColor: posColor,
+        borderWidth: 1.5,
+        borderDash: [4, 3],
+        borderRadius: 3,
+        yAxisID: 'y',
+      });
+    }
+
+    // Forecast ESV p50 dotted line — only if data exists
+    if (esvFcstData.length > 0 && esvFcstData.some(v => v !== null)) {
+      datasets.push({
+        type: 'line',
+        label: 'ESV p50 (fcst)',
+        data: esvFcstData,
+        borderColor: THEME.accent,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [4, 3],
+        pointRadius: 2,
+        pointBackgroundColor: THEME.accent,
+        tension: 0.3,
+        spanGaps: false,
+        yAxisID: 'y',
+      });
+    }
+
+    const careerCtx = document.getElementById('chart-modal-career').getContext('2d');
+    careerChart = new Chart(careerCtx, {
+      data: { labels: allLabels, datasets },
       options: {
         ...CHART_DEFAULTS,
+        onClick: (evt, elements) => {
+          if (!elements.length) return;
+          const idx = elements[0].index;
+          const clickedSeason = parseInt(allLabels[idx], 10);
+          if (historicalSeasons.has(clickedSeason)) {
+            loadWeeklyChart(playerName, clickedSeason, posColor);
+          }
+        },
+        onHover: (evt, elements) => {
+          const canvas = evt.native?.target;
+          if (!canvas) return;
+          const overHistorical = elements.length > 0 &&
+            historicalSeasons.has(parseInt(allLabels[elements[0].index], 10));
+          canvas.style.cursor = overHistorical ? 'pointer' : 'default';
+        },
         plugins: {
           ...CHART_DEFAULTS.plugins,
           legend: {
@@ -131,12 +269,26 @@
             ...CHART_DEFAULTS.plugins.tooltip,
             callbacks: {
               label: ctx => {
-                const r = careerRows[ctx.dataIndex];
-                if (!r) return ctx.formattedValue;
-                if (ctx.dataset.label === 'Dollar Value') {
+                const label = ctx.dataset.label;
+                const idx   = ctx.dataIndex;
+                if (label === 'Dollar Value') {
+                  const r = careerRows[idx];
+                  if (!r) return ctx.formattedValue;
                   return ` ${fmtDollar(r.dollar_value)}  (SAV ${r.sav.toFixed(1)}, Rank #${r.pos_rank ?? '–'})`;
                 }
-                return ` ESV ${r.esv.toFixed(1)}  pts ${r.total_points.toFixed(0)}`;
+                if (label === 'ESV') {
+                  const r = careerRows[idx];
+                  if (!r) return null;
+                  return ` ESV ${r.esv.toFixed(1)}  pts ${r.total_points.toFixed(0)}`;
+                }
+                if (label === 'TV Forecast') {
+                  const fy = forecastYears[idx - histLen];
+                  return fy ? ` TV ${fmtDollar(fy.value)}` : ctx.formattedValue;
+                }
+                if (label === 'ESV p50 (fcst)') {
+                  return ` ESV forecast median ${ctx.formattedValue}`;
+                }
+                return ctx.formattedValue;
               }
             }
           }
@@ -145,33 +297,42 @@
           x: { ...CHART_DEFAULTS.scales.x },
           y: {
             ...CHART_DEFAULTS.scales.y,
-            title: { display: true, text: '$ Value / ESV', color: THEME.muted, font: { size: 11 } }
+            title: {
+              display: true,
+              text: '$ Value / ESV',
+              color: THEME.muted,
+              font: { size: 11 }
+            }
           }
         }
       }
     });
+  }
 
-    // ── Latest season weekly chart ────────────────────────────────────────
-    const latestSeason = careerRows.length ? careerRows[careerRows.length - 1].season : null;
+  // ── Weekly breakdown chart ────────────────────────────────────────────────
 
-    const weeklyRows = latestSeason
-      ? WEEKLY_DATA
-          .filter(r => r.player === playerName && r.season === latestSeason)
-          .sort((a, b) => a.week - b.week)
-      : [];
+  function loadWeeklyChart(playerName, season, posColor) {
+    const weeklyRows = (typeof WEEKLY_DATA !== 'undefined' ? WEEKLY_DATA : [])
+      .filter(r => r.player === playerName && r.season === season)
+      .sort((a, b) => a.week - b.week);
 
-    // Update the section title to show the season
-    const weeklyTitle = document.getElementById('modal-weekly-title');
-    if (weeklyTitle) {
-      weeklyTitle.textContent = latestSeason
-        ? `${latestSeason} Season — Weekly Breakdown`
-        : 'Latest Season — Weekly Breakdown';
-    }
+    // Update section title
+    const title = document.getElementById('modal-weekly-title');
+    if (title) title.textContent = `${season} Season — Weekly Breakdown`;
 
     if (weeklyChart) { weeklyChart.destroy(); weeklyChart = null; }
 
-    const weeklyCtx = document.getElementById('chart-modal-weekly').getContext('2d');
+    const noDataNotice = document.getElementById('modal-weekly-no-data');
 
+    if (!weeklyRows.length) {
+      if (noDataNotice) noDataNotice.hidden = false;
+      return;
+    }
+    if (noDataNotice) noDataNotice.hidden = true;
+
+    _weeklyActiveSeason = season;
+
+    const weeklyCtx = document.getElementById('chart-modal-weekly').getContext('2d');
     weeklyChart = new Chart(weeklyCtx, {
       data: {
         labels: weeklyRows.map(r => `Wk ${r.week}`),
@@ -237,15 +398,168 @@
         }
       }
     });
+  }
 
-    // No data notice
-    const noDataNotice = document.getElementById('modal-no-data');
-    if (noDataNotice) {
-      noDataNotice.hidden = careerRows.length > 0;
+  // ── Comparables table ─────────────────────────────────────────────────────
+
+  function renderComparables(playerName) {
+    const tbody = document.getElementById('modal-comp-tbody');
+    if (!tbody) return;
+
+    const tvAll      = typeof TV_DATA      !== 'undefined' ? TV_DATA      : [];
+    const surplusAll = typeof SURPLUS_DATA !== 'undefined' ? SURPLUS_DATA : [];
+    const ledgerAll  = typeof LEDGER_DATA  !== 'undefined' ? LEDGER_DATA  : [];
+
+    if (!tvAll.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">Forecast data not available.</td></tr>';
+      return;
     }
 
+    const focalTV  = tvAll.find(r => r.player === playerName);
+    const focalPos = focalTV?.position || HEADSHOT_MAP[playerName]?.position || null;
+
+    // Metric value extractor
+    function metricVal(tvRow) {
+      if (_compMetric === 'tv_y0')  return tvRow.tv_y0;
+      if (_compMetric === 'tv_sum') return (tvRow.tv_y0 || 0) + (tvRow.tv_y1 || 0) + (tvRow.tv_y2 || 0) + (tvRow.tv_y3 || 0);
+      if (_compMetric === 'surplus') {
+        const s = surplusAll.find(r => r.player === tvRow.player);
+        return s ? s.surplus_value : null;
+      }
+      return null;
+    }
+
+    const focalVal = focalTV ? metricVal(focalTV) : null;
+
+    const rows = tvAll
+      .filter(r => !_compSamePos || !focalPos || r.position === focalPos)
+      .map(r => {
+        const val = metricVal(r);
+        const dist = (focalVal !== null && val !== null) ? Math.abs(val - focalVal) : Infinity;
+        const sur = surplusAll.find(s => s.player === r.player);
+        const led = ledgerAll.find(l => l.player === r.player);
+        return { r, val, dist, sur, led };
+      })
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 20);
+
+    // Update metric column header
+    const hdr = document.getElementById('modal-comp-metric-header');
+    if (hdr) {
+      hdr.textContent = _compMetric === 'tv_y0'   ? 'TV Y0'
+                      : _compMetric === 'tv_sum'   ? 'Total TV'
+                      :                              'Surplus';
+    }
+
+    tbody.innerHTML = rows.map(({ r, val, sur, led }) => {
+      const isFocal    = r.player === playerName;
+      const rowStyle   = isFocal ? ' style="background:var(--surface2);"' : '';
+      const surplusVal = sur?.surplus_value ?? null;
+      const capToday   = led?.current_salary ?? null;
+
+      const surpColor = surplusVal !== null
+        ? (surplusVal > 20  ? '#98c379'
+          : surplusVal > 0  ? '#61afef'
+          : surplusVal > -10 ? '#d19a66'
+          :                    '#e06c75')
+        : 'inherit';
+
+      const posClass = r.position ? ` pos-${r.position.toLowerCase()}` : '';
+      const nameCell = isFocal
+        ? `<strong>${playerLink(r.player)}</strong>`
+        : playerLink(r.player);
+
+      return `<tr${rowStyle}>` +
+        `<td>${nameCell}</td>` +
+        `<td>${r.team || '–'}</td>` +
+        `<td><span class="pos-badge${posClass}">${r.position}</span></td>` +
+        `<td class="num">${fmt1(val)}</td>` +
+        `<td class="num">${fmt1(r.tv_y1)}</td>` +
+        `<td class="num">${fmt1(r.tv_y2)}</td>` +
+        `<td class="num">${fmt1(r.tv_y3)}</td>` +
+        `<td class="num" style="color:${surpColor};">${fmt1(surplusVal)}</td>` +
+        `<td class="num">${fmt1(capToday)}</td>` +
+        `</tr>`;
+    }).join('');
+  }
+
+  // ── Main open function ────────────────────────────────────────────────────
+
+  function openPlayerModal(playerName) {
+    const overlay = document.getElementById('player-modal');
+    if (!overlay) return;
+
+    _currentPlayer = playerName;
+
+    // ── Bio / headshot ────────────────────────────────────────────────────
+    const bio = HEADSHOT_MAP[playerName] || {};
+    const img = document.getElementById('modal-headshot');
+
+    if (bio.headshot_url) {
+      img.src = bio.headshot_url;
+      img.alt = playerName;
+      img.hidden = false;
+    } else {
+      img.src = '';
+      img.alt = '';
+      img.hidden = true;
+    }
+
+    document.getElementById('modal-name').textContent = playerName;
+
+    const age       = calcAge(bio.birth_date);
+    const heightStr = fmtHeight(bio.height);
+    const draftStr  = bio.draft_year
+      ? `${bio.draft_year} Rd ${bio.draft_round}, Pick ${bio.draft_pick}`
+      : null;
+
+    const bioLines = [
+      bio.position || null,
+      (age ? `Age ${age}` : null),
+      (heightStr && bio.weight ? `${heightStr} / ${bio.weight} lbs` : null),
+      bio.college_name || null,
+      draftStr,
+    ].filter(Boolean);
+
+    document.getElementById('modal-bio-details').innerHTML =
+      bioLines.map(l => `<span>${l}</span>`).join('<span class="bio-sep">·</span>');
+
+    // ── Contract / roster strip ───────────────────────────────────────────
+    buildContractStrip(playerName);
+
+    // ── Career timeline ───────────────────────────────────────────────────
+    const careerRows = SEASON_DATA
+      .filter(r => r.player === playerName)
+      .sort((a, b) => a.season - b.season);
+
+    const position = careerRows[0]?.position || bio.position || 'WR';
+    const posColor = POS_COLORS[position] || THEME.accent;
+
+    buildCareerChart(playerName, careerRows, posColor);
+
+    // ── Weekly breakdown (latest historical season by default) ────────────
+    const latestSeason = careerRows.length ? careerRows[careerRows.length - 1].season : null;
+    if (latestSeason) {
+      loadWeeklyChart(playerName, latestSeason, posColor);
+    }
+
+    // ── No historical data notice ─────────────────────────────────────────
+    const tv = (typeof TV_DATA !== 'undefined' ? TV_DATA : []).find(r => r.player === playerName);
+    const hasForecast = tv && (tv.tv_y0 > 0 || tv.tv_y1 > 0);
+    const noDataNotice = document.getElementById('modal-no-data');
+    if (noDataNotice) {
+      noDataNotice.hidden = careerRows.length > 0 || hasForecast;
+    }
+
+    // ── Reset to Profile tab; reset comparables controls ──────────────────
+    _switchModalTab('profile', /* skipRender= */ true);
+
+    const metricSel = document.getElementById('modal-comp-metric');
+    if (metricSel) metricSel.value = _compMetric;
+    const samePosCb = document.getElementById('modal-comp-same-pos');
+    if (samePosCb) samePosCb.checked = _compSamePos;
+
     overlay.hidden = false;
-    // Scroll modal card to top on reopen
     const card = overlay.querySelector('.modal-card');
     if (card) card.scrollTop = 0;
   }
@@ -274,6 +588,33 @@
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeModal();
     });
+
+    // Modal tab buttons
+    document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => _switchModalTab(btn.dataset.modaltab));
+    });
+
+    // Comparables: metric dropdown
+    const compMetricSel = document.getElementById('modal-comp-metric');
+    if (compMetricSel) {
+      compMetricSel.addEventListener('change', () => {
+        _compMetric = compMetricSel.value;
+        if (_currentPlayer && _activeModalTab === 'comparables') {
+          renderComparables(_currentPlayer);
+        }
+      });
+    }
+
+    // Comparables: same-position checkbox
+    const compSamePosCb = document.getElementById('modal-comp-same-pos');
+    if (compSamePosCb) {
+      compSamePosCb.addEventListener('change', () => {
+        _compSamePos = compSamePosCb.checked;
+        if (_currentPlayer && _activeModalTab === 'comparables') {
+          renderComparables(_currentPlayer);
+        }
+      });
+    }
   });
 
   // Expose for external callers (e.g. table row clicks in view-league.js)

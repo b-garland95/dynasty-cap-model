@@ -951,3 +951,37 @@ body {
   .data-table thead th { font-size: 10px; padding: 8px 8px; }
   .data-table tbody td { padding: 6px 8px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   TV Forecast — Player Search
+   ════════════════════════════════════════════════════════════ */
+
+.tv-search-wrapper {
+  position: relative;
+  width: 200px;
+}
+
+#tv-search {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+#tv-search:focus { border-color: var(--accent); }
+#tv-search::placeholder { color: var(--muted); }
+
+/* Sparkline cell: vertically center the SVG, remove extra leading */
+.tv-sparkline-cell {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  line-height: 0;
+  text-align: center;
+}

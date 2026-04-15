@@ -1,19 +1,6 @@
 # NEXT_WORK.md
 
 ## Ready
-### Clean up Forecasted/TV Forecast/TV Forecast tab in dashboard
-**Outcome:** Grid is primary view on this tab and metrics that matter are clear
-
-**Done when:**
-- [ ] Horizontal Bar Chart has been removed
-- [ ] ESV percentiles converted to Dollar Value
-- [ ] Multi-Select Player Search added to filters 
-- [ ] Spark line on grid showing Value trajectory over 4 year window
-
-**Notes for agent:**
-- Primary use case is quickly evaluating individual player's value
-- Prefer small refactor over introducing a new dependency
-
 ### Enrich Player Modal
 **Outcome:** Player Modal is go-to screen for all relevant player info
 

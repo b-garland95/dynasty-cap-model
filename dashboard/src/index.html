@@ -262,6 +262,14 @@
         <div id="sub-contract-surplus" class="sub-tab-panel">
           <div class="view-controls">
             <div class="control-group">
+              <label for="surplus-window">Window</label>
+              <select id="surplus-window">
+                <option value="1yr" selected>This Year</option>
+                <option value="3yr">3-Year Avg</option>
+                <option value="5yr">5-Year Avg</option>
+              </select>
+            </div>
+            <div class="control-group">
               <label for="surplus-position">Position</label>
               <select id="surplus-position">
                 <option value="All">All</option>
@@ -283,9 +291,9 @@
                   <th>Player</th>
                   <th>Team</th>
                   <th>Pos</th>
-                  <th data-sort="pv_tv"                    class="num">PV TV ↕</th>
-                  <th data-sort="pv_cap"                   class="num">PV Cap ↕</th>
-                  <th data-sort="surplus_value"            class="num sort-desc">Surplus ↕</th>
+                  <th id="surplus-col-value"   class="num sort-desc">Proj Value ↕</th>
+                  <th id="surplus-col-cap"     class="num">Cap Hit ↕</th>
+                  <th id="surplus-col-surplus" class="num">Surplus ↕</th>
                   <th data-sort="cap_today_current"        class="num">Cap Today ↕</th>
                   <th data-sort="dead_money_cut_now_nominal" class="num">Dead $ ↕</th>
                 </tr>
@@ -297,6 +305,16 @@
 
         <!-- Cap Health sub-panel -->
         <div id="sub-cap-health" class="sub-tab-panel" hidden>
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="cap-window">Window</label>
+              <select id="cap-window">
+                <option value="1yr" selected>This Year</option>
+                <option value="3yr">3-Year Avg</option>
+                <option value="5yr">5-Year Avg</option>
+              </select>
+            </div>
+          </div>
           <div class="chart-container" style="height: 380px;">
             <canvas id="chart-cap-health"></canvas>
           </div>
@@ -306,9 +324,9 @@
                 <tr>
                   <th>Team</th>
                   <th class="num">Cap Today</th>
-                  <th class="num">PV TV</th>
-                  <th class="num">PV Cap</th>
-                  <th class="num">Surplus</th>
+                  <th id="cap-col-value"   class="num">Proj Value</th>
+                  <th id="cap-col-cap"     class="num">Cap Hit</th>
+                  <th id="cap-col-surplus" class="num">Surplus</th>
                   <th class="num">Dead $</th>
                 </tr>
               </thead>
@@ -368,9 +386,9 @@
           <div class="control-group">
             <label for="modal-comp-metric">Compare by</label>
             <select id="modal-comp-metric">
-              <option value="tv_y0">This Year Value (TV Y0)</option>
-              <option value="tv_sum">Total Value (Y0–Y3)</option>
-              <option value="surplus">Surplus Value</option>
+              <option value="tv_y0">This Year's Value</option>
+              <option value="tv_sum">Total 4-Yr Value</option>
+              <option value="surplus">This Year's Surplus</option>
             </select>
           </div>
           <div class="control-group">

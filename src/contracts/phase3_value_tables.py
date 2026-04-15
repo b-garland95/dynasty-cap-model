@@ -15,9 +15,29 @@ TV_PATH_COLUMNS = ["tv_y0", "tv_y1", "tv_y2", "tv_y3"]
 PLAYER_KEY_COLUMNS = ["player", "team", "position"]
 OPTIONAL_BOOLEAN_COLUMNS = ["has_been_optioned", "option_eligible"]
 
+# Valuation windows supported for windowed surplus analysis.
+# Each window specifies how many seasons to average over.  A window wider than
+# the number of available TV columns (4) is silently capped at 4.
+VALUATION_WINDOWS = {
+    "1yr": 1,
+    "3yr": 3,
+    "5yr": 5,
+}
+
 
 def _discounted_present_value(values: list[float], discount_rate: float) -> float:
     return float(sum(float(value) / ((1.0 + discount_rate) ** idx) for idx, value in enumerate(values)))
+
+
+def _windowed_annual_avg(values: list[float], years_remaining: int, window: int) -> float:
+    """Return the average of ``values`` over min(window, years_remaining, len(values)) years.
+
+    Returns 0.0 when the player has no contract years remaining.
+    """
+    n = min(window, int(years_remaining), len(values))
+    if n <= 0:
+        return 0.0
+    return float(sum(values[:n]) / n)
 
 
 def _coerce_optional_bool_column(df: pd.DataFrame, column: str) -> pd.Series:
@@ -185,7 +205,17 @@ def build_contract_surplus_table(
 ) -> pd.DataFrame:
     """Build Phase 3 Table 5 as the ESV-unit contract surplus bridge.
 
-    ``surplus_value = pv_tv - pv_cap``
+    In addition to the legacy ``surplus_value = pv_tv - pv_cap`` (discounted
+    present value), this table includes **windowed annualized surplus** columns
+    for 1-year, 3-year, and 5-year analysis horizons:
+
+    * ``value_1yr`` / ``cap_1yr`` / ``surplus_1yr`` — current season only.
+    * ``value_3yr_ann`` / ``cap_3yr_ann`` / ``surplus_3yr_ann`` — average
+      annual value/cap/surplus over the first 3 contract seasons (or fewer if
+      the player has fewer years remaining or fewer TV forecast years available).
+    * ``value_5yr_ann`` / ``cap_5yr_ann`` / ``surplus_5yr_ann`` — same logic
+      over a 5-year horizon, capped at 4 seasons because only 4 TV years are
+      forecasted.
 
     .. note::
         Surplus is a heuristic comparison of demand-based TV (Phase 2 ADP→ESV
@@ -201,15 +231,46 @@ def build_contract_surplus_table(
     """
     merged = production_value_df.merge(
         contract_economics_df[
-            PLAYER_KEY_COLUMNS + ["pv_cap", "cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]
+            PLAYER_KEY_COLUMNS
+            + ["pv_cap", "cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv",
+               "needs_schedule_validation", "years_remaining"]
+            + [f"cap_y{i}" for i in range(4)]
         ],
         on=PLAYER_KEY_COLUMNS,
         how="inner",
     )
     merged["surplus_value"] = merged["pv_tv"] - merged["pv_cap"]
+
+    # Windowed annualized surplus for each supported window size.
+    for label, window in VALUATION_WINDOWS.items():
+        tv_cols = [f"tv_y{i}" for i in range(4)]
+        cap_cols = [f"cap_y{i}" for i in range(4)]
+
+        merged[f"value_{label}_ann" if window > 1 else "value_1yr"] = merged.apply(
+            lambda row, tc=tv_cols, w=window: _windowed_annual_avg(
+                [row[c] for c in tc], int(row["years_remaining"]), w
+            ),
+            axis=1,
+        )
+        merged[f"cap_{label}_ann" if window > 1 else "cap_1yr"] = merged.apply(
+            lambda row, cc=cap_cols, w=window: _windowed_annual_avg(
+                [row[c] for c in cc], int(row["years_remaining"]), w
+            ),
+            axis=1,
+        )
+
+    # Derive surplus for each window.
+    merged["surplus_1yr"]     = merged["value_1yr"]     - merged["cap_1yr"]
+    merged["surplus_3yr_ann"] = merged["value_3yr_ann"] - merged["cap_3yr_ann"]
+    merged["surplus_5yr_ann"] = merged["value_5yr_ann"] - merged["cap_5yr_ann"]
+
     return merged[
         PLAYER_KEY_COLUMNS
-        + ["pv_tv", "pv_cap", "surplus_value", "cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]
+        + ["pv_tv", "pv_cap", "surplus_value"]
+        + ["value_1yr", "cap_1yr", "surplus_1yr"]
+        + ["value_3yr_ann", "cap_3yr_ann", "surplus_3yr_ann"]
+        + ["value_5yr_ann", "cap_5yr_ann", "surplus_5yr_ann"]
+        + ["cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]
     ].reset_index(drop=True)
 
 
@@ -220,6 +281,10 @@ def build_team_cap_health_dashboard(
     contract_surplus_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Build Phase 3 Table 6 with present-cap and forward-burden rollups."""
+    window_surplus_cols = ["surplus_value", "surplus_1yr", "surplus_3yr_ann", "surplus_5yr_ann"]
+    window_value_cols   = ["value_1yr", "value_3yr_ann", "value_5yr_ann"]
+    window_cap_cols     = ["cap_1yr", "cap_3yr_ann", "cap_5yr_ann"]
+
     player_level = (
         ledger_df[PLAYER_KEY_COLUMNS + ["current_salary", "real_salary"]]
         .merge(production_value_df[PLAYER_KEY_COLUMNS + ["pv_tv"]], on=PLAYER_KEY_COLUMNS, how="left")
@@ -232,7 +297,11 @@ def build_team_cap_health_dashboard(
             on=PLAYER_KEY_COLUMNS,
             how="left",
         )
-        .merge(contract_surplus_df[PLAYER_KEY_COLUMNS + ["surplus_value"]], on=PLAYER_KEY_COLUMNS, how="left")
+        .merge(
+            contract_surplus_df[PLAYER_KEY_COLUMNS + window_surplus_cols + window_value_cols + window_cap_cols],
+            on=PLAYER_KEY_COLUMNS,
+            how="left",
+        )
     )
 
     player_level["needs_schedule_validation"] = player_level["needs_schedule_validation"].fillna(False).astype(bool)
@@ -246,6 +315,17 @@ def build_team_cap_health_dashboard(
         total_pv_cap=("pv_cap", "sum"),
         total_pv_tv=("pv_tv", "sum"),
         total_surplus=("surplus_value", "sum"),
+        # Windowed annualized team totals — summed across players so the team
+        # view shows total per-season advantage over the selected horizon.
+        total_value_1yr=("value_1yr", "sum"),
+        total_cap_1yr=("cap_1yr", "sum"),
+        total_surplus_1yr=("surplus_1yr", "sum"),
+        total_value_3yr_ann=("value_3yr_ann", "sum"),
+        total_cap_3yr_ann=("cap_3yr_ann", "sum"),
+        total_surplus_3yr_ann=("surplus_3yr_ann", "sum"),
+        total_value_5yr_ann=("value_5yr_ann", "sum"),
+        total_cap_5yr_ann=("cap_5yr_ann", "sum"),
+        total_surplus_5yr_ann=("surplus_5yr_ann", "sum"),
         dead_money_cut_now_nominal=("dead_money_cut_now_nominal", "sum"),
         dead_money_cut_now_pv=("dead_money_cut_now_pv", "sum"),
         validation_player_count=("needs_schedule_validation", "sum"),

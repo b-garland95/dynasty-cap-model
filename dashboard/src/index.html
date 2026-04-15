@@ -328,6 +328,7 @@
     <div class="modal-card">
       <button class="modal-close" id="modal-close-btn" aria-label="Close">&#x2715;</button>
 
+      <!-- Bio header — unchanged -->
       <div class="modal-header">
         <img id="modal-headshot" class="modal-headshot" src="" alt="" hidden />
         <div class="modal-bio">
@@ -336,17 +337,69 @@
         </div>
       </div>
 
-      <p id="modal-no-data" class="modal-no-data" hidden>No historical data available for this player.</p>
+      <!-- Contract / roster context strip -->
+      <div id="modal-contract-strip" class="modal-contract-strip" hidden></div>
 
-      <h3 class="modal-section-title">Career Timeline</h3>
-      <div class="chart-container" style="height: 220px;">
-        <canvas id="chart-modal-career"></canvas>
+      <!-- Modal tab bar -->
+      <div class="modal-tab-bar">
+        <button class="modal-tab-btn active" data-modaltab="profile">Profile</button>
+        <button class="modal-tab-btn" data-modaltab="comparables">Comparables</button>
       </div>
 
-      <h3 class="modal-section-title" id="modal-weekly-title">Latest Season — Weekly Breakdown</h3>
-      <div class="chart-container" style="height: 200px;">
-        <canvas id="chart-modal-weekly"></canvas>
+      <!-- Profile tab — existing charts -->
+      <div id="modal-tab-profile" class="modal-tab-panel">
+        <p id="modal-no-data" class="modal-no-data" hidden>No historical data available for this player.</p>
+
+        <h3 class="modal-section-title">Career Timeline</h3>
+        <div class="chart-container" style="height: 240px;">
+          <canvas id="chart-modal-career"></canvas>
+        </div>
+
+        <h3 class="modal-section-title" id="modal-weekly-title">Weekly Breakdown</h3>
+        <div class="chart-container" style="height: 200px;">
+          <canvas id="chart-modal-weekly"></canvas>
+        </div>
+        <p id="modal-weekly-no-data" class="modal-no-data" hidden>No weekly data available for this season.</p>
       </div>
+
+      <!-- Comparables tab -->
+      <div id="modal-tab-comparables" class="modal-tab-panel" hidden>
+        <div class="modal-comp-controls">
+          <div class="control-group">
+            <label for="modal-comp-metric">Compare by</label>
+            <select id="modal-comp-metric">
+              <option value="tv_y0">This Year Value (TV Y0)</option>
+              <option value="tv_sum">Total Value (Y0–Y3)</option>
+              <option value="surplus">Surplus Value</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="modal-comp-same-pos" />
+              Same position only
+            </label>
+          </div>
+        </div>
+        <div class="table-wrapper" style="margin-top: 12px;">
+          <table id="modal-comp-table" class="data-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Team</th>
+                <th>Pos</th>
+                <th class="num" id="modal-comp-metric-header">TV Y0</th>
+                <th class="num">TV Y1</th>
+                <th class="num">TV Y2</th>
+                <th class="num">TV Y3</th>
+                <th class="num">Surplus</th>
+                <th class="num">Cap Today</th>
+              </tr>
+            </thead>
+            <tbody id="modal-comp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 

@@ -1,12 +1,38 @@
 // Phase 3 — League Analysis
 // Two sub-tabs: Contract Surplus (sortable table) and Cap Health (bar chart + table).
+// Both views support a valuation-window selector: "1yr" (this year), "3yr" (3-year avg),
+// or "5yr" (5-year avg).  Window-based metrics are annualized so the per-year values
+// are directly comparable across different time horizons.
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
-  let capChartInstance = null;
-  let surplusSortKey   = 'surplus_value';
-  let surplusSortAsc   = false;
-  let surplusFilter    = { position: 'All', team: 'All' };
+  let capChartInstance  = null;
+  let surplusSortKey    = 'surplus_1yr';
+  let surplusSortAsc    = false;
+  let surplusFilter     = { position: 'All', team: 'All' };
+  let valuationWindow   = '1yr';   // '1yr' | '3yr' | '5yr'
+
+  // ── Window field maps ─────────────────────────────────────────────────────
+  // Maps a window key to the player-level and team-level field names used for
+  // projected value, cap hit, and surplus.
+
+  const PLAYER_FIELDS = {
+    '1yr': { value: 'value_1yr',     cap: 'cap_1yr',     surplus: 'surplus_1yr'     },
+    '3yr': { value: 'value_3yr_ann', cap: 'cap_3yr_ann', surplus: 'surplus_3yr_ann' },
+    '5yr': { value: 'value_5yr_ann', cap: 'cap_5yr_ann', surplus: 'surplus_5yr_ann' },
+  };
+
+  const TEAM_FIELDS = {
+    '1yr': { value: 'total_value_1yr',     cap: 'total_cap_1yr',     surplus: 'total_surplus_1yr'     },
+    '3yr': { value: 'total_value_3yr_ann', cap: 'total_cap_3yr_ann', surplus: 'total_surplus_3yr_ann' },
+    '5yr': { value: 'total_value_5yr_ann', cap: 'total_cap_5yr_ann', surplus: 'total_surplus_5yr_ann' },
+  };
+
+  const WINDOW_LABELS = {
+    '1yr': { value: 'This Year\'s Value', cap: 'This Year\'s Cap Hit', surplus: 'This Year\'s Surplus', yAxis: 'Value ($)' },
+    '3yr': { value: '3-Yr Avg Value',     cap: '3-Yr Avg Cap Hit',     surplus: '3-Yr Avg Surplus',     yAxis: 'Avg Annual Value ($)' },
+    '5yr': { value: '5-Yr Avg Value',     cap: '5-Yr Avg Cap Hit',     surplus: '5-Yr Avg Surplus',     yAxis: 'Avg Annual Value ($)' },
+  };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -19,6 +45,10 @@
     return 'var(--surplus-low)';
   }
 
+  function playerFields() { return PLAYER_FIELDS[valuationWindow]; }
+  function teamFields()   { return TEAM_FIELDS[valuationWindow]; }
+  function windowLabels() { return WINDOW_LABELS[valuationWindow]; }
+
   // ── Contract Surplus ──────────────────────────────────────────────────────
 
   function getFilteredSurplus() {
@@ -29,9 +59,54 @@
     });
   }
 
+  function updateSurplusHeaders() {
+    const labels = windowLabels();
+    const fields = playerFields();
+
+    const valueHdr   = document.getElementById('surplus-col-value');
+    const capHdr     = document.getElementById('surplus-col-cap');
+    const surplusHdr = document.getElementById('surplus-col-surplus');
+
+    if (valueHdr) {
+      valueHdr.textContent = labels.value + ' ↕';
+      valueHdr.dataset.sort = fields.value;
+      valueHdr.style.cursor = 'pointer';
+    }
+    if (capHdr) {
+      capHdr.textContent = labels.cap + ' ↕';
+      capHdr.dataset.sort = fields.cap;
+      capHdr.style.cursor = 'pointer';
+    }
+    if (surplusHdr) {
+      surplusHdr.textContent = labels.surplus + ' ↕';
+      surplusHdr.dataset.sort = fields.surplus;
+      surplusHdr.style.cursor = 'pointer';
+    }
+
+    // Re-wire sort listeners on dynamically labelled columns.
+    [valueHdr, capHdr, surplusHdr].forEach(th => {
+      if (!th) return;
+      th.onclick = () => {
+        if (surplusSortKey === th.dataset.sort) {
+          surplusSortAsc = !surplusSortAsc;
+        } else {
+          surplusSortKey = th.dataset.sort;
+          surplusSortAsc = false;
+        }
+        document.querySelectorAll('#surplus-table thead th').forEach(h => {
+          h.classList.remove('sort-asc', 'sort-desc');
+        });
+        th.classList.add(surplusSortAsc ? 'sort-asc' : 'sort-desc');
+        renderSurplusTable(getFilteredSurplus());
+      };
+    });
+  }
+
   function renderSurplusTable(rows) {
     const tbody = document.getElementById('surplus-table-body');
     if (!tbody) return;
+
+    const fields = playerFields();
 
     const sorted = rows.slice().sort((a, b) => {
       const av = a[surplusSortKey] ?? 0;
@@ -40,7 +115,8 @@
     });
 
     tbody.innerHTML = sorted.map(r => {
-      const surpColor = surplusColor(r.surplus_value);
+      const surpVal   = r[fields.surplus] ?? 0;
+      const surpColor = surplusColor(surpVal);
       const validFlag = r.needs_schedule_validation
         ? '<span class="validation-flag" title="Schedule needs validation">⚠</span>'
         : '';
@@ -49,9 +125,9 @@
           <td>${playerLink(r.player)}${validFlag}</td>
           <td class="team-cell">${r.team}</td>
           <td><span class="pos-badge pos-${r.position.toLowerCase()}">${r.position}</span></td>
-          <td class="num">${fmt1(r.pv_tv)}</td>
-          <td class="num">${fmt1(r.pv_cap)}</td>
-          <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r.surplus_value)}</td>
+          <td class="num">${fmt1(r[fields.value])}</td>
+          <td class="num">${fmt1(r[fields.cap])}</td>
+          <td class="num surplus-cell" style="color:${surpColor};">${fmt1(surpVal)}</td>
           <td class="num">${fmt1(r.cap_today_current)}</td>
           <td class="num">${fmt1(r.dead_money_cut_now_nominal)}</td>
         </tr>
@@ -73,20 +149,36 @@
   }
 
   function refreshSurplus() {
+    // Reset sort to surplus for active window when window changes.
+    surplusSortKey = playerFields().surplus;
+    updateSurplusHeaders();
     renderSurplusTable(getFilteredSurplus());
   }
 
   // ── Cap Health ────────────────────────────────────────────────────────────
+
+  function updateCapHeaders() {
+    const labels = windowLabels();
+    const valueHdr   = document.getElementById('cap-col-value');
+    const capHdr     = document.getElementById('cap-col-cap');
+    const surplusHdr = document.getElementById('cap-col-surplus');
+    if (valueHdr)   valueHdr.textContent   = labels.value;
+    if (capHdr)     capHdr.textContent     = labels.cap;
+    if (surplusHdr) surplusHdr.textContent = labels.surplus;
+  }
 
   function renderCapChart() {
     if (capChartInstance) { capChartInstance.destroy(); capChartInstance = null; }
     const ctx = document.getElementById('chart-cap-health');
     if (!ctx || !CAP_HEALTH_DATA.length) return;
 
-    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b.total_surplus - a.total_surplus);
+    const fields = teamFields();
+    const labels = windowLabels();
+
+    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b[fields.surplus] - a[fields.surplus]);
 
     // Short team labels — take part after " | " if present, else use full name
-    const labels = sorted.map(r => {
+    const teamLabels = sorted.map(r => {
       const parts = r.team.split('|');
       return parts.length > 1 ? parts[parts.length - 1].trim() : r.team;
     });
@@ -94,19 +186,19 @@
     capChartInstance = new Chart(ctx.getContext('2d'), {
       type: 'bar',
       data: {
-        labels,
+        labels: teamLabels,
         datasets: [
           {
-            label: 'PV TV',
-            data: sorted.map(r => +r.total_pv_tv.toFixed(1)),
+            label: labels.value,
+            data: sorted.map(r => +r[fields.value].toFixed(1)),
             backgroundColor: hexToRgba(THEME.accent, 0.6),
             borderColor:     THEME.accent,
             borderWidth: 1,
             borderRadius: 3,
           },
           {
-            label: 'PV Cap',
-            data: sorted.map(r => +r.total_pv_cap.toFixed(1)),
+            label: labels.cap,
+            data: sorted.map(r => +r[fields.cap].toFixed(1)),
             backgroundColor: hexToRgba('#e06c75', 0.55),
             borderColor:     '#e06c75',
             borderWidth: 1,
@@ -127,9 +219,9 @@
                 const r = sorted[ctx2[0]?.dataIndex ?? ctx2.dataIndex];
                 if (!r) return '';
                 return [
-                  ` PV TV: $${r.total_pv_tv.toFixed(1)}`,
-                  ` PV Cap: $${r.total_pv_cap.toFixed(1)}`,
-                  ` Surplus: $${r.total_surplus.toFixed(1)}`,
+                  ` ${labels.value}: $${r[fields.value].toFixed(1)}`,
+                  ` ${labels.cap}: $${r[fields.cap].toFixed(1)}`,
+                  ` ${labels.surplus}: $${r[fields.surplus].toFixed(1)}`,
                   ` Dead $: $${r.dead_money_cut_now_nominal.toFixed(1)}`,
                 ];
               }
@@ -140,7 +232,7 @@
           x: { ...CHART_DEFAULTS.scales.x, ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxRotation: 35, minRotation: 20 } },
           y: {
             ...CHART_DEFAULTS.scales.y,
-            title: { display: true, text: '$ Value (PV @ 25%)', color: THEME.muted, font: { size: 11 } }
+            title: { display: true, text: labels.yAxis, color: THEME.muted, font: { size: 11 } }
           }
         }
       }
@@ -151,17 +243,19 @@
     const tbody = document.getElementById('cap-table-body');
     if (!tbody) return;
 
-    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b.total_surplus - a.total_surplus);
+    const fields = teamFields();
+
+    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b[fields.surplus] - a[fields.surplus]);
 
     tbody.innerHTML = sorted.map(r => {
-      const surpColor = surplusColor(r.total_surplus);
+      const surpColor = surplusColor(r[fields.surplus]);
       return `
         <tr>
           <td>${r.team}</td>
           <td class="num">${fmt1(r.current_cap_usage)}</td>
-          <td class="num">${fmt1(r.total_pv_tv)}</td>
-          <td class="num">${fmt1(r.total_pv_cap)}</td>
-          <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r.total_surplus)}</td>
+          <td class="num">${fmt1(r[fields.value])}</td>
+          <td class="num">${fmt1(r[fields.cap])}</td>
+          <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r[fields.surplus])}</td>
           <td class="num">${fmt1(r.dead_money_cut_now_nominal)}</td>
         </tr>
       `;
@@ -169,6 +263,7 @@
   }
 
   function refreshCap() {
+    updateCapHeaders();
     renderCapChart();
     renderCapTable();
   }
@@ -202,18 +297,42 @@
       btn.addEventListener('click', () => switchLeagueTab(btn.dataset.subtab));
     });
 
-    // Surplus filters
+    // Surplus window selector
+    const surplusWindowSel = document.getElementById('surplus-window');
+    if (surplusWindowSel) {
+      surplusWindowSel.addEventListener('change', () => {
+        valuationWindow = surplusWindowSel.value;
+        // Keep cap-window in sync
+        const capWindowSel = document.getElementById('cap-window');
+        if (capWindowSel) capWindowSel.value = valuationWindow;
+        refreshSurplus();
+      });
+    }
+
+    // Cap Health window selector
+    const capWindowSel = document.getElementById('cap-window');
+    if (capWindowSel) {
+      capWindowSel.addEventListener('change', () => {
+        valuationWindow = capWindowSel.value;
+        // Keep surplus-window in sync
+        const surpWin = document.getElementById('surplus-window');
+        if (surpWin) surpWin.value = valuationWindow;
+        refreshCap();
+      });
+    }
+
+    // Surplus position/team filters
     ['surplus-position', 'surplus-team'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('change', () => {
         if (id === 'surplus-position') surplusFilter.position = el.value;
         if (id === 'surplus-team')     surplusFilter.team     = el.value;
-        refreshSurplus();
+        renderSurplusTable(getFilteredSurplus());
       });
     });
 
-    // Surplus column sort
+    // Surplus column sort for static columns (Cap Today, Dead $)
     document.querySelectorAll('#surplus-table thead th[data-sort]').forEach(th => {
       th.style.cursor = 'pointer';
       th.addEventListener('click', () => {
@@ -223,7 +342,7 @@
           surplusSortKey = th.dataset.sort;
           surplusSortAsc = false;
         }
-        document.querySelectorAll('#surplus-table thead th[data-sort]').forEach(h => {
+        document.querySelectorAll('#surplus-table thead th').forEach(h => {
           h.classList.remove('sort-asc', 'sort-desc');
         });
         th.classList.add(surplusSortAsc ? 'sort-asc' : 'sort-desc');

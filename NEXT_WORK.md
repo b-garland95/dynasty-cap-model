@@ -2,41 +2,6 @@
 
 ## Ready
 
-### Update Player Forecasted Valuation Framework
-
-**Outcome:** Player valuation views support clear, human-readable surplus analysis across multiple forecast windows, with all outputs normalized to per-season values so users can compare short- and long-term value on the same basis.
-
-**Description:** The current PV/TV framework is hard to interpret and does not provide a clean decision-making frame for dynasty cap management. We should replace the current labels and analysis framing with window-based player value views that show surplus on a per-season basis. The goal is to let a user evaluate how players and teams look in the current year, medium-term, and long-term windows without constantly translating between different time horizons or metric bases.
-
-This work should support at least 3 analysis windows:
-- Current year
-- 3-year window
-- 5-year window
-
-For multi-year views, valuation should be expressed as an average annual projected value over the selected window, compared against average annual cap hit over the same relevant contract span, so surplus is interpretable on a like-for-like per-year basis. This framing should flow through to League Analysis surfaces such as Contract Surplus and Cap Health.
-
-This ticket is about the evaluation framework and presentation layer, not about changing the underlying forecast engine unless needed to support the new outputs cleanly.
-
-**Done when:**
-- [ ] App supports current-year, 3-year, and 5-year player valuation windows
-- [ ] Current-year player view shows current-year projected value, current-year cap hit, and current-year surplus
-- [ ] 3-year player view shows average annual projected value, average annual cap hit, and average annual surplus across the relevant 3-year window
-- [ ] 5-year player view shows average annual projected value, average annual cap hit, and average annual surplus across the relevant 5-year window
-- [ ] League Analysis Contract Surplus view has a control for selecting valuation window
-- [ ] League Analysis Cap Health view has a control for selecting valuation window
-- [ ] Default valuation window is current year
-- [ ] Existing “PV TV” and “PV Cap” labels are removed from user-facing app surfaces
-- [ ] Replacement metric names are human-readable and consistently applied across UI
-- [ ] Edge cases are handled cleanly when a player has fewer remaining contract years than the selected analysis window
-- [ ] Tests are updated for window selection, surplus calculations, and label changes
-
-**Notes for agent:**
-- Keep this focused on improving interpretation and decision usefulness, not inventing a brand-new forecasting model
-- Be explicit about how selected windows interact with contract years remaining
-- Prefer one shared valuation-window abstraction used across player detail and league analysis views
-- Use naming that matches how a fantasy manager would naturally think, such as current-year surplus, 3-year annualized surplus, and 5-year annualized surplus
-- Watch for hidden dependencies in charts or downstream tables that still expect legacy PV/TV field names
-
 ### Add Draft Pick Ownership Management
 
 Outcome: User can assign and persist rookie draft pick ownership by team for the current league year and future draft years, and that information is visible in the app for later valuation work.

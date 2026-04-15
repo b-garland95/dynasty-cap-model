@@ -116,19 +116,20 @@
         pills.push({ label: 'Tag Eligible', value: '✓', accent: true });
     }
 
-    // Surplus value (color-coded)
+    // This year's surplus (color-coded).  Prefer the windowed surplus_1yr
+    // column; fall back to the legacy pv-based surplus_value if not present.
     if (surplus) {
-      const sv = surplus.surplus_value;
+      const sv = surplus.surplus_1yr ?? surplus.surplus_value;
       const color = sv > 20  ? '#98c379'   // strong positive
                   : sv > 0   ? '#61afef'   // positive
                   : sv > -10 ? '#d19a66'   // slightly negative
                   :             '#e06c75'; // deeply negative
-      pills.push({ label: 'Surplus', value: `$${sv.toFixed(1)}`, color });
+      pills.push({ label: 'This Year\'s Surplus', value: `$${sv.toFixed(1)}`, color });
     }
 
-    // TV Y0 forecast
+    // This year's projected value
     if (tv && tv.tv_y0) {
-      pills.push({ label: 'TV Y0', value: `$${tv.tv_y0.toFixed(1)}` });
+      pills.push({ label: 'This Year\'s Value', value: `$${tv.tv_y0.toFixed(1)}` });
     }
 
     if (pills.length === 0) {
@@ -424,7 +425,8 @@
       if (_compMetric === 'tv_sum') return (tvRow.tv_y0 || 0) + (tvRow.tv_y1 || 0) + (tvRow.tv_y2 || 0) + (tvRow.tv_y3 || 0);
       if (_compMetric === 'surplus') {
         const s = surplusAll.find(r => r.player === tvRow.player);
-        return s ? s.surplus_value : null;
+        // Prefer windowed surplus_1yr; fall back to legacy surplus_value.
+        return s ? (s.surplus_1yr ?? s.surplus_value) : null;
       }
       return null;
     }
@@ -446,15 +448,16 @@
     // Update metric column header
     const hdr = document.getElementById('modal-comp-metric-header');
     if (hdr) {
-      hdr.textContent = _compMetric === 'tv_y0'   ? 'TV Y0'
-                      : _compMetric === 'tv_sum'   ? 'Total TV'
-                      :                              'Surplus';
+      hdr.textContent = _compMetric === 'tv_y0'   ? 'This Year\'s Value'
+                      : _compMetric === 'tv_sum'   ? 'Total 4-Yr Value'
+                      :                              'This Year\'s Surplus';
     }
 
     tbody.innerHTML = rows.map(({ r, val, sur, led }) => {
       const isFocal    = r.player === playerName;
       const rowStyle   = isFocal ? ' style="background:var(--surface2);"' : '';
-      const surplusVal = sur?.surplus_value ?? null;
+      // Prefer windowed surplus_1yr; fall back to legacy surplus_value.
+      const surplusVal = sur ? (sur.surplus_1yr ?? sur.surplus_value ?? null) : null;
       const capToday   = led?.current_salary ?? null;
 
       const surpColor = surplusVal !== null

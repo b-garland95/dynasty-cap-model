@@ -184,6 +184,16 @@ function loadData() {
         pv_tv:                    +(r.pv_tv                    ?? 0) || 0,
         pv_cap:                   +(r.pv_cap                   ?? 0) || 0,
         surplus_value:            +(r.surplus_value            ?? 0) || 0,
+        // Windowed annualized surplus fields
+        value_1yr:                +(r.value_1yr                ?? 0) || 0,
+        cap_1yr:                  +(r.cap_1yr                  ?? 0) || 0,
+        surplus_1yr:              +(r.surplus_1yr              ?? 0) || 0,
+        value_3yr_ann:            +(r.value_3yr_ann            ?? 0) || 0,
+        cap_3yr_ann:              +(r.cap_3yr_ann              ?? 0) || 0,
+        surplus_3yr_ann:          +(r.surplus_3yr_ann          ?? 0) || 0,
+        value_5yr_ann:            +(r.value_5yr_ann            ?? 0) || 0,
+        cap_5yr_ann:              +(r.cap_5yr_ann              ?? 0) || 0,
+        surplus_5yr_ann:          +(r.surplus_5yr_ann          ?? 0) || 0,
         cap_today_current:        +(r.cap_today_current        ?? 0) || 0,
         dead_money_cut_now_nominal: +(r.dead_money_cut_now_nominal ?? 0) || 0,
         dead_money_cut_now_pv:    +(r.dead_money_cut_now_pv    ?? 0) || 0,
@@ -204,6 +214,16 @@ function loadData() {
         total_pv_cap:             +(r.total_pv_cap             ?? 0) || 0,
         total_pv_tv:              +(r.total_pv_tv              ?? 0) || 0,
         total_surplus:            +(r.total_surplus            ?? 0) || 0,
+        // Windowed annualized team totals
+        total_value_1yr:          +(r.total_value_1yr          ?? 0) || 0,
+        total_cap_1yr:            +(r.total_cap_1yr            ?? 0) || 0,
+        total_surplus_1yr:        +(r.total_surplus_1yr        ?? 0) || 0,
+        total_value_3yr_ann:      +(r.total_value_3yr_ann      ?? 0) || 0,
+        total_cap_3yr_ann:        +(r.total_cap_3yr_ann        ?? 0) || 0,
+        total_surplus_3yr_ann:    +(r.total_surplus_3yr_ann    ?? 0) || 0,
+        total_value_5yr_ann:      +(r.total_value_5yr_ann      ?? 0) || 0,
+        total_cap_5yr_ann:        +(r.total_cap_5yr_ann        ?? 0) || 0,
+        total_surplus_5yr_ann:    +(r.total_surplus_5yr_ann    ?? 0) || 0,
         dead_money_cut_now_nominal: +(r.dead_money_cut_now_nominal ?? 0) || 0,
       }));
 

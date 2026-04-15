@@ -5,6 +5,7 @@ import pandas as pd
 
 from src.contracts.phase3_tables import build_contract_ledger, build_salary_schedule
 from src.contracts.phase3_value_tables import (
+    _windowed_annual_avg,
     build_contract_economics,
     build_contract_surplus_table,
     build_instrument_candidate_shortlists,
@@ -85,6 +86,82 @@ def test_contract_surplus_table_is_pv_tv_minus_pv_cap():
     assert math.isclose(player_two["surplus_value"], player_two["pv_tv"] - player_two["pv_cap"], rel_tol=1e-9)
 
 
+# ── Windowed annualized surplus tests ─────────────────────────────────────────
+
+def test_windowed_annual_avg_basic():
+    values = [20.0, 15.0, 10.0, 5.0]
+    # Window=1, years_remaining=2 → only first value
+    assert _windowed_annual_avg(values, 2, 1) == 20.0
+    # Window=3, years_remaining=2 → min(3,2,4)=2 → avg of first 2
+    assert math.isclose(_windowed_annual_avg(values, 2, 3), (20.0 + 15.0) / 2, rel_tol=1e-9)
+    # Window=5, years_remaining=4 → min(5,4,4)=4 → avg of all 4
+    assert math.isclose(_windowed_annual_avg(values, 4, 5), (20.0 + 15.0 + 10.0 + 5.0) / 4, rel_tol=1e-9)
+    # years_remaining=0 → free agent → always 0.0
+    assert _windowed_annual_avg(values, 0, 3) == 0.0
+
+
+def test_surplus_table_has_all_windowed_columns():
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    expected_cols = [
+        "value_1yr", "cap_1yr", "surplus_1yr",
+        "value_3yr_ann", "cap_3yr_ann", "surplus_3yr_ann",
+        "value_5yr_ann", "cap_5yr_ann", "surplus_5yr_ann",
+    ]
+    for col in expected_cols:
+        assert col in surplus_df.columns, f"Missing column: {col}"
+
+
+def test_surplus_1yr_is_current_season_value_minus_cap():
+    # Player Two: years_remaining=1, real_salary=20, tv_y0=25
+    # cap_y0=20 (real_salary inflated by year_index=0 → unchanged)
+    # value_1yr = tv_y0 = 25.0, cap_1yr = cap_y0 = 20.0, surplus_1yr = 5.0
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    player_two = surplus_df.loc[surplus_df["player"] == "Player Two"].iloc[0]
+    assert math.isclose(player_two["value_1yr"], 25.0, rel_tol=1e-9)
+    assert math.isclose(player_two["cap_1yr"], 20.0, rel_tol=1e-9)
+    assert math.isclose(player_two["surplus_1yr"], 5.0, rel_tol=1e-9)
+
+
+def test_windowed_surplus_capped_at_years_remaining():
+    # Player One: years_remaining=2, tv=[20,15,10,5], cap=[10,11,0,0]
+    # 3yr window: min(3,2,4)=2 → avg of first 2 years
+    # value_3yr_ann = (20+15)/2 = 17.5, cap_3yr_ann = (10+11)/2 = 10.5, surplus = 7.0
+    # 5yr window: min(5,2,4)=2 → same as 3yr since capped at years_remaining
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    player_one = surplus_df.loc[surplus_df["player"] == "Player One"].iloc[0]
+    assert math.isclose(player_one["value_3yr_ann"], (20.0 + 15.0) / 2, rel_tol=1e-9)
+    assert math.isclose(player_one["cap_3yr_ann"], (10.0 + 11.0) / 2, rel_tol=1e-9)
+    assert math.isclose(player_one["surplus_3yr_ann"], player_one["value_3yr_ann"] - player_one["cap_3yr_ann"], rel_tol=1e-9)
+    # 5yr is capped at 2 years (years_remaining), so same result
+    assert math.isclose(player_one["value_5yr_ann"], player_one["value_3yr_ann"], rel_tol=1e-9)
+    assert math.isclose(player_one["surplus_5yr_ann"], player_one["surplus_3yr_ann"], rel_tol=1e-9)
+
+
+def test_windowed_surplus_surplus_derivation_matches_value_minus_cap():
+    # Check that surplus_Xyr == value_Xyr - cap_Xyr for all windows and all players.
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    for _, row in surplus_df.iterrows():
+        assert math.isclose(row["surplus_1yr"], row["value_1yr"] - row["cap_1yr"], rel_tol=1e-9)
+        assert math.isclose(row["surplus_3yr_ann"], row["value_3yr_ann"] - row["cap_3yr_ann"], rel_tol=1e-9)
+        assert math.isclose(row["surplus_5yr_ann"], row["value_5yr_ann"] - row["cap_5yr_ann"], rel_tol=1e-9)
+
+
 def test_team_cap_health_dashboard_aggregates_team_rollups():
     ledger_df, schedule_df, config = _build_base_inputs()
     forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
@@ -99,6 +176,32 @@ def test_team_cap_health_dashboard_aggregates_team_rollups():
     assert team_a["real_cap_y1"] == 11.0
     assert team_a["validation_player_count"] == 0
     assert math.isclose(team_a["total_surplus"], surplus_df.loc[surplus_df["team"] == "A", "surplus_value"].sum(), rel_tol=1e-9)
+
+
+def test_team_cap_health_dashboard_includes_windowed_surplus_totals():
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    dashboard_df = build_team_cap_health_dashboard(ledger_df, forecast_df, economics_df, surplus_df)
+
+    windowed_cols = [
+        "total_value_1yr", "total_cap_1yr", "total_surplus_1yr",
+        "total_value_3yr_ann", "total_cap_3yr_ann", "total_surplus_3yr_ann",
+        "total_value_5yr_ann", "total_cap_5yr_ann", "total_surplus_5yr_ann",
+    ]
+    for col in windowed_cols:
+        assert col in dashboard_df.columns, f"Missing dashboard column: {col}"
+
+    # Team A: Player One (surplus_1yr=10) + Player Two (surplus_1yr=5) = 15
+    team_a = dashboard_df.loc[dashboard_df["team"] == "A"].iloc[0]
+    expected_1yr = surplus_df.loc[surplus_df["team"] == "A", "surplus_1yr"].sum()
+    assert math.isclose(team_a["total_surplus_1yr"], expected_1yr, rel_tol=1e-9)
+
+    # 3yr and 5yr totals should be sums of per-player annualized surplus.
+    expected_3yr = surplus_df.loc[surplus_df["team"] == "A", "surplus_3yr_ann"].sum()
+    assert math.isclose(team_a["total_surplus_3yr_ann"], expected_3yr, rel_tol=1e-9)
 
 
 def test_instrument_shortlists_filter_to_surplus_positive_and_preserve_flags():

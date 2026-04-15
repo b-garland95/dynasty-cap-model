@@ -41,7 +41,6 @@
       <button class="tab-btn" data-tab="value-curves"          data-section="historical" role="tab">Value Curves</button>
       <button class="tab-btn" data-tab="player-timeline"       data-section="historical" role="tab">Player Timeline</button>
       <button class="tab-btn" data-tab="value-distribution"    data-section="historical" role="tab">Value Distribution</button>
-      <button class="tab-btn" data-tab="wmsv-vs-esv"           data-section="historical" role="tab">WMSV vs ESV</button>
       <button class="tab-btn" data-tab="positional-efficiency" data-section="historical" role="tab">Positional Efficiency</button>
       <button class="tab-btn" data-tab="year-over-year"        data-section="historical" role="tab">Year-over-Year</button>
 
@@ -85,7 +84,6 @@
         <div id="pt-metric-cards" class="pt-metric-cards"></div>
         <div class="pt-mode-toggle">
           <button class="pt-mode-btn active" data-mode="points-start">Points + Start%</button>
-          <button class="pt-mode-btn"        data-mode="wmsv-esv">WMSV vs ESV</button>
           <button class="pt-mode-btn"        data-mode="season-dollar">Season $</button>
         </div>
         <div class="chart-container" style="height: 420px;">
@@ -110,26 +108,6 @@
         </div>
         <div class="chart-container" style="height: 460px;">
           <canvas id="chart-value-distribution"></canvas>
-        </div>
-      </div>
-
-      <div id="panel-wmsv-vs-esv" class="tab-panel" role="tabpanel">
-        <div class="view-controls">
-          <div class="control-group">
-            <label for="wr-season">Season</label>
-            <select id="wr-season"></select>
-          </div>
-          <div class="control-group">
-            <label for="wr-position">Position</label>
-            <select id="wr-position"></select>
-          </div>
-          <div class="control-group">
-            <label for="wr-minwmsv">Min WMSV</label>
-            <select id="wr-minwmsv"></select>
-          </div>
-        </div>
-        <div class="chart-container" style="height: 460px;">
-          <canvas id="chart-wmsv-esv"></canvas>
         </div>
       </div>
 
@@ -435,7 +413,6 @@
   <script src="view-year-over-year.js"></script>
   <script src="view-player-timeline.js"></script>
   <script src="view-value-distribution.js"></script>
-  <script src="view-wmsv-esv.js"></script>
   <script src="view-positional-efficiency.js"></script>
   <script src="view-forecasted.js"></script>
   <script src="view-league.js"></script>

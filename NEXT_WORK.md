@@ -30,29 +30,6 @@ Notes for agent:
   * Consider representing picks at the individual pick level (for example: 2026 1.01, 2026 1.02, etc.) if that aligns with the existing rookie pay scale structure
   * League Analysis display can be simple at first, but should clearly answer “which picks does each team own?”
 
-### Remove WMSV vs. ESV Historical Analysis Chart
-
-Outcome: The historical analysis module no longer includes the WMSV vs. ESV chart, reducing maintenance burden and keeping the module focused on durable long-term analysis views.
-
-Description: The WMSV vs. ESV chart was useful as a one-time validation artifact while testing the framework, but it is not intended to be a permanent analysis surface. We should remove it from the historical analysis module so the product only exposes analysis frames we expect to maintain and rely on over time.
-
-This ticket is about removing the chart from the user-facing historical analysis experience and cleaning up any related code paths, wiring, and tests that only exist to support this visualization.
-
-Done when:
-
-  * WMSV vs. ESV chart no longer appears anywhere in the historical analysis module
-  * Any UI controls, labels, or explanatory copy tied only to this chart are removed
-  * Underlying code paths, data transforms, and component wiring used exclusively for this chart are removed or simplified
-  * Historical analysis module still renders correctly without layout or navigation regressions
-  * Tests are updated to reflect the removed chart
-  * Documentation or notes referencing this as a maintained analysis view are updated if applicable
-
-Notes for agent:
-
-  * Treat this as removal of a validation artifact, not a redesign of the broader historical analysis module
-  * Preserve any reusable calculations only if they are still used elsewhere
-  * Favor deleting dead code rather than leaving dormant feature flags unless the repo already has a strong convention for that
-
 ### Tighten Comparable Players Modal Window
 
 Outcome: The comparable players tab in the player modal shows a focused comparison set with only the 5 players directly above and 5 directly below the selected player under the active evaluation framework.

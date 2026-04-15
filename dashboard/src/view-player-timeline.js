@@ -1,9 +1,9 @@
 // View 2: Player Timeline
-// Searchable player selection (up to 5 player-seasons), three chart sub-modes.
+// Searchable player selection (up to 5 player-seasons), two chart sub-modes.
 
 let ptInitialized = false;
 let selectedPlayers = [];   // [{ id, player, season, color }]
-let ptMode = 'points-start'; // 'points-start' | 'wmsv-esv' | 'season-dollar'
+let ptMode = 'points-start'; // 'points-start' | 'season-dollar'
 let ptNextId = 0;
 
 const PT_COLORS = ['#6c8cff', '#e06c75', '#98c379', '#d19a66', '#c678dd'];
@@ -227,7 +227,6 @@ function renderTimelineChart() {
   destroyChart('player-timeline');
 
   if (ptMode === 'points-start') _ptModeA();
-  else if (ptMode === 'wmsv-esv') _ptModeB();
   else _ptModeC();
 }
 
@@ -405,58 +404,7 @@ function _ptModeA() {
   });
 }
 
-// ── Mode B: WMSV vs ESV ───────────────────────────────────────────────────────
-
-function _ptModeB() {
-  const ctx    = document.getElementById('chart-player-timeline').getContext('2d');
-  const labels = Array.from({ length: 18 }, (_, i) => String(i + 1));
-  const multi  = selectedPlayers.length > 1;
-  const barPct = multi ? 0.35 : 0.55;
-  const datasets = [];
-
-  selectedPlayers.forEach(sel => {
-    const c   = sel.color;
-    const tag = `${sel.player} ${sel.season}`;
-
-    // Order 2 — WMSV dashed outline (behind ESV fill)
-    datasets.push({
-      label:              `WMSV: ${tag}`,
-      data:               _ptWeeks(sel.player, sel.season, 'wmsv'),
-      order:              2,
-      backgroundColor:    'transparent',
-      borderColor:        c,
-      borderWidth:        2,
-      borderDash:         [4, 3],
-      barPercentage:      barPct,
-      categoryPercentage: 0.85
-    });
-
-    // Order 1 — ESV filled bar (in front of outline)
-    datasets.push({
-      label:              `ESV: ${tag}`,
-      data:               _ptWeeks(sel.player, sel.season, 'esv_week'),
-      order:              1,
-      backgroundColor:    hexToRgba(c, 0.6),
-      borderColor:        c,
-      borderWidth:        1,
-      barPercentage:      barPct,
-      categoryPercentage: 0.85
-    });
-  });
-
-  const scales = {
-    x: _ptXAxis(),
-    y: _ptYAxis('Weekly Value', 'left')
-  };
-
-  chartInstances['player-timeline'] = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: _ptOptions(scales, {})
-  });
-}
-
-// ── Mode C: Season $ ──────────────────────────────────────────────────────────
+// ── Mode B: Season $ ──────────────────────────────────────────────────────────
 
 function _ptModeC() {
   const ctx    = document.getElementById('chart-player-timeline').getContext('2d');

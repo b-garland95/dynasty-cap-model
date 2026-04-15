@@ -20,7 +20,7 @@ function destroyChart(viewName) {
 const SECTIONS = {
   historical: {
     tabs: ['value-curves', 'player-timeline', 'value-distribution',
-           'wmsv-vs-esv', 'positional-efficiency', 'year-over-year'],
+           'positional-efficiency', 'year-over-year'],
     defaultTab: 'value-curves'
   },
   forecasted: {
@@ -40,7 +40,6 @@ const VIEW_INIT_FNS = {
   'year-over-year':        () => initYearOverYear(),
   'player-timeline':       () => initPlayerTimeline(),
   'value-distribution':    () => initValueDistribution(),
-  'wmsv-vs-esv':           () => initWmsvEsv(),
   'positional-efficiency': () => initPositionalEfficiency(),
   'forecasted':            () => initForecasted(),
   'league':                () => initLeague(),

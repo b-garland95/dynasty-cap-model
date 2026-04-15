@@ -1,57 +1,45 @@
 # NEXT_WORK.md
 
 ## Ready
-### Improve retry handling for import job
-**Outcome:** Import job survives transient upstream failures without manual reruns.
-
-**Why now:** This is causing the most avoidable operational friction.
+### Clean up Forecasted/TV Forecast/TV Forecast tab in dashboard
+**Outcome:** Grid is primary view on this tab and metrics that matter are clear
 
 **Done when:**
-- [ ] Retries use exponential backoff
-- [ ] Final failure is logged clearly
-- [ ] Tests cover transient failure and terminal failure
+- [ ] Horizontal Bar Chart has been removed
+- [ ] ESV percentiles converted to Dollar Value
+- [ ] Multi-Select Player Search added to filters 
+- [ ] Spark line on grid showing Value trajectory over 4 year window
 
 **Notes for agent:**
-- Likely files: `src/import/*`, `lib/http_client.*`
-- Check whether retry logic already exists elsewhere before adding new code
+- Primary use case is quickly evaluating individual player's value
 - Prefer small refactor over introducing a new dependency
 
-### Add dry-run mode for migration command
-**Outcome:** I can preview migration actions without changing state.
-
-**Why now:** Reduces risk while iterating on migration behavior.
+### Enrich Player Modal
+**Outcome:** Player Modal is go-to screen for all relevant player info
 
 **Done when:**
-- [ ] Command supports `--dry-run`
-- [ ] Output clearly shows intended changes
-- [ ] Tests cover no-write behavior
+- [ ] Roster and Contract Context included in player summary
+- [ ] Forecast for future years appears on Career Timeline in dotted bars
+- [ ] Clicking years on career timeline shows that year's weekly breakdown in the chart below
+- [ ] Tab for exploring players of similar values - should be able to choose between this year value, total value over next 4 years, and surplus value on current contract. Option to filter to player's of the same position. 
 
 **Notes for agent:**
-- Reuse existing logging/output style
-- Make sure dry-run path cannot write accidentally
+- Should be a one-stop shop for all player analysis
+- Feel free to add other views you think would be valuable within the context of the league
 
 ---
 
 ## Later
-### Split config parsing from runtime boot
-**Outcome:** Startup logic is easier to test and reason about.
-
-**Why later:** Helpful, but not blocking current work.
+### Import updated Roster CSV into app + Update Phase 2 and 3 Outputs
+**Outcome:** User can upload new version of rosters file, and reports in Forecasted and League Analysis tabs update accordingly
 
 **Done when:**
-- [ ] Parsing is isolated from app startup
-- [ ] Core config behavior has focused tests
+- [ ] 
 
 **Notes for agent:**
-- Watch for environment-variable coupling
+- Should be a one-stop shop for all player analysis
+- Feel free to add other views you think would be valuable within the context of the league
 
 ---
 
 ## Icebox
-### Explore webhook-based sync instead of polling
-**Outcome:** Lower latency and fewer unnecessary sync runs.
-
-**Why parked:** Worth exploring only after core flow is stable.
-
-**Notes for agent:**
-- Need to compare complexity, reliability, and provider support

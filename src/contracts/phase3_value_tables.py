@@ -67,8 +67,19 @@ def build_production_value_forecast(
         for col in PLAYER_KEY_COLUMNS:
             working[col] = working[col]
 
-    working["pv_tv"] = working[TV_PATH_COLUMNS].apply(
-        lambda row: _discounted_present_value(row.tolist(), discount_rate),
+    # Merge contract length so pv_tv only covers seasons the player is under contract.
+    # Players absent from the ledger (free agents) get years_remaining=0 → pv_tv=0.
+    ledger_years = ledger_df[PLAYER_KEY_COLUMNS + ["years_remaining"]].drop_duplicates(
+        subset=PLAYER_KEY_COLUMNS
+    )
+    working = working.merge(ledger_years, on=PLAYER_KEY_COLUMNS, how="left")
+    working["years_remaining"] = working["years_remaining"].fillna(0).astype(int)
+
+    working["pv_tv"] = working.apply(
+        lambda row: _discounted_present_value(
+            [row[f"tv_y{i}"] if i < int(row["years_remaining"]) else 0.0 for i in range(4)],
+            discount_rate,
+        ),
         axis=1,
     )
     working["tv_source"] = tv_source

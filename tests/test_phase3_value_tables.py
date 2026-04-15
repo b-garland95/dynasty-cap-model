@@ -45,10 +45,19 @@ def test_build_production_value_forecast_uses_25pct_discounting():
     ledger_df, _, config = _build_base_inputs()
     forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
 
+    # Player One: years_remaining=2, so only tv_y0 and tv_y1 count
     player_one = forecast_df.loc[forecast_df["player"] == "Player One"].iloc[0]
-    expected = 20.0 + 15.0 / 1.25 + 10.0 / (1.25**2) + 5.0 / (1.25**3)
+    expected = 20.0 + 15.0 / 1.25
     assert math.isclose(player_one["pv_tv"], expected, rel_tol=1e-9)
+
+    # Player Two: years_remaining=1, so only tv_y0 counts
+    player_two = forecast_df.loc[forecast_df["player"] == "Player Two"].iloc[0]
+    assert math.isclose(player_two["pv_tv"], 25.0, rel_tol=1e-9)
+
+    # Free Agent Six is not in the ledger (years_remaining=0), so pv_tv must be 0
     assert "Free Agent Six" in set(forecast_df["player"])
+    fa_six = forecast_df.loc[forecast_df["player"] == "Free Agent Six"].iloc[0]
+    assert fa_six["pv_tv"] == 0.0
 
 
 def test_contract_economics_uses_real_salary_not_current_salary():

@@ -145,6 +145,68 @@ Notes for agent:
   * Keep this scoped to narrowing the displayed comparison window, not redefining similarity logic
   * Confirm whether the selected player itself should remain visually included between the above/below groups, but do not include extra surrounding players beyond the intended window
 
+### Add Scalable League Config Management Screen
+
+Outcome: User can manage league configuration inputs from a dedicated app screen, write those changes back to the backend config source of truth, and trigger a refresh of downstream analytical outputs from the UI.
+
+Description: We need a more scalable way to manage league configuration than editing backend files manually. The app should include a League Config management screen that connects directly to the backend config file, exposes editable configuration inputs in a structured UI, and provides a clear action to recompute or refresh analytical outputs after changes are made.
+
+This should serve as the central management surface for league-level settings and manual overrides that drive analysis. The backend config file should remain the source of truth, but users should be able to safely update that source through the app. After edits are saved, the screen should include a button to update all analytical outputs so downstream views reflect the new configuration state.
+
+This ticket is about the management workflow and config synchronization pattern, not about redesigning every individual config field at once.
+
+Done when:
+
+  * App has a dedicated League Config management screen for league-level settings
+  * Screen reads current values from the backend config file/source of truth
+  * User can edit supported config fields from the UI
+  * Saving from the UI writes changes back to the backend config source of truth
+  * Screen includes a clear action to update or recompute analytical outputs after config changes
+  * Analytical outputs reflect updated config values after recomputation
+  * App gives user clear feedback for save success, recompute success, and failure states
+  * Validation prevents invalid config values from being written
+  * Config editing flow does not require manual backend file edits for supported fields
+  * Tests cover config load, config save, and downstream analysis refresh behavior
+
+Notes for agent:
+
+  * Keep the backend config file as the source of truth, but add an app-layer workflow for editing supported fields safely
+  * Separate “save config changes” from “refresh analytical outputs” unless existing architecture strongly favors combining them
+  * Design the UI and schema mapping so new config sections can be added over time without rebuilding the whole screen
+  * Reuse this screen as the long-term home for league-wide knobs such as forecast settings, draft-pick settings, and cap adjustment inputs where appropriate
+  * Make failure states debuggable, especially when config write succeeds but analytical refresh fails
+
+### Add Contract Schedule Validation Workflow
+
+Outcome: User can review players whose contract schedules are flagged for validation, confirm or correct their schedules in the app, and persist validated results to the backend override dataset with validation status updated accordingly.
+
+Description: We need a dedicated workflow for validating contract schedules for players we have flagged as needing review. Rather than handling these one-off in backend files, the app should provide a screen that surfaces the outstanding validation queue, lets a user inspect and update the relevant contract schedule details, and then marks those players as validated once review is complete.
+
+Edits made through this workflow should write to the override dataset stored on the backend, since validated schedules represent curated corrections or confirmations relative to raw source data. Validation status should also be persisted so the app can clearly distinguish between players still needing review and players whose contract schedules have already been validated.
+
+This ticket is about the validation workflow, persistence, and status management, not about redesigning the contract ingestion pipeline.
+
+Done when:
+
+  * App has a dedicated screen for contract schedule validation
+  * Screen shows players currently flagged as needing contract schedule validation
+  * User can inspect the relevant contract schedule fields for a flagged player
+  * User can edit or confirm contract schedule details from the UI
+  * Saving writes updated schedule data to the backend override dataset
+  * Completing validation updates the player’s status from needing validation to validated
+  * Validation status persists across reloads and is reflected correctly when the screen is reopened
+  * Screen clearly separates validated players from players still requiring review, or filters to only outstanding items by default
+  * App provides clear save success and failure feedback
+  * Tests cover queue loading, schedule editing, override persistence, and validation status transitions
+
+Notes for agent:
+
+  * Treat the backend override dataset as the source of truth for validated manual corrections
+  * Keep the validation status model explicit and durable so future workflows can report on coverage and remaining backlog
+  * Design the screen around a review queue pattern, since users will likely validate many players in sequence
+  * Avoid coupling “validated” too tightly to “manually changed”; a player may be validated even if the raw schedule was simply confirmed as correct
+  * Make sure downstream contract schedule consumers read from the override layer consistently after validation
+
 ## Later
 ### Import updated Roster CSV into app + Update Phase 2 and 3 Outputs
 **Outcome:** User can upload new version of rosters file, and reports in Forecasted and League Analysis tabs update accordingly

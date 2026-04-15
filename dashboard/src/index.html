@@ -24,21 +24,39 @@
     <!-- ── Header ──────────────────────────────────────────────────── -->
     <header class="dashboard-header">
       <h1>ESV Fantasy Dashboard</h1>
-      <span class="subtitle">Rational Start Value Model · 2015–2025</span>
+      <span class="subtitle">Dynasty Cap Model · League Tycoon · 2015–2025</span>
     </header>
 
-    <!-- ── Tab Navigation ──────────────────────────────────────────── -->
+    <!-- ── Section Navigation ────────────────────────────────────────── -->
+    <nav class="section-nav" role="navigation" aria-label="Dashboard sections">
+      <button class="section-btn active" data-section="historical">Historical</button>
+      <button class="section-btn"        data-section="forecasted">Forecasted</button>
+      <button class="section-btn"        data-section="league">League Analysis</button>
+    </nav>
+
+    <!-- ── Sub-tab Navigation ─────────────────────────────────────────── -->
     <nav class="tab-nav" role="tablist" aria-label="Dashboard views">
-      <button class="tab-btn" data-tab="value-curves"         role="tab">Value Curves</button>
-      <button class="tab-btn" data-tab="player-timeline"      role="tab">Player Timeline</button>
-      <button class="tab-btn" data-tab="value-distribution"   role="tab">Value Distribution</button>
-      <button class="tab-btn" data-tab="wmsv-vs-esv"          role="tab">WMSV vs ESV</button>
-      <button class="tab-btn" data-tab="positional-efficiency" role="tab">Positional Efficiency</button>
-      <button class="tab-btn" data-tab="year-over-year"       role="tab">Year-over-Year</button>
+
+      <!-- Historical tabs (default visible) -->
+      <button class="tab-btn" data-tab="value-curves"          data-section="historical" role="tab">Value Curves</button>
+      <button class="tab-btn" data-tab="player-timeline"       data-section="historical" role="tab">Player Timeline</button>
+      <button class="tab-btn" data-tab="value-distribution"    data-section="historical" role="tab">Value Distribution</button>
+      <button class="tab-btn" data-tab="wmsv-vs-esv"           data-section="historical" role="tab">WMSV vs ESV</button>
+      <button class="tab-btn" data-tab="positional-efficiency" data-section="historical" role="tab">Positional Efficiency</button>
+      <button class="tab-btn" data-tab="year-over-year"        data-section="historical" role="tab">Year-over-Year</button>
+
+      <!-- Forecasted tabs (hidden until section selected) -->
+      <button class="tab-btn" data-tab="forecasted"  data-section="forecasted" role="tab" hidden>TV Forecast</button>
+
+      <!-- League Analysis tabs (hidden until section selected) -->
+      <button class="tab-btn" data-tab="league"      data-section="league"     role="tab" hidden>League Analysis</button>
+
     </nav>
 
     <!-- ── Tab Panels ──────────────────────────────────────────────── -->
     <main class="tab-panels">
+
+      <!-- ── HISTORICAL ─────────────────────────────────────────────── -->
 
       <div id="panel-value-curves" class="tab-panel" role="tabpanel">
         <div class="view-controls">
@@ -57,33 +75,22 @@
       </div>
 
       <div id="panel-player-timeline" class="tab-panel" role="tabpanel">
-
-        <!-- Search -->
         <div class="pt-search-wrapper">
           <input id="pt-search" type="text"
                  placeholder="Type player name…"
                  autocomplete="off" spellcheck="false" />
           <div id="pt-dropdown" class="pt-dropdown" hidden></div>
         </div>
-
-        <!-- Selected player chips -->
         <div id="pt-chips" class="pt-chips"></div>
-
-        <!-- Metric cards -->
         <div id="pt-metric-cards" class="pt-metric-cards"></div>
-
-        <!-- Mode toggle -->
         <div class="pt-mode-toggle">
           <button class="pt-mode-btn active" data-mode="points-start">Points + Start%</button>
           <button class="pt-mode-btn"        data-mode="wmsv-esv">WMSV vs ESV</button>
           <button class="pt-mode-btn"        data-mode="season-dollar">Season $</button>
         </div>
-
-        <!-- Chart -->
         <div class="chart-container" style="height: 420px;">
           <canvas id="chart-player-timeline"></canvas>
         </div>
-
       </div>
 
       <div id="panel-value-distribution" class="tab-panel" role="tabpanel">
@@ -154,25 +161,204 @@
         </div>
       </div>
 
+      <!-- ── FORECASTED ─────────────────────────────────────────────── -->
+
+      <div id="panel-forecasted" class="tab-panel" role="tabpanel">
+
+        <!-- Sub-tab bar -->
+        <div class="sub-tab-bar">
+          <button class="sub-tab-btn active" data-subtab="tv-forecast">TV Forecast</button>
+          <button class="sub-tab-btn"        data-subtab="adp-esv">ADP → ESV</button>
+        </div>
+
+        <!-- TV Forecast sub-panel -->
+        <div id="sub-tv-forecast" class="sub-tab-panel">
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="tv-position">Position</label>
+              <select id="tv-position">
+                <option value="All">All</option>
+                <option value="QB">QB</option>
+                <option value="RB">RB</option>
+                <option value="WR">WR</option>
+                <option value="TE">TE</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="tv-team">Team</label>
+              <select id="tv-team"><option value="All">All Teams</option></select>
+            </div>
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="tv-rostered-only" />
+                Rostered only
+              </label>
+            </div>
+          </div>
+          <div class="chart-container" style="height: 460px;">
+            <canvas id="chart-tv-forecast"></canvas>
+          </div>
+          <div class="table-wrapper">
+            <table id="tv-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Team</th>
+                  <th>Pos</th>
+                  <th data-sort="tv_y0" class="num sort-desc">TV Y0 ↕</th>
+                  <th data-sort="tv_y1" class="num">TV Y1 ↕</th>
+                  <th data-sort="tv_y2" class="num">TV Y2 ↕</th>
+                  <th data-sort="tv_y3" class="num">TV Y3 ↕</th>
+                  <th data-sort="adp"   class="num">ADP ↕</th>
+                  <th class="num">ESV p25/p50/p75</th>
+                </tr>
+              </thead>
+              <tbody id="tv-table-body"></tbody>
+            </table>
+          </div>
+        </div><!-- #sub-tv-forecast -->
+
+        <!-- ADP → ESV sub-panel -->
+        <div id="sub-adp-esv" class="sub-tab-panel" hidden>
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="adp-position">Position</label>
+              <select id="adp-position">
+                <option value="All">All</option>
+                <option value="QB">QB</option>
+                <option value="RB">RB</option>
+                <option value="WR">WR</option>
+                <option value="TE">TE</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-container" style="height: 500px;">
+            <canvas id="chart-adp-esv"></canvas>
+          </div>
+        </div><!-- #sub-adp-esv -->
+
+      </div><!-- #panel-forecasted -->
+
+      <!-- ── LEAGUE ANALYSIS ────────────────────────────────────────── -->
+
+      <div id="panel-league" class="tab-panel" role="tabpanel">
+
+        <!-- Sub-tab bar -->
+        <div class="sub-tab-bar">
+          <button class="sub-tab-btn active" data-subtab="contract-surplus">Contract Surplus</button>
+          <button class="sub-tab-btn"        data-subtab="cap-health">Cap Health</button>
+        </div>
+
+        <!-- Contract Surplus sub-panel -->
+        <div id="sub-contract-surplus" class="sub-tab-panel">
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="surplus-position">Position</label>
+              <select id="surplus-position">
+                <option value="All">All</option>
+                <option value="QB">QB</option>
+                <option value="RB">RB</option>
+                <option value="WR">WR</option>
+                <option value="TE">TE</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="surplus-team">Team</label>
+              <select id="surplus-team"><option value="All">All Teams</option></select>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table id="surplus-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Team</th>
+                  <th>Pos</th>
+                  <th data-sort="pv_tv"                    class="num">PV TV ↕</th>
+                  <th data-sort="pv_cap"                   class="num">PV Cap ↕</th>
+                  <th data-sort="surplus_value"            class="num sort-desc">Surplus ↕</th>
+                  <th data-sort="cap_today_current"        class="num">Cap Today ↕</th>
+                  <th data-sort="dead_money_cut_now_nominal" class="num">Dead $ ↕</th>
+                </tr>
+              </thead>
+              <tbody id="surplus-table-body"></tbody>
+            </table>
+          </div>
+        </div><!-- #sub-contract-surplus -->
+
+        <!-- Cap Health sub-panel -->
+        <div id="sub-cap-health" class="sub-tab-panel" hidden>
+          <div class="chart-container" style="height: 380px;">
+            <canvas id="chart-cap-health"></canvas>
+          </div>
+          <div class="table-wrapper" style="margin-top: 24px;">
+            <table id="cap-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th class="num">Cap Today</th>
+                  <th class="num">PV TV</th>
+                  <th class="num">PV Cap</th>
+                  <th class="num">Surplus</th>
+                  <th class="num">Dead $</th>
+                </tr>
+              </thead>
+              <tbody id="cap-table-body"></tbody>
+            </table>
+          </div>
+        </div><!-- #sub-cap-health -->
+
+      </div><!-- #panel-league -->
+
     </main><!-- .tab-panels -->
 
   </div><!-- #app -->
 
-  <!-- ── Loading overlay (hidden after data loads) ─────────────────── -->
+  <!-- ── Player Modal ──────────────────────────────────────────────────── -->
+  <div id="player-modal" class="modal-overlay" hidden aria-modal="true" role="dialog">
+    <div class="modal-card">
+      <button class="modal-close" id="modal-close-btn" aria-label="Close">&#x2715;</button>
+
+      <div class="modal-header">
+        <img id="modal-headshot" class="modal-headshot" src="" alt="" hidden />
+        <div class="modal-bio">
+          <h2 id="modal-name"></h2>
+          <div id="modal-bio-details" class="modal-bio-details"></div>
+        </div>
+      </div>
+
+      <p id="modal-no-data" class="modal-no-data" hidden>No historical data available for this player.</p>
+
+      <h3 class="modal-section-title">Career Timeline</h3>
+      <div class="chart-container" style="height: 220px;">
+        <canvas id="chart-modal-career"></canvas>
+      </div>
+
+      <h3 class="modal-section-title" id="modal-weekly-title">Latest Season — Weekly Breakdown</h3>
+      <div class="chart-container" style="height: 200px;">
+        <canvas id="chart-modal-weekly"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loading overlay ─────────────────────────────────────────────── -->
   <div id="loading-overlay">
     <div class="spinner"></div>
     <p>Loading ESV data…</p>
   </div>
 
-  <!-- ── Scripts ───────────────────────────────────────────────────── -->
+  <!-- ── Scripts ───────────────────────────────────────────────────────── -->
   <script src="constants.js"></script>
   <script src="data.js"></script>
+  <script src="modal-player.js"></script>
   <script src="view-value-curves.js"></script>
   <script src="view-year-over-year.js"></script>
   <script src="view-player-timeline.js"></script>
   <script src="view-value-distribution.js"></script>
   <script src="view-wmsv-esv.js"></script>
   <script src="view-positional-efficiency.js"></script>
+  <script src="view-forecasted.js"></script>
+  <script src="view-league.js"></script>
   <script src="app.js"></script>
 
 </body>

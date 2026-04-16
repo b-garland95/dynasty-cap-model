@@ -1074,3 +1074,148 @@ body {
   line-height: 0;
   text-align: center;
 }
+
+/* ════════════════════════════════════════════════════════════
+   Draft Picks — League Config section
+   ════════════════════════════════════════════════════════════ */
+
+.draft-picks-header {
+  margin-bottom: 24px;
+}
+
+.section-heading {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.section-desc {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+.draft-picks-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 18px;
+  transition: opacity 0.15s;
+}
+
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.action-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.action-btn-primary:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.save-status {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.save-status-pending { color: var(--muted); }
+.save-status-ok      { color: var(--surplus-high); }
+.save-status-error   { color: var(--surplus-low); }
+
+.dp-loading {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 24px 0;
+}
+
+.dp-error {
+  background: rgba(224, 108, 117, 0.12);
+  border: 1px solid rgba(224, 108, 117, 0.3);
+  border-radius: var(--radius-sm);
+  color: #e8a0a5;
+  font-size: 13px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+}
+
+.dp-year-block {
+  margin-bottom: 32px;
+}
+
+.dp-year-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dp-rounds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.dp-round-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.dp-round-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.dp-pick-table {
+  width: 100%;
+}
+
+.dp-pick-table td,
+.dp-pick-table th {
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.pick-owner-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  padding: 3px 6px;
+  width: 100%;
+}
+
+.pick-owner-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* mono helper for pick IDs and round.slot */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}

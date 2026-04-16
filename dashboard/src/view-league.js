@@ -268,6 +268,76 @@
     renderCapTable();
   }
 
+  // ── Pick Inventory ────────────────────────────────────────────────────────
+
+  let _piYearFilter = 'All';
+  let _piTeamFilter = 'All';
+
+  function buildPickInventoryFilters() {
+    const yearSel = document.getElementById('pi-year');
+    const teamSel = document.getElementById('pi-team');
+    if (!yearSel || !teamSel) return;
+
+    // Populate year options
+    const curYear = yearSel.value;
+    yearSel.innerHTML = '<option value="All">All Years</option>';
+    (ALL_PICK_YEARS || []).forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
+    });
+    if ([...yearSel.options].some(o => o.value === curYear)) yearSel.value = curYear;
+
+    // Populate team options from owners in pick data + contract teams
+    const teamsInPicks = [...new Set(
+      (DRAFT_PICKS_DATA || []).map(p => p.owner).filter(Boolean)
+    )].sort();
+    const allTeams = [...new Set([
+      ...(ALL_LG_TEAMS || []),
+      ...teamsInPicks,
+    ])].sort();
+
+    const curTeam = teamSel.value;
+    teamSel.innerHTML = '<option value="All">All Teams</option>';
+    allTeams.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      teamSel.appendChild(opt);
+    });
+    if ([...teamSel.options].some(o => o.value === curTeam)) teamSel.value = curTeam;
+  }
+
+  function getFilteredPicks() {
+    return (DRAFT_PICKS_DATA || []).filter(p => {
+      if (_piYearFilter !== 'All' && String(p.year) !== String(_piYearFilter)) return false;
+      if (_piTeamFilter !== 'All' && p.owner !== _piTeamFilter) return false;
+      return true;
+    });
+  }
+
+  function renderPickInventory() {
+    const tbody = document.getElementById('pick-inventory-tbody');
+    if (!tbody) return;
+
+    buildPickInventoryFilters();
+    const rows = getFilteredPicks();
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);">No picks match the current filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(p => `
+      <tr>
+        <td class="mono">${p.pick_id}</td>
+        <td>${p.year}</td>
+        <td>${p.round}</td>
+        <td>${p.slot}</td>
+        <td class="num">${p.salary != null ? '$' + p.salary : '–'}</td>
+        <td>${p.owner || '<span style="color:var(--muted)">–</span>'}</td>
+      </tr>`).join('');
+  }
+
   // ── Sub-tab switching ─────────────────────────────────────────────────────
 
   function switchLeagueTab(tabId) {
@@ -280,6 +350,7 @@
 
     if (tabId === 'contract-surplus') refreshSurplus();
     if (tabId === 'cap-health')       refreshCap();
+    if (tabId === 'pick-inventory')   renderPickInventory();
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────
@@ -349,6 +420,22 @@
         renderSurplusTable(getFilteredSurplus());
       });
     });
+
+    // Pick Inventory filters
+    const piYearSel = document.getElementById('pi-year');
+    const piTeamSel = document.getElementById('pi-team');
+    if (piYearSel) {
+      piYearSel.addEventListener('change', () => {
+        _piYearFilter = piYearSel.value;
+        renderPickInventory();
+      });
+    }
+    if (piTeamSel) {
+      piTeamSel.addEventListener('change', () => {
+        _piTeamFilter = piTeamSel.value;
+        renderPickInventory();
+      });
+    }
 
     // Default: Contract Surplus sub-tab
     switchLeagueTab('contract-surplus');

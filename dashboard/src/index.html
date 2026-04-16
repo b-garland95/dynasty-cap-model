@@ -32,6 +32,7 @@
       <button class="section-btn active" data-section="historical">Historical</button>
       <button class="section-btn"        data-section="forecasted">Forecasted</button>
       <button class="section-btn"        data-section="league">League Analysis</button>
+      <button class="section-btn"        data-section="league-config">League Config</button>
     </nav>
 
     <!-- ── Sub-tab Navigation ─────────────────────────────────────────── -->
@@ -49,6 +50,9 @@
 
       <!-- League Analysis tabs (hidden until section selected) -->
       <button class="tab-btn" data-tab="league"      data-section="league"     role="tab" hidden>League Analysis</button>
+
+      <!-- League Config tabs (hidden until section selected) -->
+      <button class="tab-btn" data-tab="draft-picks" data-section="league-config" role="tab" hidden>Draft Picks</button>
 
     </nav>
 
@@ -234,6 +238,7 @@
         <div class="sub-tab-bar">
           <button class="sub-tab-btn active" data-subtab="contract-surplus">Contract Surplus</button>
           <button class="sub-tab-btn"        data-subtab="cap-health">Cap Health</button>
+          <button class="sub-tab-btn"        data-subtab="pick-inventory">Pick Inventory</button>
         </div>
 
         <!-- Contract Surplus sub-panel -->
@@ -313,7 +318,60 @@
           </div>
         </div><!-- #sub-cap-health -->
 
+        <!-- Pick Inventory sub-panel -->
+        <div id="sub-pick-inventory" class="sub-tab-panel" hidden>
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="pi-year">Draft Year</label>
+              <select id="pi-year"><option value="All">All Years</option></select>
+            </div>
+            <div class="control-group">
+              <label for="pi-team">Team</label>
+              <select id="pi-team"><option value="All">All Teams</option></select>
+            </div>
+          </div>
+          <div class="table-wrapper" style="margin-top: 12px;">
+            <table id="pick-inventory-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Pick</th>
+                  <th>Year</th>
+                  <th>Round</th>
+                  <th>Slot</th>
+                  <th class="num">Salary ($)</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody id="pick-inventory-tbody"></tbody>
+            </table>
+          </div>
+        </div><!-- #sub-pick-inventory -->
+
       </div><!-- #panel-league -->
+
+      <!-- ── LEAGUE CONFIG — DRAFT PICKS ─────────────────────────────────── -->
+
+      <div id="panel-draft-picks" class="tab-panel" role="tabpanel">
+
+        <div class="draft-picks-header">
+          <h2 class="section-heading">Draft Pick Ownership</h2>
+          <p class="section-desc">
+            Assign each pick to a team. Changes are saved to the backend when you
+            click <strong>Save Changes</strong>.
+          </p>
+          <div class="draft-picks-actions">
+            <button id="dp-save-btn" class="action-btn action-btn-primary">Save Changes</button>
+            <span id="dp-save-status" class="save-status" hidden></span>
+          </div>
+        </div>
+
+        <div id="dp-loading" class="dp-loading">Loading picks…</div>
+        <div id="dp-error"   class="dp-error"   hidden></div>
+
+        <!-- Year-grouped pick assignment grids inserted here by JS -->
+        <div id="dp-years-container"></div>
+
+      </div><!-- #panel-draft-picks -->
 
     </main><!-- .tab-panels -->
 
@@ -416,6 +474,7 @@
   <script src="view-positional-efficiency.js"></script>
   <script src="view-forecasted.js"></script>
   <script src="view-league.js"></script>
+  <script src="view-draft-picks.js"></script>
   <script src="app.js"></script>
 
 </body>

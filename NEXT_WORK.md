@@ -2,34 +2,6 @@
 
 ## Ready
 
-### Add Draft Pick Ownership Management
-
-Outcome: User can assign and persist rookie draft pick ownership by team for the current league year and future draft years, and that information is visible in the app for later valuation work.
-
-Description: We need a foundational system for managing draft picks before building draft pick valuation. The app should support tracking who owns each rookie pick, starting with the current league year plus the next 2 league years. That horizon should be configurable from league settings rather than hardcoded. There is already repo context for the rookie pick pay scale, so this ticket is focused on pick ownership management, storage, and display rather than pricing or valuation logic.
-
-This should include a League Config workflow where a user can assign each pick to a team, a backend representation for storing and loading that ownership data, and initial surfacing of pick ownership on the League Analysis page so that future trade / asset views can build on it.
-
-Done when:
-
-  * User can view draft pick inventory for the current league year and future league years on a League Config page
-  * User can assign each pick to a team from the UI
-  * Pick ownership is persisted in the backend and survives app reloads
-  * Number of future draft years tracked is configurable in league settings
-  * Default tracked horizon is current league year + next 2 league years
-  * Data model cleanly supports one owner per pick per year/round/slot
-  * Existing rookie pick pay scale context is not duplicated or hardcoded in a second place
-  * League Analysis page shows each team’s owned picks in a readable format
-  * Tests cover config/load/save behavior and at least one UI or integration path
-
-Notes for agent:
-
-  * Scope this as pick ownership only, not pick valuation
-  * Keep source-of-truth league settings in config, consistent with existing repo conventions
-  * Design the schema so future tickets can attach pick value, trade history, and pick-based surplus outputs without reworking storage
-  * Consider representing picks at the individual pick level (for example: 2026 1.01, 2026 1.02, etc.) if that aligns with the existing rookie pay scale structure
-  * League Analysis display can be simple at first, but should clearly answer “which picks does each team own?”
-
 ### Tighten Comparable Players Modal Window
 
 Outcome: The comparable players tab in the player modal shows a focused comparison set with only the 5 players directly above and 5 directly below the selected player under the active evaluation framework.

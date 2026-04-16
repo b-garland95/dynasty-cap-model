@@ -34,6 +34,12 @@ let CAP_HEALTH_DATA = [];
 let LEDGER_DATA     = [];
 let ALL_LG_TEAMS    = [];  // sorted unique fantasy team names from SURPLUS_DATA
 
+// ── Draft Pick Inventory ─────────────────────────────────────────────────────
+// Loaded from /api/picks (Flask server) or falls back to draft_pick_inventory.csv.
+// Each entry: { pick_id, year, round, slot, salary, owner }
+let DRAFT_PICKS_DATA = [];   // flat inventory (picks × ownership)
+let ALL_PICK_YEARS   = [];   // sorted unique draft years
+
 /**
  * Parse a CSV via PapaParse (download mode — works with both file:// and http://).
  * Returns a promise that resolves to the array of row objects.
@@ -251,7 +257,37 @@ function loadData() {
     console.log(`Ledger rows  : ${LEDGER_DATA.length}`);
   });
 
+  // Draft picks — loaded from the Flask API if available, else from static CSV.
+  const picksPromise = fetch('/api/picks')
+    .then(r => {
+      if (!r.ok) throw new Error(`/api/picks returned ${r.status}`);
+      return r.json();
+    })
+    .then(({ picks, ownership }) => {
+      DRAFT_PICKS_DATA = picks.map(p => ({
+        ...p,
+        owner: ownership[p.pick_id] || null,
+      }));
+      ALL_PICK_YEARS = [...new Set(DRAFT_PICKS_DATA.map(p => p.year))].sort((a, b) => a - b);
+      console.log(`Draft picks  : ${DRAFT_PICKS_DATA.length} picks across ${ALL_PICK_YEARS.length} years`);
+    })
+    .catch(() => {
+      // Server not running — try static CSV fallback.
+      return parseCsv('../data/draft_pick_inventory.csv').then(rows => {
+        DRAFT_PICKS_DATA = rows.map(r => ({
+          pick_id: String(r.pick_id || ''),
+          year:    +r.year  || 0,
+          round:   +r.round || 0,
+          slot:    +r.slot  || 0,
+          salary:  r.salary !== '' && r.salary != null ? +r.salary : null,
+          owner:   r.owner  || null,
+        })).filter(r => r.pick_id);
+        ALL_PICK_YEARS = [...new Set(DRAFT_PICKS_DATA.map(p => p.year))].sort((a, b) => a - b);
+        console.log(`Draft picks (CSV): ${DRAFT_PICKS_DATA.length} rows`);
+      });
+    });
+
   // Return only the Phase 1 promise so the app starts as soon as historical
   // data is ready. Supplemental data populates in the background.
-  return Promise.all([phase1Promise, supplementalPromise]);
+  return Promise.all([phase1Promise, supplementalPromise, picksPromise]);
 }

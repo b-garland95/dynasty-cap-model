@@ -30,7 +30,11 @@ const SECTIONS = {
   league: {
     tabs: ['league'],
     defaultTab: 'league'
-  }
+  },
+  'league-config': {
+    tabs: ['draft-picks'],
+    defaultTab: 'draft-picks'
+  },
 };
 
 // ── View init functions ───────────────────────────────────────────────────────
@@ -43,6 +47,7 @@ const VIEW_INIT_FNS = {
   'positional-efficiency': () => initPositionalEfficiency(),
   'forecasted':            () => initForecasted(),
   'league':                () => initLeague(),
+  'draft-picks':           () => initDraftPicks(),
 };
 
 // ── Tab switching ─────────────────────────────────────────────────────────────

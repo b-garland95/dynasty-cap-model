@@ -5,6 +5,7 @@ pytest
 scikit-learn
 matplotlib
 scipy
+flask
 
 nflreadpy
 gdown

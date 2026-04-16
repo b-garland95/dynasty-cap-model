@@ -120,6 +120,18 @@ rookie_scale:
   option_use_it_or_lose_it: true
   options_per_team_per_year: 1
 
+# Draft pick ownership configuration.
+# future_years_tracked controls how many draft years beyond target_season are
+# tracked (e.g. 2 means: target_season, target_season+1, target_season+2).
+# rounds and picks_per_round define the pick universe per year.
+# picks_per_round should equal league.teams.
+# Actual ownership (who owns each pick) is stored separately in
+# data/processed/draft_pick_ownership.json and is NOT hardcoded here.
+draft_picks:
+  future_years_tracked: 2
+  rounds: 4
+  picks_per_round: 10
+
 # Age-curve parameters for dynasty multi-year projections (Hybrid A+B model).
 # peak_age    – age at which a player at their expected dynasty ceiling produces
 #               the highest ESV; multiplier = 1.0 exactly at this age.

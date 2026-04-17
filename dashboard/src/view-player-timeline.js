@@ -428,11 +428,13 @@ function _ptModeC() {
   let labels, datasets, tooltipSeasonFor;
 
   if (ptXMode === 'years-in-league') {
-    // First season ever recorded for each player across the full dataset
+    // First season = rookie_season from player bio; fall back to first row in data
     const firstSeasonMap = {};
     playerNames.forEach(p => {
-      const seasons = SEASON_DATA.filter(r => r.player === p).map(r => r.season);
-      firstSeasonMap[p] = Math.min(...seasons);
+      const bio = HEADSHOT_MAP[p];
+      firstSeasonMap[p] = bio && bio.rookie_season
+        ? +bio.rookie_season
+        : Math.min(...SEASON_DATA.filter(r => r.player === p).map(r => r.season));
     });
 
     // How many years does the longest career span?

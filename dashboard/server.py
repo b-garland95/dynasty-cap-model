@@ -125,20 +125,36 @@ def api_get_picks() -> Response:
 
 @app.route("/api/picks", methods=["POST"])
 def api_save_picks() -> Response:
-    """Accept an ownership object and persist it to disk."""
+    """Accept an ownership object and persist it to disk.
+
+    Accepts both the new format  {pick_id: {original_team, owner}}
+    and the legacy format        {pick_id: string | null}  (auto-migrated).
+    """
     data = request.get_json(force=True, silent=True)
     if not isinstance(data, dict):
         return jsonify({"ok": False, "error": "Body must be a JSON object"}), 400
 
-    for pick_id, owner in data.items():
-        if owner is not None and not isinstance(owner, str):
-            return jsonify({
-                "ok": False,
-                "error": f"Owner for {pick_id!r} must be a string or null",
-            }), 400
+    normalized: dict = {}
+    for pick_id, value in data.items():
+        if value is None or isinstance(value, str):
+            # Legacy format — treat string as both original_team and owner.
+            normalized[pick_id] = {"original_team": value, "owner": value}
+        elif isinstance(value, dict):
+            ot = value.get("original_team")
+            ow = value.get("owner")
+            if ot is not None and not isinstance(ot, str):
+                return jsonify({"ok": False,
+                                "error": f"original_team for {pick_id!r} must be string or null"}), 400
+            if ow is not None and not isinstance(ow, str):
+                return jsonify({"ok": False,
+                                "error": f"owner for {pick_id!r} must be string or null"}), 400
+            normalized[pick_id] = {"original_team": ot, "owner": ow}
+        else:
+            return jsonify({"ok": False,
+                            "error": f"Invalid ownership value for {pick_id!r}"}), 400
 
     valid_ids = {p["pick_id"] for p in _PICKS}
-    unknown = [pid for pid in data if pid not in valid_ids]
+    unknown = [pid for pid in normalized if pid not in valid_ids]
     if unknown:
         return jsonify({
             "ok": False,
@@ -146,7 +162,7 @@ def api_save_picks() -> Response:
         }), 400
 
     try:
-        save_ownership(data)
+        save_ownership(normalized)
     except Exception as exc:  # pragma: no cover
         return jsonify({"ok": False, "error": str(exc)}), 500
 

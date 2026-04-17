@@ -36,8 +36,8 @@ FIELDNAMES = [
 
 def main() -> None:
     config = load_league_config()
-    picks = generate_picks(config)
     ownership = load_ownership()
+    picks = generate_picks(config, ownership)
     rows = build_inventory_table(picks, ownership)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)

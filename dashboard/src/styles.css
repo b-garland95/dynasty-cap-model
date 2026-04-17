@@ -1367,6 +1367,100 @@ body {
   margin-left: 10px;
 }
 
+/* Year header: title + status badge + action button in one row */
+.dp-year-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.dp-year-header .dp-year-title {
+  border-bottom: none;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+/* Lifecycle status badge */
+.dp-status-badge {
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.dp-status-badge--active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.dp-status-badge--finalized {
+  background: color-mix(in srgb, #5a9e6f 18%, transparent);
+  color: #5a9e6f;
+}
+
+.dp-status-badge--completed {
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  color: var(--muted);
+}
+
+/* Mark Draft Complete button */
+.dp-complete-btn {
+  font-size: 11px;
+  margin-left: auto;
+  padding: 4px 12px;
+}
+
+.action-btn--warn {
+  background: color-mix(in srgb, #b8860b 15%, transparent);
+  border: 1px solid color-mix(in srgb, #b8860b 40%, transparent);
+  color: #b8860b;
+}
+
+.action-btn--warn:not(:disabled):hover {
+  background: color-mix(in srgb, #b8860b 25%, transparent);
+}
+
+.dp-complete-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+/* Completed year block */
+.dp-year-block--completed .dp-round-section {
+  opacity: 0.65;
+}
+
+.dp-year-block--completed .dp-rounds-list {
+  pointer-events: none;
+}
+
+/* Spent pick rows */
+.dp-pick-row--spent td {
+  color: var(--muted);
+}
+
+.dp-owner-cell--spent {
+  font-style: italic;
+}
+
+/* Spent notice banner */
+.dp-spent-notice {
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+}
+
 /* mono helper */
 .mono {
   font-family: 'JetBrains Mono', monospace;

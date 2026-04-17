@@ -25,17 +25,25 @@ from pathlib import Path
 import pytest
 
 from src.contracts.draft_picks import (
+    YEAR_STATUS_ACTIVE,
+    YEAR_STATUS_COMPLETED,
+    YEAR_STATUS_FINALIZED,
+    active_picks_only,
     all_teams_from_ownership,
     build_inventory_table,
     generate_picks,
     get_team_picks,
+    get_year_status,
     load_ownership,
+    load_year_status,
     make_comp_pick_id,
     make_pick_record,
     make_team_pick_id,
+    mark_year_completed,
     normalize_team_key,
     register_teams,
     save_ownership,
+    save_year_status,
     set_draft_order,
     set_owner,
 )
@@ -569,3 +577,196 @@ class TestAllTeamsFromOwnership:
 
     def test_empty_returns_empty(self):
         assert all_teams_from_ownership({}) == []
+
+
+# ---------------------------------------------------------------------------
+# Draft year lifecycle state
+# ---------------------------------------------------------------------------
+
+class TestGetYearStatus:
+
+    def test_default_is_active(self):
+        config = _minimal_config()
+        assert get_year_status(config, 2026) == YEAR_STATUS_ACTIVE
+
+    def test_finalized_from_years_with_known_order(self):
+        config = _minimal_config(years_with_known_order=[2026])
+        assert get_year_status(config, 2026) == YEAR_STATUS_FINALIZED
+
+    def test_completed_overrides_finalized(self):
+        config = _minimal_config(years_with_known_order=[2026])
+        year_status = {2026: YEAR_STATUS_COMPLETED}
+        assert get_year_status(config, 2026, year_status) == YEAR_STATUS_COMPLETED
+
+    def test_completed_overrides_active(self):
+        config = _minimal_config()
+        year_status = {2026: YEAR_STATUS_COMPLETED}
+        assert get_year_status(config, 2026, year_status) == YEAR_STATUS_COMPLETED
+
+    def test_non_completed_status_in_dict_defers_to_config(self):
+        """An explicit 'active' in year_status still defers to config for finalized."""
+        config = _minimal_config(years_with_known_order=[2026])
+        year_status = {2026: YEAR_STATUS_ACTIVE}
+        # 'active' in dict does NOT suppress the config-inferred 'finalized'.
+        assert get_year_status(config, 2026, year_status) == YEAR_STATUS_FINALIZED
+
+    def test_different_year_not_affected(self):
+        config = _minimal_config(years_with_known_order=[2026])
+        assert get_year_status(config, 2027) == YEAR_STATUS_ACTIVE
+
+    def test_empty_year_status_dict_falls_back_to_config(self):
+        config = _minimal_config(years_with_known_order=[2026])
+        assert get_year_status(config, 2026, {}) == YEAR_STATUS_FINALIZED
+
+
+class TestMarkYearCompleted:
+
+    def test_sets_completed_status(self):
+        status: dict = {}
+        mark_year_completed(status, 2026)
+        assert status[2026] == YEAR_STATUS_COMPLETED
+
+    def test_idempotent(self):
+        status = {2026: YEAR_STATUS_COMPLETED}
+        mark_year_completed(status, 2026)
+        assert status[2026] == YEAR_STATUS_COMPLETED
+
+    def test_does_not_affect_other_years(self):
+        status: dict = {}
+        mark_year_completed(status, 2026)
+        assert 2027 not in status
+
+
+class TestYearStatusPersistence:
+
+    def test_missing_file_returns_empty(self):
+        with tempfile.TemporaryDirectory() as d:
+            assert load_year_status(Path(d) / "missing.json") == {}
+
+    def test_round_trip(self):
+        status = {2026: YEAR_STATUS_COMPLETED}
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "status.json"
+            save_year_status(status, p)
+            result = load_year_status(p)
+        assert result == status
+
+    def test_creates_parent_dirs(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "a" / "b" / "status.json"
+            save_year_status({2026: YEAR_STATUS_COMPLETED}, p)
+            assert p.exists()
+
+    def test_invalid_file_raises(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bad.json"
+            p.write_text("[1,2]")
+            with pytest.raises(ValueError, match="JSON object"):
+                load_year_status(p)
+
+    def test_unknown_statuses_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "s.json"
+            p.write_text('{"2026": "unknown_state", "2027": "completed"}')
+            result = load_year_status(p)
+        assert 2026 not in result
+        assert result[2027] == YEAR_STATUS_COMPLETED
+
+    def test_non_integer_keys_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "s.json"
+            p.write_text('{"bad_key": "completed", "2026": "completed"}')
+            result = load_year_status(p)
+        assert "bad_key" not in result
+        assert result[2026] == YEAR_STATUS_COMPLETED
+
+    def test_multiple_years(self):
+        status = {2026: YEAR_STATUS_COMPLETED, 2027: YEAR_STATUS_ACTIVE}
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "s.json"
+            save_year_status(status, p)
+            result = load_year_status(p)
+        assert result == status
+
+
+class TestGeneratePicksYearStatus:
+
+    def test_picks_include_year_status_field(self):
+        config = _minimal_config(future_years=0, rounds=1)
+        ownership = {make_team_pick_id(2026, 1, "T"): make_pick_record("T")}
+        picks = generate_picks(config, ownership)
+        assert all("year_status" in p for p in picks)
+
+    def test_default_year_status_is_active(self):
+        config = _minimal_config(future_years=0, rounds=1)
+        ownership = {make_team_pick_id(2026, 1, "T"): make_pick_record("T")}
+        picks = generate_picks(config, ownership)
+        assert all(p["year_status"] == YEAR_STATUS_ACTIVE for p in picks)
+
+    def test_year_status_completed_propagated(self):
+        config = _minimal_config(future_years=0, rounds=1)
+        ownership = {make_team_pick_id(2026, 1, "T"): make_pick_record("T")}
+        year_status = {2026: YEAR_STATUS_COMPLETED}
+        picks = generate_picks(config, ownership, year_status)
+        assert all(p["year_status"] == YEAR_STATUS_COMPLETED for p in picks)
+
+    def test_year_status_finalized_from_config(self):
+        config = _minimal_config(future_years=0, rounds=1, years_with_known_order=[2026])
+        ownership = {make_team_pick_id(2026, 1, "T"): make_pick_record("T")}
+        picks = generate_picks(config, ownership)
+        assert all(p["year_status"] == YEAR_STATUS_FINALIZED for p in picks)
+
+    def test_comp_picks_get_year_status(self):
+        config = _minimal_config(
+            future_years=0,
+            compensatory_picks=[{"round": 2, "slot": 5}],
+        )
+        picks = generate_picks(config)
+        comp = [p for p in picks if p["is_compensatory"]]
+        assert all("year_status" in p for p in comp)
+
+    def test_multi_year_picks_get_correct_status(self):
+        config = _minimal_config(target_season=2026, future_years=1, rounds=1)
+        ownership = {
+            make_team_pick_id(2026, 1, "T"): make_pick_record("T"),
+            make_team_pick_id(2027, 1, "T"): make_pick_record("T"),
+        }
+        year_status = {2026: YEAR_STATUS_COMPLETED}
+        picks = generate_picks(config, ownership, year_status)
+        by_year = {p["year"]: p["year_status"] for p in picks if not p["is_compensatory"]}
+        assert by_year[2026] == YEAR_STATUS_COMPLETED
+        assert by_year[2027] == YEAR_STATUS_ACTIVE
+
+
+class TestActivePicksOnly:
+
+    def test_filters_completed_picks(self):
+        picks = [
+            {"pick_id": "a", "year_status": YEAR_STATUS_ACTIVE},
+            {"pick_id": "b", "year_status": YEAR_STATUS_COMPLETED},
+            {"pick_id": "c", "year_status": YEAR_STATUS_FINALIZED},
+        ]
+        result = active_picks_only(picks)
+        assert len(result) == 2
+        assert all(p["year_status"] != YEAR_STATUS_COMPLETED for p in result)
+
+    def test_empty_list(self):
+        assert active_picks_only([]) == []
+
+    def test_all_active_unchanged(self):
+        picks = [{"pick_id": "x", "year_status": YEAR_STATUS_ACTIVE}]
+        assert active_picks_only(picks) == picks
+
+    def test_all_completed_returns_empty(self):
+        picks = [
+            {"pick_id": "a", "year_status": YEAR_STATUS_COMPLETED},
+            {"pick_id": "b", "year_status": YEAR_STATUS_COMPLETED},
+        ]
+        assert active_picks_only(picks) == []
+
+    def test_missing_year_status_field_kept(self):
+        """Picks without year_status are kept (safe default)."""
+        picks = [{"pick_id": "a"}, {"pick_id": "b", "year_status": YEAR_STATUS_COMPLETED}]
+        result = active_picks_only(picks)
+        assert len(result) == 1
+        assert result[0]["pick_id"] == "a"

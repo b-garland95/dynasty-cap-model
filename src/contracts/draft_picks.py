@@ -51,6 +51,19 @@ load_ownership() auto-migrates two legacy formats on read:
   - Old string format  : pick_id → "Team Name"  becomes {original_team, owner, slot=null}
   - Old slot-based IDs : "2026_1_03" → "Team Name"  re-keyed to "2026_1_t_{key}", slot=3
     Entries with no original_team (old placeholder nulls) are silently dropped.
+
+Draft year lifecycle
+--------------------
+Each draft year has a lifecycle status stored in data/processed/draft_year_status.json:
+  - "active"    — picks are tradeable assets (default; draft has not yet occurred)
+  - "finalized" — draft order is set but draft has not yet occurred (inferred from
+                  years_with_known_order config; not stored explicitly)
+  - "completed" — draft has occurred; picks from this year are spent and no longer
+                  tradeable inventory
+
+Completed status is the only explicit persisted state.  "finalized" is inferred
+from the config's years_with_known_order list.  Once a year is marked completed,
+downstream views should treat its picks as spent; use active_picks_only() to filter.
 """
 
 from __future__ import annotations
@@ -62,9 +75,18 @@ from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OWNERSHIP_PATH = _REPO_ROOT / "data" / "processed" / "draft_pick_ownership.json"
+DEFAULT_YEAR_STATUS_PATH = _REPO_ROOT / "data" / "processed" / "draft_year_status.json"
 
 # Matches the OLD slot-based pick_id format: "{year}_{round}_{slot:02d}"
 _LEGACY_SLOT_RE = re.compile(r'^(\d{4})_(\d+)_(\d{2})$')
+
+# Draft year lifecycle status constants.
+YEAR_STATUS_ACTIVE = "active"
+YEAR_STATUS_FINALIZED = "finalized"
+YEAR_STATUS_COMPLETED = "completed"
+_VALID_STATUSES: frozenset[str] = frozenset(
+    {YEAR_STATUS_ACTIVE, YEAR_STATUS_FINALIZED, YEAR_STATUS_COMPLETED}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +106,94 @@ def make_comp_pick_id(year: int, rnd: int, comp_index: int) -> str:
 def make_team_pick_id(year: int, rnd: int, original_team: str) -> str:
     """Return the pick_id for a regular (team-based) pick."""
     return f"{year}_{rnd}_t_{normalize_team_key(original_team)}"
+
+
+# ---------------------------------------------------------------------------
+# Draft year lifecycle state
+# ---------------------------------------------------------------------------
+
+def load_year_status(path: str | Path | None = None) -> dict[int, str]:
+    """Load draft year lifecycle states from JSON.
+
+    Returns {year: status} where status is one of YEAR_STATUS_* constants.
+    Returns an empty dict if the file does not exist.
+
+    Raises
+    ------
+    ValueError
+        If the file exists but its top-level JSON value is not an object.
+    """
+    if path is None:
+        path = DEFAULT_YEAR_STATUS_PATH
+    path_obj = Path(path)
+    if not path_obj.exists():
+        return {}
+    with path_obj.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"draft_year_status file must be a JSON object, got {type(data).__name__}"
+        )
+    result: dict[int, str] = {}
+    for year_str, status in data.items():
+        try:
+            year = int(year_str)
+        except (ValueError, TypeError):
+            continue
+        if status in _VALID_STATUSES:
+            result[year] = status
+    return result
+
+
+def save_year_status(
+    year_status: dict[int, str],
+    path: str | Path | None = None,
+) -> None:
+    """Persist draft year lifecycle states to JSON.
+
+    Creates parent directories as needed.
+    """
+    if path is None:
+        path = DEFAULT_YEAR_STATUS_PATH
+    path_obj = Path(path)
+    path_obj.parent.mkdir(parents=True, exist_ok=True)
+    serializable = {str(y): s for y, s in sorted(year_status.items())}
+    with path_obj.open("w", encoding="utf-8") as fh:
+        json.dump(serializable, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+
+
+def get_year_status(
+    config: dict[str, Any],
+    year: int,
+    year_status: dict[int, str] | None = None,
+) -> str:
+    """Return the lifecycle status for a draft year.
+
+    Checks the persisted year_status dict first (completed overrides everything),
+    then infers from config:
+      - years_with_known_order → 'finalized'
+      - otherwise → 'active'
+    """
+    if year_status and year_status.get(year) == YEAR_STATUS_COMPLETED:
+        return YEAR_STATUS_COMPLETED
+    dp_cfg = config.get("draft_picks", {})
+    years_with_known_order: set[int] = {
+        int(y) for y in dp_cfg.get("years_with_known_order", [])
+    }
+    if year in years_with_known_order:
+        return YEAR_STATUS_FINALIZED
+    return YEAR_STATUS_ACTIVE
+
+
+def mark_year_completed(year_status: dict[int, str], year: int) -> None:
+    """Mark a draft year as completed (picks are spent). Mutates year_status in place."""
+    year_status[year] = YEAR_STATUS_COMPLETED
+
+
+def active_picks_only(picks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return only picks from non-completed draft years."""
+    return [p for p in picks if p.get("year_status") != YEAR_STATUS_COMPLETED]
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +220,7 @@ def _pick_salary(
 def generate_picks(
     config: dict[str, Any],
     ownership: dict[str, dict[str, Any]] | None = None,
+    year_status: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate pick metadata for all tracked draft years.
 
@@ -127,6 +238,10 @@ def generate_picks(
     ownership:
         Ownership dict from load_ownership().  Required to produce team-based
         picks.  If None or empty, only comp picks are returned.
+    year_status:
+        Optional dict from load_year_status() mapping year → lifecycle status.
+        When provided, each pick's year_status field reflects whether picks for
+        that year are 'active', 'finalized', or 'completed'.
 
     Returns
     -------
@@ -139,6 +254,7 @@ def generate_picks(
       order_known    : bool
       is_compensatory: bool
       original_team  : str | None
+      year_status    : str          'active', 'finalized', or 'completed'
     """
     target_season = int(config["season"]["target_season"])
     dp_cfg = config.get("draft_picks", {})
@@ -175,6 +291,7 @@ def generate_picks(
     for year_offset in range(future_years + 1):
         year = target_season + year_offset
         order_known = year in years_with_known_order
+        status = get_year_status(config, year, year_status)
 
         for rnd in range(1, rounds + 1):
             # Regular picks — one per team.
@@ -194,6 +311,7 @@ def generate_picks(
                     "order_known": order_known,
                     "is_compensatory": False,
                     "original_team": original_team,
+                    "year_status": status,
                 })
 
             # Compensatory picks.
@@ -208,6 +326,7 @@ def generate_picks(
                     "order_known": order_known,
                     "is_compensatory": True,
                     "original_team": None,
+                    "year_status": status,
                 })
 
     return picks

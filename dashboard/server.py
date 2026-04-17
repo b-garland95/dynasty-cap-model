@@ -46,13 +46,17 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 
 from src.contracts.draft_picks import (
     DEFAULT_OWNERSHIP_PATH,
+    DEFAULT_YEAR_STATUS_PATH,
     generate_picks,
     load_ownership,
+    load_year_status,
     make_pick_record,
     make_team_pick_id,
+    mark_year_completed,
     normalize_team_key,
     register_teams,
     save_ownership,
+    save_year_status,
     set_draft_order,
 )
 from src.contracts.phase3_exports import export_phase3_tables
@@ -123,14 +127,20 @@ def src_files(filename: str) -> Response:
 
 @app.route("/api/picks", methods=["GET"])
 def api_get_picks() -> Response:
-    """Return the full pick universe and current ownership.
+    """Return the full pick universe, current ownership, and year lifecycle states.
 
     Picks are derived from the ownership file so team-based picks appear
-    automatically once teams are registered.
+    automatically once teams are registered.  Each pick includes a year_status
+    field ('active', 'finalized', or 'completed').
     """
     ownership = load_ownership()
-    picks = generate_picks(_CONFIG, ownership)
-    return jsonify({"picks": picks, "ownership": ownership})
+    year_status = load_year_status()
+    picks = generate_picks(_CONFIG, ownership, year_status)
+    return jsonify({
+        "picks": picks,
+        "ownership": ownership,
+        "year_status": {str(k): v for k, v in year_status.items()},
+    })
 
 
 @app.route("/api/picks", methods=["POST"])
@@ -205,8 +215,14 @@ def api_init_teams() -> Response:
     except Exception as exc:  # pragma: no cover
         return jsonify({"ok": False, "error": str(exc)}), 500
 
-    picks = generate_picks(_CONFIG, ownership)
-    return jsonify({"ok": True, "picks": picks, "ownership": ownership})
+    year_status = load_year_status()
+    picks = generate_picks(_CONFIG, ownership, year_status)
+    return jsonify({
+        "ok": True,
+        "picks": picks,
+        "ownership": ownership,
+        "year_status": {str(k): v for k, v in year_status.items()},
+    })
 
 
 @app.route("/api/picks/draft-order", methods=["POST"])
@@ -242,8 +258,52 @@ def api_set_draft_order() -> Response:
     except Exception as exc:  # pragma: no cover
         return jsonify({"ok": False, "error": str(exc)}), 500
 
-    picks = generate_picks(_CONFIG, ownership)
-    return jsonify({"ok": True, "picks": picks, "ownership": ownership})
+    year_status = load_year_status()
+    picks = generate_picks(_CONFIG, ownership, year_status)
+    return jsonify({
+        "ok": True,
+        "picks": picks,
+        "ownership": ownership,
+        "year_status": {str(k): v for k, v in year_status.items()},
+    })
+
+
+@app.route("/api/picks/complete-year", methods=["POST"])
+def api_complete_year() -> Response:
+    """Mark a draft year as completed — its picks are spent inventory.
+
+    Body: {"year": 2026}
+
+    Persists the completed status in draft_year_status.json.  Subsequent calls
+    to GET /api/picks will return those picks with year_status='completed'.
+    This is a durable, explicit transition; it does not affect ownership records
+    or the config's years_with_known_order list.
+    """
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Body must be a JSON object"}), 400
+
+    year = data.get("year")
+    if not isinstance(year, int):
+        return jsonify({"ok": False, "error": "'year' must be an integer"}), 400
+
+    year_status = load_year_status()
+    mark_year_completed(year_status, year)
+
+    try:
+        save_year_status(year_status)
+    except Exception as exc:  # pragma: no cover
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    ownership = load_ownership()
+    picks = generate_picks(_CONFIG, ownership, year_status)
+    return jsonify({
+        "ok": True,
+        "year": year,
+        "picks": picks,
+        "ownership": ownership,
+        "year_status": {str(k): v for k, v in year_status.items()},
+    })
 
 
 # ── League Config API ──────────────────────────────────────────────────────

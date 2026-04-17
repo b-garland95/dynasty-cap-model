@@ -131,6 +131,20 @@ draft_picks:
   future_years_tracked: 2
   rounds: 4
   picks_per_round: 10
+  # Years where the draft order has been finalized and slots are real positions.
+  # For years NOT listed here, slot numbers are placeholders; order_known=False.
+  years_with_known_order: []
+  # Extra picks inserted after the standard picks_per_round slots each round.
+  # Default owner is empty (null) for all comp picks.
+  compensatory_picks:
+    - round: 2
+      slot: 11
+    - round: 3
+      slot: 11
+    - round: 4
+      slot: 11
+    - round: 4
+      slot: 12
 
 # Age-curve parameters for dynasty multi-year projections (Hybrid A+B model).
 # peak_age    – age at which a player at their expected dynasty ceiling produces

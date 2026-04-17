@@ -40,6 +40,11 @@ let ALL_LG_TEAMS    = [];  // sorted unique fantasy team names from SURPLUS_DATA
 let DRAFT_PICKS_DATA = [];   // flat inventory (picks × ownership)
 let ALL_PICK_YEARS   = [];   // sorted unique draft years
 
+// ── League Config & Team Adjustments ────────────────────────────────────────
+// Loaded from Flask API endpoints. Used by Cap Health and League Settings views.
+let LEAGUE_CONFIG     = {};  // editable config subset (dot-notation keys)
+let TEAM_ADJUSTMENTS  = {};  // { "Team Name": { dead_money, cap_transactions, rollover } }
+
 /**
  * Parse a CSV via PapaParse (download mode — works with both file:// and http://).
  * Returns a promise that resolves to the array of row objects.
@@ -287,7 +292,30 @@ function loadData() {
       });
     });
 
+  // League config & team adjustments — loaded from Flask API, silent on failure.
+  const configPromise = fetch('/api/config')
+    .then(r => {
+      if (!r.ok) throw new Error(`/api/config returned ${r.status}`);
+      return r.json();
+    })
+    .then(({ config }) => {
+      Object.assign(LEAGUE_CONFIG, config || {});
+      console.log(`League config: loaded ${Object.keys(LEAGUE_CONFIG).length} fields`);
+    })
+    .catch(() => { /* Server not running — LEAGUE_CONFIG stays empty */ });
+
+  const adjustmentsPromise = fetch('/api/team-adjustments')
+    .then(r => {
+      if (!r.ok) throw new Error(`/api/team-adjustments returned ${r.status}`);
+      return r.json();
+    })
+    .then(({ adjustments }) => {
+      Object.assign(TEAM_ADJUSTMENTS, adjustments || {});
+      console.log(`Team adjustments: ${Object.keys(TEAM_ADJUSTMENTS).length} teams`);
+    })
+    .catch(() => { /* Server not running — TEAM_ADJUSTMENTS stays empty */ });
+
   // Return only the Phase 1 promise so the app starts as soon as historical
   // data is ready. Supplemental data populates in the background.
-  return Promise.all([phase1Promise, supplementalPromise, picksPromise]);
+  return Promise.all([phase1Promise, supplementalPromise, picksPromise, configPromise, adjustmentsPromise]);
 }

@@ -52,6 +52,7 @@
       <button class="tab-btn" data-tab="league"      data-section="league"     role="tab" hidden>League Analysis</button>
 
       <!-- League Config tabs (hidden until section selected) -->
+      <button class="tab-btn" data-tab="league-settings" data-section="league-config" role="tab" hidden>League Settings</button>
       <button class="tab-btn" data-tab="draft-picks" data-section="league-config" role="tab" hidden>Draft Picks</button>
 
     </nav>
@@ -307,6 +308,7 @@
                 <tr>
                   <th>Team</th>
                   <th class="num">Cap Today</th>
+                  <th class="num">Cap Remaining</th>
                   <th id="cap-col-value"   class="num">Proj Value</th>
                   <th id="cap-col-cap"     class="num">Cap Hit</th>
                   <th id="cap-col-surplus" class="num">Surplus</th>
@@ -348,6 +350,92 @@
         </div><!-- #sub-pick-inventory -->
 
       </div><!-- #panel-league -->
+
+      <!-- ── LEAGUE CONFIG — LEAGUE SETTINGS ──────────────────────────── -->
+
+      <div id="panel-league-settings" class="tab-panel" role="tabpanel">
+
+        <!-- Section 1: Config Fields -->
+        <div class="lc-section">
+          <div class="lc-header">
+            <h2 class="section-heading">League Settings</h2>
+            <p class="section-desc">
+              Edit league configuration values. Changes are saved back to the backend config file.
+            </p>
+            <div class="lc-actions">
+              <button id="lc-save-btn" class="action-btn action-btn-primary">Save Config</button>
+              <span id="lc-save-status" class="save-status" hidden></span>
+            </div>
+          </div>
+          <div id="lc-loading" class="dp-loading">Loading config…</div>
+          <div id="lc-error" class="dp-error" hidden></div>
+          <div id="lc-fields-container"></div>
+        </div>
+
+        <!-- Section 2: Team Cap Adjustments -->
+        <div class="lc-section">
+          <div class="lc-header">
+            <h2 class="section-heading">Team Cap Adjustments</h2>
+            <p class="section-desc">
+              Enter per-team Dead Money, Cap Transactions, and Rollover values.
+              Cap Remaining updates live from: Starting Cap − Current Cap Usage − Dead Money − Cap Transactions + Rollover.
+              Positive Cap Transactions = credits; negative = charges.
+            </p>
+            <div class="lc-actions">
+              <button id="ca-save-btn" class="action-btn action-btn-primary">Save Adjustments</button>
+              <span id="ca-save-status" class="save-status" hidden></span>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table id="ca-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th class="num">Starting Cap</th>
+                  <th class="num">Current Cap Usage</th>
+                  <th class="num">Dead Money</th>
+                  <th class="num">Cap Transactions</th>
+                  <th class="num">Rollover</th>
+                  <th class="num">Cap Remaining</th>
+                </tr>
+              </thead>
+              <tbody id="ca-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section 3: Roster Upload & Recompute -->
+        <div class="lc-section">
+          <div class="lc-header">
+            <h2 class="section-heading">Roster Upload</h2>
+            <p class="section-desc">
+              Upload a refreshed League Tycoon roster CSV. The file will be validated before
+              replacing the backend roster source.
+            </p>
+          </div>
+          <div id="ru-drop-zone" class="file-drop-zone">
+            <div class="file-drop-zone-content">
+              <span class="file-drop-zone-icon">&#128194;</span>
+              <p>Drop roster CSV here or <strong>click to browse</strong></p>
+            </div>
+            <input type="file" id="ru-file-input" accept=".csv" hidden />
+          </div>
+          <div id="ru-upload-status" hidden></div>
+
+          <div class="lc-recompute-section">
+            <h3 class="section-heading">Update Analytical Outputs</h3>
+            <p class="section-desc">
+              Re-run the Phase 3 pipeline to regenerate contract surplus, cap health, and
+              instrument candidate tables from the latest config and roster data.
+            </p>
+            <div class="lc-actions">
+              <button id="ru-recompute-btn" class="action-btn action-btn-primary">Recompute</button>
+              <span id="ru-recompute-status" class="save-status" hidden></span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- #panel-league-settings -->
 
       <!-- ── LEAGUE CONFIG — DRAFT PICKS ─────────────────────────────────── -->
 
@@ -474,6 +562,7 @@
   <script src="view-positional-efficiency.js"></script>
   <script src="view-forecasted.js"></script>
   <script src="view-league.js"></script>
+  <script src="view-league-config.js"></script>
   <script src="view-draft-picks.js"></script>
   <script src="app.js"></script>
 

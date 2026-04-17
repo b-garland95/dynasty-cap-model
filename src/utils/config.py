@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import ast
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,21 @@ try:
     import yaml
 except ModuleNotFoundError:  # pragma: no cover - environment-dependent
     yaml = None
+
+
+EDITABLE_CONFIG_FIELDS = [
+    "cap.base_cap",
+    "cap.annual_inflation",
+    "cap.discount_rate",
+    "league.teams",
+    "season.current_season",
+    "season.target_season",
+    "roster.bench",
+    "roster.ir_slots",
+    "roster.practice_squad_slots",
+    "practice_squad.cap_percent",
+    "injured_reserve.cap_percent",
+]
 
 
 def load_league_config(path: str | None = None) -> dict[str, Any]:
@@ -90,6 +106,73 @@ def validate_league_config(config: dict[str, Any]) -> None:
             f"Config: season.target_season ({target_season}) must be >= "
             f"season.current_season ({current_season})"
         )
+
+
+def save_league_config(
+    updates: dict[str, Any],
+    path: str | None = None,
+) -> dict[str, Any]:
+    """Merge updates into the existing league config, validate, and write back.
+
+    Parameters
+    ----------
+    updates:
+        Dict of dot-notation keys to new values, e.g. ``{"cap.base_cap": 350}``.
+        Only keys in EDITABLE_CONFIG_FIELDS are accepted.
+    path:
+        Config file path. Defaults to ``src/config/league_config.yaml``.
+
+    Returns
+    -------
+    The validated merged config dict.
+
+    Raises
+    ------
+    ValueError
+        If an update key is not in the editable whitelist, or if the merged
+        config fails validation.
+    RuntimeError
+        If the yaml library is not available (cannot write YAML without it).
+    """
+    if yaml is None:
+        raise RuntimeError("PyYAML is required to save league config")
+
+    unknown = [k for k in updates if k not in EDITABLE_CONFIG_FIELDS]
+    if unknown:
+        raise ValueError(f"Non-editable config fields: {unknown}")
+
+    config = load_league_config(path)
+
+    for dotted_key, value in updates.items():
+        parts = dotted_key.split(".")
+        target = config
+        for part in parts[:-1]:
+            target = target[part]
+        target[parts[-1]] = value
+
+    validate_league_config(config)
+
+    if path is None:
+        path_obj = Path(__file__).resolve().parents[1] / "config" / "league_config.yaml"
+    else:
+        path_obj = Path(path)
+
+    with path_obj.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(config, fh, default_flow_style=False, sort_keys=False)
+
+    return config
+
+
+def get_editable_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Extract the editable subset of config fields as a flat dot-notation dict."""
+    result: dict[str, Any] = {}
+    for dotted_key in EDITABLE_CONFIG_FIELDS:
+        parts = dotted_key.split(".")
+        value = config
+        for part in parts:
+            value = value.get(part) if isinstance(value, dict) else None
+        result[dotted_key] = value
+    return result
 
 
 def _require_keys(d: dict[str, Any], keys: list[str], parent: str = "config") -> None:

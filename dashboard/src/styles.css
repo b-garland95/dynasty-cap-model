@@ -1219,3 +1219,172 @@ body {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
 }
+
+/* ── League Config ── */
+
+.lc-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.lc-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.lc-header .section-heading {
+  flex: 0 0 auto;
+}
+
+.lc-header .section-desc {
+  flex: 1 1 400px;
+}
+
+.lc-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.config-field-group {
+  margin-bottom: 20px;
+}
+
+.config-field-group h3 {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.config-field-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.config-field-row label {
+  flex: 0 0 200px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.config-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 6px 10px;
+  width: 140px;
+}
+
+.config-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Adjustment table inputs */
+.adj-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  width: 100px;
+  text-align: right;
+}
+
+.adj-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* File drop zone */
+.file-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.file-drop-zone:hover {
+  border-color: var(--accent);
+}
+
+.file-drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(108, 140, 255, 0.06);
+}
+
+.file-drop-zone-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.file-drop-zone-content p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.file-drop-zone-content strong {
+  color: var(--accent);
+}
+
+/* Upload status */
+.upload-status {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.upload-status-pending {
+  color: var(--muted);
+  background: var(--surface2);
+}
+
+.upload-status-ok {
+  color: var(--surplus-high);
+  background: rgba(152, 195, 121, 0.08);
+}
+
+.upload-status-error {
+  color: var(--surplus-low);
+  background: rgba(224, 108, 117, 0.08);
+}
+
+/* Recompute section */
+.lc-recompute-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.lc-recompute-section .section-heading {
+  font-size: 15px;
+}
+
+.lc-recompute-section .lc-actions {
+  margin-top: 12px;
+  margin-left: 0;
+}

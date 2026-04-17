@@ -32,8 +32,8 @@ const SECTIONS = {
     defaultTab: 'league'
   },
   'league-config': {
-    tabs: ['draft-picks'],
-    defaultTab: 'draft-picks'
+    tabs: ['league-settings', 'draft-picks'],
+    defaultTab: 'league-settings'
   },
 };
 
@@ -47,6 +47,7 @@ const VIEW_INIT_FNS = {
   'positional-efficiency': () => initPositionalEfficiency(),
   'forecasted':            () => initForecasted(),
   'league':                () => initLeague(),
+  'league-settings':       () => initLeagueSettings(),
   'draft-picks':           () => initDraftPicks(),
 };
 

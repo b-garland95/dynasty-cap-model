@@ -47,6 +47,57 @@
     return (v !== null && v !== undefined && !isNaN(v)) ? (+v).toFixed(1) : '–';
   }
 
+  function _comparableMetricValue(tvRow, surplusAll) {
+    if (!tvRow) return null;
+    if (_compMetric === 'tv_y0') return tvRow.tv_y0;
+    if (_compMetric === 'tv_sum') {
+      return (tvRow.tv_y0 || 0) + (tvRow.tv_y1 || 0) + (tvRow.tv_y2 || 0) + (tvRow.tv_y3 || 0);
+    }
+    if (_compMetric === 'surplus') {
+      const s = surplusAll.find(r => r.player === tvRow.player);
+      return s ? (s.surplus_1yr ?? s.surplus_value) : null;
+    }
+    return null;
+  }
+
+  function _buildComparableWindow(playerName, tvAll, surplusAll, ledgerAll) {
+    const focalTV  = tvAll.find(r => r.player === playerName);
+    const focalPos = focalTV?.position || HEADSHOT_MAP[playerName]?.position || null;
+
+    const rankedRows = tvAll
+      .filter(r => !_compSamePos || !focalPos || r.position === focalPos)
+      .map(r => {
+        const sur = surplusAll.find(s => s.player === r.player);
+        const led = ledgerAll.find(l => l.player === r.player);
+        return {
+          r,
+          val: _comparableMetricValue(r, surplusAll),
+          sur,
+          led,
+        };
+      })
+      .sort((a, b) => {
+        const av = a.val;
+        const bv = b.val;
+        if (av === null || av === undefined) return 1;
+        if (bv === null || bv === undefined) return -1;
+        if (bv !== av) return bv - av;
+        return a.r.player.localeCompare(b.r.player);
+      });
+
+    const focalIndex = rankedRows.findIndex(({ r }) => r.player === playerName);
+    if (focalIndex === -1) return [];
+
+    const start = Math.max(0, focalIndex - 5);
+    const end = Math.min(rankedRows.length, focalIndex + 6);
+
+    return rankedRows.slice(start, end).map((row, idx) => ({
+      ...row,
+      rank: start + idx + 1,
+      isFocal: row.r.player === playerName,
+    }));
+  }
+
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function _switchModalTab(tabId, skipRender) {
@@ -416,34 +467,7 @@
       return;
     }
 
-    const focalTV  = tvAll.find(r => r.player === playerName);
-    const focalPos = focalTV?.position || HEADSHOT_MAP[playerName]?.position || null;
-
-    // Metric value extractor
-    function metricVal(tvRow) {
-      if (_compMetric === 'tv_y0')  return tvRow.tv_y0;
-      if (_compMetric === 'tv_sum') return (tvRow.tv_y0 || 0) + (tvRow.tv_y1 || 0) + (tvRow.tv_y2 || 0) + (tvRow.tv_y3 || 0);
-      if (_compMetric === 'surplus') {
-        const s = surplusAll.find(r => r.player === tvRow.player);
-        // Prefer windowed surplus_1yr; fall back to legacy surplus_value.
-        return s ? (s.surplus_1yr ?? s.surplus_value) : null;
-      }
-      return null;
-    }
-
-    const focalVal = focalTV ? metricVal(focalTV) : null;
-
-    const rows = tvAll
-      .filter(r => !_compSamePos || !focalPos || r.position === focalPos)
-      .map(r => {
-        const val = metricVal(r);
-        const dist = (focalVal !== null && val !== null) ? Math.abs(val - focalVal) : Infinity;
-        const sur = surplusAll.find(s => s.player === r.player);
-        const led = ledgerAll.find(l => l.player === r.player);
-        return { r, val, dist, sur, led };
-      })
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 20);
+    const rows = _buildComparableWindow(playerName, tvAll, surplusAll, ledgerAll);
 
     // Update metric column header
     const hdr = document.getElementById('modal-comp-metric-header');
@@ -453,9 +477,13 @@
                       :                              'This Year\'s Surplus';
     }
 
-    tbody.innerHTML = rows.map(({ r, val, sur, led }) => {
-      const isFocal    = r.player === playerName;
-      const rowStyle   = isFocal ? ' style="background:var(--surface2);"' : '';
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">Comparable players are not available for this ranking window.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(({ r, val, sur, led, isFocal }) => {
+      const rowClass   = isFocal ? ' class="modal-comp-row-anchor"' : '';
       // Prefer windowed surplus_1yr; fall back to legacy surplus_value.
       const surplusVal = sur ? (sur.surplus_1yr ?? sur.surplus_value ?? null) : null;
       const capToday   = led?.current_salary ?? null;
@@ -472,7 +500,7 @@
         ? `<strong>${playerLink(r.player)}</strong>`
         : playerLink(r.player);
 
-      return `<tr${rowStyle}>` +
+      return `<tr${rowClass}>` +
         `<td>${nameCell}</td>` +
         `<td>${r.team || '–'}</td>` +
         `<td><span class="pos-badge${posClass}">${r.position}</span></td>` +

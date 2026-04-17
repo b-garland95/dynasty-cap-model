@@ -2,28 +2,33 @@
 
 ## Ready
 
-### Tighten Comparable Players Modal Window
+### Add Draft Pick Ownership Management
 
-Outcome: The comparable players tab in the player modal shows a focused comparison set with only the 5 players directly above and 5 directly below the selected player under the active evaluation framework.
+Outcome: User can assign and persist rookie draft pick ownership by team for the current league year and future draft years, and that information is visible in the app for later valuation work.
 
-Description: The comparable players tab is currently too crowded, which makes it harder to quickly understand the most relevant nearby player comps. We should narrow the displayed comparison set so that, for the currently selected evaluation framework, the modal only shows the 5 players immediately above and the 5 players immediately below the target player in the ranking order.
+Description: We need a foundational system for managing draft picks before building draft pick valuation. The app should support tracking who owns each rookie pick, starting with the current league year plus the next 2 league years. That horizon should be configurable from league settings rather than hardcoded. There is already repo context for the rookie pick pay scale, so this ticket is focused on pick ownership management, storage, and display rather than pricing or valuation logic.
 
-This should be framework-aware, so the displayed neighbors update based on whichever evaluation framework is currently selected. The selected player should remain the anchor point, and edge cases near the top or bottom of the rankings should be handled cleanly.
+This should include a League Config workflow where a user can assign each pick to a team, a backend representation for storing and loading that ownership data, and initial surfacing of pick ownership on the League Analysis page so that future trade / asset views can build on it.
 
 Done when:
 
-  * Comparable players tab shows only the 5 players ranked directly above and 5 directly below the selected player
-  * Comparison set is derived from the currently selected evaluation framework
-  * Selected player remains clearly identified as the anchor of the comparison window
-  * Edge cases near the top or bottom of the rankings degrade gracefully without errors
-  * UI remains readable and less crowded than the current implementation
-  * Any tests covering comparable player selection or rendering are updated accordingly
+  * User can view draft pick inventory for the current league year and future league years on a League Config page
+  * User can assign each pick to a team from the UI
+  * Pick ownership is persisted in the backend and survives app reloads
+  * Number of future draft years tracked is configurable in league settings
+  * Default tracked horizon is current league year + next 2 league years
+  * Data model cleanly supports one owner per pick per year/round/slot
+  * Existing rookie pick pay scale context is not duplicated or hardcoded in a second place
+  * League Analysis page shows each team’s owned picks in a readable format
+  * Tests cover config/load/save behavior and at least one UI or integration path
 
 Notes for agent:
 
-  * Use the active framework ranking order as the source of truth for neighbor selection
-  * Keep this scoped to narrowing the displayed comparison window, not redefining similarity logic
-  * Confirm whether the selected player itself should remain visually included between the above/below groups, but do not include extra surrounding players beyond the intended window
+  * Scope this as pick ownership only, not pick valuation
+  * Keep source-of-truth league settings in config, consistent with existing repo conventions
+  * Design the schema so future tickets can attach pick value, trade history, and pick-based surplus outputs without reworking storage
+  * Consider representing picks at the individual pick level (for example: 2026 1.01, 2026 1.02, etc.) if that aligns with the existing rookie pay scale structure
+  * League Analysis display can be simple at first, but should clearly answer “which picks does each team own?”
 
 ### Add Scalable League Config and League Data Management Screen
 

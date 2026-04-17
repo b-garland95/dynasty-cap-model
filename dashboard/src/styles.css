@@ -917,6 +917,11 @@ body {
   margin-bottom: 4px;
 }
 
+.modal-comp-row-anchor td {
+  background: var(--surface2);
+  font-weight: 600;
+}
+
 /* ════════════════════════════════════════════════════════════
    Data Tables (Phase 2 + Phase 3 views)
    ════════════════════════════════════════════════════════════ */

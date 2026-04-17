@@ -2,85 +2,107 @@
 
 ## Ready
 
-### Add Draft Pick Ownership Management
+### Expand Draft Pick Data Model for Original Assignment, Ownership, and Comp Picks
 
-Outcome: User can assign and persist rookie draft pick ownership by team for the current league year and future draft years, and that information is visible in the app for later valuation work.
+Outcome: Draft pick records correctly represent original assignment, current ownership, configurable compensatory picks, and the distinction between known-order and unknown-order future picks.
 
-Description: We need a foundational system for managing draft picks before building draft pick valuation. The app should support tracking who owns each rookie pick, starting with the current league year plus the next 2 league years. That horizon should be configurable from league settings rather than hardcoded. There is already repo context for the rookie pick pay scale, so this ticket is focused on pick ownership management, storage, and display rather than pricing or valuation logic.
+Description: The current draft pick ownership framework is too simple for the league’s actual draft structure. We need to expand the model so a pick is not just “owned by” a team, but also has an original team assignment and, when known, a realized draft slot. This is important because picks originate with one team, draft order is determined later based on performance, and ownership can change through trades.
 
-This should include a League Config workflow where a user can assign each pick to a team, a backend representation for storing and loading that ownership data, and initial surfacing of pick ownership on the League Analysis page so that future trade / asset views can build on it.
+The model also needs to support compensatory picks. Comp picks should be configurable from league settings rather than hardcoded, but the current structure must support the existing extra picks at:
+- 2.11
+- 3.11
+- 4.11
+- 4.12
 
-Done when:
+The default ownership of these comp-picks should be empty. 
 
-  * User can view draft pick inventory for the current league year and future league years on a League Config page
-  * User can assign each pick to a team from the UI
-  * Pick ownership is persisted in the backend and survives app reloads
-  * Number of future draft years tracked is configurable in league settings
-  * Default tracked horizon is current league year + next 2 league years
-  * Data model cleanly supports one owner per pick per year/round/slot
-  * Existing rookie pick pay scale context is not duplicated or hardcoded in a second place
-  * League Analysis page shows each team’s owned picks in a readable format
-  * Tests cover config/load/save behavior and at least one UI or integration path
+For future draft years, the exact slot order is not yet known. That means the UI and backend should distinguish between:
+- picks for years with a known draft order
+- picks for years where only original team assignment is known
 
-Notes for agent:
+By default, a pick should be owned by the same team to which it was originally assigned. Ownership should then be independently editable when picks are traded.
 
-  * Scope this as pick ownership only, not pick valuation
-  * Keep source-of-truth league settings in config, consistent with existing repo conventions
-  * Design the schema so future tickets can attach pick value, trade history, and pick-based surplus outputs without reworking storage
-  * Consider representing picks at the individual pick level (for example: 2026 1.01, 2026 1.02, etc.) if that aligns with the existing rookie pay scale structure
-  * League Analysis display can be simple at first, but should clearly answer “which picks does each team own?”
-
-### Add Scalable League Config and League Data Management Screen
-
-Outcome: User can manage league-level configuration, upload refreshed roster data, persist those changes back to the backend source-of-truth files, and trigger a refresh of downstream analytical outputs from the UI.
-
-Description: We need a scalable way to manage league configuration and core league data without manually editing backend files. The app should include a dedicated League Config management screen that acts as the operational control center for league-level settings and key uploaded inputs.
-
-This screen should read from backend source-of-truth files, expose supported configuration fields in a structured UI, allow users to save changes back to the backend config, support uploading a refreshed Rosters file via file drop, and provide a clear action to update all downstream analytical outputs after edits are made.
-
-This should serve as the long-term home for league-level settings and manual overrides that affect analysis. That includes both broader configuration controls and team-level cap adjustment inputs that are not reliably available from roster exports.
-
-Initial manual adjustment inputs should include:
-- Dead Money
-- Cap Transactions
-- Rollover from previous year
-
-These values should be persisted in the backend config layer and incorporated into downstream calculations. The most important immediate downstream surface is Cap Health, which should show Cap Remaining using the configured values.
-
-The screen should also support replacing or refreshing the backend Rosters source via file drop so users can update league data without manual backend intervention. After config changes or file uploads, the user should be able to trigger a recomputation of analytical outputs so the app reflects the latest configuration and roster state.
-
-This ticket is about the config management workflow, backend synchronization, roster file ingestion entry point, and recompute pattern. It is not about building a full transaction ledger or redesigning every config field at once.
+This ticket is about correcting the underlying pick representation and app behavior, not about final pick valuation.
 
 Done when:
 
-  * App has a dedicated League Config / league data management screen for league-level settings and operational inputs
-  * Screen reads current values from the backend config source of truth
-  * User can edit supported config fields from the UI
-  * League Config screen supports team-level manual cap adjustment inputs for every team
-  * Initial cap adjustment fields include Dead Money, Cap Transactions, and Rollover from previous year
-  * Saving from the UI writes config changes back to the backend config source of truth
-  * Screen supports file drop upload for refreshing the backend Rosters file
-  * Uploaded roster file is validated before being accepted
-  * Successful roster upload updates the backend roster source of truth for supported workflows
-  * Screen includes a clear action to update or recompute analytical outputs after config changes or roster uploads
-  * Analytical outputs reflect updated config values and roster inputs after recomputation
-  * Cap Health screen shows Cap Remaining using configured adjustments
-  * Cap Remaining is calculated as: Starting Team Cap - Current Contract Value - Dead Money - Cap Transactions + Rollover
-  * App provides clear feedback for save success, roster upload success, recompute success, validation issues, and failure states
-  * Validation prevents invalid config values or malformed roster files from being written
-  * Config editing and roster refresh workflows do not require manual backend file edits for supported operations
-  * Tests cover config load, config save, roster upload validation, roster persistence, recomputation behavior, and displayed cap remaining values
+  * Draft pick model distinguishes between original assignment and current owner
+  * New picks default current owner to original assigned team
+  * Ownership can be updated independently from original assignment
+  * League settings support configurable compensatory pick structure
+  * Current comp picks 2.11, 3.11, 4.11, and 4.12 can be represented correctly
+  * Data model supports years with known slot order and years without known slot order
+  * UI for future years does not require a finalized slot order when that order is not yet known
+  * Pick representation remains compatible with future valuation work
+  * Tests cover default ownership, traded ownership overrides, comp pick creation, and future-year unknown-order behavior
 
 Notes for agent:
 
-  * Keep backend config and backend roster data files as source-of-truth inputs, but add an app-layer workflow for editing and replacing supported inputs safely
-  * Separate “save config changes,” “upload roster file,” and “refresh analytical outputs” into distinct actions unless the existing architecture strongly favors combining some of them
-  * Treat manual cap adjustments as league configuration inputs, not as a transaction-history reconstruction system
-  * Keep the schema and screen structure extensible so additional config sections and uploaded league data sources can be added over time without rebuilding the whole screen
-  * Validate uploaded roster files against the expected shape before replacing the backend source
-  * Confirm whether Cap Transactions should support positive and negative values depending on league convention, and implement consistently
-  * Make failure states debuggable, especially when config save succeeds but recomputation fails, or roster upload succeeds but downstream parsing fails
-  * Surface values and upload results in a way that makes debugging mismatches against League Tycoon straightforward
+  * Treat original assignment and current ownership as separate first-class fields
+  * Do not assume every future pick can be represented as a fixed slot like 1.03 or 2.07 before order is known
+  * Keep comp pick configuration driven by league settings so the structure is reusable across leagues
+  * Design the model so future tickets can attach valuation, trade history, and lifecycle state without reworking the schema
+
+### Add Draft Order Submission Workflow for Annual Pick Slot Generation
+
+Outcome: User can submit the finalized draft order for a league year and automatically generate the initial slot structure for that year’s draft across all rounds based on original team assignment and league settings.
+
+Description: Pick slot order is not known until the prior season ends. Once that order is known, we need a workflow for submitting the finalized draft order so the app can build the initial state of that season’s picks. The submitted order should drive slot creation across each round, since the same team ordering repeats by round, with configured comp picks inserted where applicable.
+
+This workflow should allow the app to move a draft year from an “order unknown” state into a “slot order known” state. After submission, each pick for that year should have a concrete round/slot identity based on the entered draft order and the configured league structure.
+
+This ticket is about annual draft-order finalization and pick instantiation, not about managing post-trade ownership changes beyond preserving whatever ownership logic already exists.
+
+Done when:
+
+  * App supports submitting a finalized draft order for a specific league year
+  * Submitted order generates the initial slot structure for each standard round in that year
+  * Generated slot order repeats correctly across rounds based on the entered team ordering
+  * Configured compensatory picks are inserted correctly for the affected rounds
+  * Workflow applies to a draft year that previously had unknown future order
+  * Generated picks preserve original assignment correctly
+  * Existing ownership logic remains compatible after slot generation
+  * User receives clear feedback when draft order submission succeeds or fails
+  * Tests cover annual order submission, round replication, and comp-pick insertion
+
+Notes for agent:
+
+  * Think of this as a year-finalization workflow that converts abstract future picks into concrete slotted picks
+  * Keep the entered draft order as an explicit input that can be inspected and, if necessary, corrected later
+  * Make sure generated slot structure is deterministic and reproducible from the submitted order plus league settings
+  * Be careful not to overwrite traded ownership state when turning a year into concrete slotted picks
+
+### Add Draft Year Lifecycle State for Spent Picks After the Draft
+
+Outcome: User can mark a draft year as completed after the rookie draft occurs, and the app will treat that year’s picks as spent while relying on updated roster data to reflect the resulting player-team assignments.
+
+Description: Once the rookie draft has happened, the current-year picks are no longer active assets. We need a way to indicate that a draft year has been completed so those picks are no longer treated as available inventory in the app. Updated roster data will handle assigning drafted players to teams, so this workflow is primarily about pick lifecycle state rather than player ingestion.
+
+This should let the app distinguish between:
+- future draft picks that are still active assets
+- current-year picks before the draft
+- current-year picks after the draft has been completed and spent
+
+The transition should be explicit and durable so downstream analysis does not continue showing already-used picks as tradable or available.
+
+This ticket is about draft-year lifecycle state and post-draft cleanup behavior, not about parsing draft results from transaction history.
+
+Done when:
+
+  * App supports marking a draft year as completed after the draft occurs
+  * Completed draft year no longer shows its picks as active tradeable inventory
+  * League Analysis and related pick views treat completed-year picks as spent
+  * Draft completion state persists across reloads
+  * Workflow is compatible with refreshed roster CSV uploads that assign drafted players to teams
+  * UI clearly indicates whether a draft year is active, finalized, or completed
+  * Tests cover draft-year completion state and removal of spent picks from active views
+
+Notes for agent:
+
+  * Treat this as lifecycle state for picks, not as player assignment logic
+  * Keep the transition explicit rather than inferring it automatically from roster uploads alone
+  * Make sure downstream consumers do not continue valuing or surfacing spent current-year picks once the year is completed
+  * Design the lifecycle state so future tickets can support richer draft-history views if needed
 
 ### Add Contract Schedule Validation Workflow
 

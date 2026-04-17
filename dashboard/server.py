@@ -75,6 +75,14 @@ def src_files(filename: str) -> Response:
     if data_path.exists() and data_path.is_file():
         return send_from_directory(str(DASHBOARD_DATA), filename)
 
+    # Strip a leading "data/" prefix — browsers resolve ../data/<f> relative to
+    # the root as /data/<f>, but the files live directly in DASHBOARD_DATA.
+    if filename.startswith("data/"):
+        bare = filename[len("data/"):]
+        bare_path = DASHBOARD_DATA / bare
+        if bare_path.exists() and bare_path.is_file():
+            return send_from_directory(str(DASHBOARD_DATA), bare)
+
     return Response("Not found", status=404)
 
 

@@ -7,14 +7,12 @@ Reads:
 Writes:
   - data/processed/draft_pick_inventory.csv
 
-The dashboard symlink dashboard/data/draft_pick_inventory.csv points to this
-output file.
-
 Usage:
     python scripts/export_draft_picks.py
 
 Columns in the output CSV:
-  pick_id, year, round, slot, salary, owner
+  pick_id, year, round, slot, salary, order_known, is_compensatory,
+  original_team, owner
 """
 
 from __future__ import annotations
@@ -23,7 +21,6 @@ import csv
 import sys
 from pathlib import Path
 
-# Ensure src/ is importable when running as a top-level script.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
@@ -31,7 +28,10 @@ from src.utils.config import load_league_config
 from src.contracts.draft_picks import generate_picks, load_ownership, build_inventory_table
 
 OUTPUT_PATH = REPO_ROOT / "data" / "processed" / "draft_pick_inventory.csv"
-FIELDNAMES = ["pick_id", "year", "round", "slot", "salary", "owner"]
+FIELDNAMES = [
+    "pick_id", "year", "round", "slot", "salary",
+    "order_known", "is_compensatory", "original_team", "owner",
+]
 
 
 def main() -> None:
@@ -45,7 +45,7 @@ def main() -> None:
         writer = csv.DictWriter(fh, fieldnames=FIELDNAMES)
         writer.writeheader()
         for row in rows:
-            writer.writerow({k: (row[k] if row[k] is not None else "") for k in FIELDNAMES})
+            writer.writerow({k: ("" if row.get(k) is None else row[k]) for k in FIELDNAMES})
 
     print(f"Exported {len(rows)} picks to {OUTPUT_PATH}")
     year_counts: dict[int, int] = {}
@@ -53,7 +53,9 @@ def main() -> None:
         year_counts[r["year"]] = year_counts.get(r["year"], 0) + 1
     for year, count in sorted(year_counts.items()):
         owned = sum(1 for r in rows if r["year"] == year and r["owner"])
-        print(f"  {year}: {count} picks, {owned} assigned")
+        known = any(r["order_known"] for r in rows if r["year"] == year)
+        status = "order known" if known else "order unknown"
+        print(f"  {year}: {count} picks, {owned} assigned ({status})")
 
 
 if __name__ == "__main__":

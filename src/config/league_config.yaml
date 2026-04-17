@@ -180,6 +180,13 @@ dynasty_delta_alpha: 0.05
 # Band width at year k = base_band_width * (1 + dynasty_band_expansion * k)
 dynasty_band_expansion: 0.40
 
+# Free agent market valuation settings.
+# cap_pressure_alpha controls how strongly the cap-to-value ratio inflates/deflates
+# market prices.  alpha=0 → no market adjustment; alpha=1 → fully proportional.
+# CVR^alpha where CVR = available_league_cap / total_fa_projected_value.
+free_agent_market:
+  cap_pressure_alpha: 0.5
+
 phase2_variants:
   baseline:
     extra_features: []

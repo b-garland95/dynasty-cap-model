@@ -363,6 +363,9 @@
     if (tabId === 'contract-surplus') refreshSurplus();
     if (tabId === 'cap-health')       refreshCap();
     if (tabId === 'pick-inventory')   renderPickInventory();
+    if (tabId === 'free-agent-market' && typeof window.refreshFreeAgentMarket === 'function') {
+      window.refreshFreeAgentMarket();
+    }
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────

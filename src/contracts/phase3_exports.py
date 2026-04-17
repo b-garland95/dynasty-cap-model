@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.contracts.free_agent_market import build_free_agent_market_table
 from src.contracts.phase3_tables import (
     apply_schedule_overrides,
     build_contract_ledger,
@@ -12,6 +13,7 @@ from src.contracts.phase3_tables import (
     load_schedule_overrides,
 )
 from src.contracts.phase3_value_tables import build_phase3_tables_3_to_7, load_tv_inputs
+from src.contracts.team_adjustments import load_team_adjustments
 
 
 def export_phase3_tables(
@@ -28,11 +30,12 @@ def export_phase3_tables(
         schedule_df,
         load_schedule_overrides(schedule_overrides_path),
     )
+    tv_inputs_df = load_tv_inputs(tv_inputs_path)
     downstream_tables = build_phase3_tables_3_to_7(
         ledger_df,
         schedule_df,
         config,
-        tv_inputs_df=load_tv_inputs(tv_inputs_path),
+        tv_inputs_df=tv_inputs_df,
     )
 
     output_path = Path(output_dir)
@@ -49,8 +52,24 @@ def export_phase3_tables(
     downstream_tables["option_candidates"].to_csv(output_path / "option_candidates.csv", index=False)
     downstream_tables["instrument_candidates"].to_csv(output_path / "instrument_candidates.csv", index=False)
 
+    fa_tables: dict[str, pd.DataFrame] = {}
+    if tv_inputs_df is not None:
+        team_adj = load_team_adjustments()
+        fa_market_df, fa_env = build_free_agent_market_table(
+            tv_df=tv_inputs_df,
+            cap_health_df=downstream_tables["team_cap_health_dashboard"],
+            config=config,
+            team_adjustments=team_adj,
+            include_rostered=False,
+        )
+        fa_market_df.to_csv(output_path / "free_agent_market.csv", index=False)
+        fa_env_df = pd.DataFrame([fa_env])
+        fa_env_df.to_csv(output_path / "fa_market_environment.csv", index=False)
+        fa_tables = {"free_agent_market": fa_market_df, "fa_market_environment": fa_env_df}
+
     return {
         "player_contract_ledger": ledger_df,
         "contract_salary_schedule": schedule_df,
         **downstream_tables,
+        **fa_tables,
     }

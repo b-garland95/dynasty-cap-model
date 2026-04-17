@@ -11,6 +11,11 @@
 //
 // Ownership uses the new format: pick_id → {original_team, owner, slot}.
 // Graceful degradation: read-only when Flask server is unreachable.
+//
+// Draft year lifecycle status (year_status per year):
+//   "active"    — picks are tradeable; draft has not occurred
+//   "finalized" — draft order set but draft has not occurred
+//   "completed" — draft occurred; picks are spent (read-only, greyed out)
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
@@ -20,6 +25,9 @@
 
   // Ownership map: pick_id → {original_team, owner, slot}
   let _ownership = {};
+
+  // Year lifecycle status: {year: 'active'|'finalized'|'completed'}
+  let _yearStatus = {};
 
   // Sorted unique team names for dropdowns.
   let _teams = [];
@@ -62,13 +70,37 @@
       .replace(/"/g, '&quot;');
   }
 
+  function yearStatusForYear(year, picksForYear) {
+    // year_status from server takes priority; fall back to order_known inference.
+    if (_yearStatus[year]) return _yearStatus[year];
+    return picksForYear.some(p => p.order_known) ? 'finalized' : 'active';
+  }
+
   // ── Rendering ─────────────────────────────────────────────────────────────
 
-  function renderPickRow(pick) {
+  function renderStatusBadge(status) {
+    const labels = { active: 'Active', finalized: 'Finalized', completed: 'Completed' };
+    return `<span class="dp-status-badge dp-status-badge--${escHtml(status)}">${escHtml(labels[status] || status)}</span>`;
+  }
+
+  function renderPickRow(pick, isCompleted) {
     const owner     = ownerOf(pick.pick_id) || '';
     const origTeam  = pick.original_team || '—';
     const traded    = pick.original_team && owner && pick.original_team !== owner;
     const tradeTag  = traded ? '<span class="dp-traded-tag">traded</span>' : '';
+
+    if (isCompleted) {
+      const slotCell = (pick.order_known && pick.slot != null)
+        ? `<td class="dp-slot-cell mono">#${String(pick.slot).padStart(2, '0')}</td>`
+        : '';
+      return `
+        <tr class="dp-pick-row--spent" data-pick-id="${escHtml(pick.pick_id)}">
+          ${slotCell}
+          <td class="dp-orig-team">${escHtml(origTeam)}</td>
+          <td class="dp-salary-cell num">${salaryLabel(pick.salary)}</td>
+          <td class="dp-owner-cell dp-owner-cell--spent">${escHtml(owner || '—')} ${tradeTag}</td>
+        </tr>`;
+    }
 
     const opts = ['', ..._teams]
       .map(t => `<option value="${escHtml(t)}" ${t === owner ? 'selected' : ''}>${t ? escHtml(t) : '— unowned —'}</option>`)
@@ -90,12 +122,22 @@
       </tr>`;
   }
 
-  function renderCompRow(pick) {
+  function renderCompRow(pick, isCompleted) {
     const owner = ownerOf(pick.pick_id) || '';
+    const slotStr = pick.slot != null ? `Slot ${pick.slot}` : '—';
+
+    if (isCompleted) {
+      return `
+        <tr class="dp-pick-row--spent" data-pick-id="${escHtml(pick.pick_id)}">
+          <td class="dp-comp-label">Comp · ${slotStr}</td>
+          <td class="dp-salary-cell num">${salaryLabel(pick.salary)}</td>
+          <td class="dp-owner-cell dp-owner-cell--spent" colspan="2">${escHtml(owner || '—')}</td>
+        </tr>`;
+    }
+
     const opts  = ['', ..._teams]
       .map(t => `<option value="${escHtml(t)}" ${t === owner ? 'selected' : ''}>${t ? escHtml(t) : '— unowned —'}</option>`)
       .join('');
-    const slotStr = pick.slot != null ? `Slot ${pick.slot}` : '—';
 
     return `
       <tr data-pick-id="${escHtml(pick.pick_id)}">
@@ -107,13 +149,12 @@
       </tr>`;
   }
 
-  function renderRoundSection(rnd, regularPicks, compPicks, orderKnown) {
+  function renderRoundSection(rnd, regularPicks, compPicks, orderKnown, isCompleted) {
     const hasSlot   = orderKnown;
     const slotHeader = hasSlot ? '<th class="dp-slot-th">Slot</th>' : '';
-    const colspan   = hasSlot ? '' : '';
 
-    const regRows  = regularPicks.map(renderPickRow).join('');
-    const compRows = compPicks.map(renderCompRow).join('');
+    const regRows  = regularPicks.map(p => renderPickRow(p, isCompleted)).join('');
+    const compRows = compPicks.map(p => renderCompRow(p, isCompleted)).join('');
     const divider  = compRows
       ? `<tr class="dp-comp-divider"><td colspan="4" class="dp-comp-divider-cell">Compensatory Picks</td></tr>${compRows}`
       : '';
@@ -140,7 +181,6 @@
 
   function renderDraftOrderSection(year, picksForYear) {
     // Only for the target season — allows the user to assign slots.
-    const dp_cfg    = LEAGUE_CONFIG['draft_picks.rounds'] ? null : null;
     const numTeams  = _teams.length;
     if (!numTeams) return '';
 
@@ -175,25 +215,48 @@
       </div>`;
   }
 
-  function renderYearBlock(year, picksForYear, isTargetSeason) {
-    const orderKnown = picksForYear.some(p => p.order_known);
-    const roundNums  = [...new Set(picksForYear.map(p => p.round))].sort((a, b) => a - b);
+  function renderCompleteButton(year, status) {
+    if (status === 'completed') return '';
+    return `
+      <button class="dp-complete-btn action-btn action-btn--warn" data-year="${year}"
+              title="Mark this draft year as completed. All picks become spent inventory.">
+        Mark Draft Complete
+      </button>
+      <span class="dp-complete-status" hidden></span>`;
+  }
 
-    const notice = (!orderKnown && !isTargetSeason)
+  function renderYearBlock(year, picksForYear, isTargetSeason) {
+    const orderKnown  = picksForYear.some(p => p.order_known);
+    const roundNums   = [...new Set(picksForYear.map(p => p.round))].sort((a, b) => a - b);
+    const status      = yearStatusForYear(year, picksForYear);
+    const isCompleted = status === 'completed';
+
+    const notice = (!orderKnown && !isTargetSeason && !isCompleted)
       ? `<p class="dp-order-unknown-notice">Draft order not yet set — picks are identified by original team, not slot.</p>`
       : '';
 
-    const orderSection = isTargetSeason ? renderDraftOrderSection(year, picksForYear) : '';
+    const spentNotice = isCompleted
+      ? `<p class="dp-spent-notice">This draft has been completed. All picks from ${year} are spent inventory.</p>`
+      : '';
+
+    const orderSection = (isTargetSeason && !isCompleted)
+      ? renderDraftOrderSection(year, picksForYear)
+      : '';
 
     const rounds = roundNums.map(rnd => {
       const reg  = picksForYear.filter(p => p.round === rnd && !p.is_compensatory);
       const comp = picksForYear.filter(p => p.round === rnd && p.is_compensatory);
-      return renderRoundSection(rnd, reg, comp, orderKnown);
+      return renderRoundSection(rnd, reg, comp, orderKnown, isCompleted);
     }).join('');
 
     return `
-      <div class="dp-year-block">
-        <h3 class="dp-year-title">${year} Draft</h3>
+      <div class="dp-year-block ${isCompleted ? 'dp-year-block--completed' : ''}" data-year="${year}">
+        <div class="dp-year-header">
+          <h3 class="dp-year-title">${year} Draft</h3>
+          ${renderStatusBadge(status)}
+          ${_apiAvailable ? renderCompleteButton(year, status) : ''}
+        </div>
+        ${spentNotice}
         ${notice}
         ${orderSection}
         <div class="dp-rounds-list">${rounds}</div>
@@ -231,7 +294,7 @@
       .map(y => renderYearBlock(+y, byYear[y], +y === targetSeason))
       .join('');
 
-    // Wire dropdowns.
+    // Wire dropdowns (only active/finalized years have editable selects).
     container.querySelectorAll('.pick-owner-select').forEach(sel => {
       sel.addEventListener('change', () => {
         const pickId  = sel.dataset.pickId;
@@ -259,6 +322,11 @@
     // Wire draft-order apply buttons.
     container.querySelectorAll('.dp-apply-order-btn').forEach(btn => {
       btn.addEventListener('click', () => applyDraftOrder(btn));
+    });
+
+    // Wire "Mark Draft Complete" buttons.
+    container.querySelectorAll('.dp-complete-btn').forEach(btn => {
+      btn.addEventListener('click', () => completeDraftYear(btn));
     });
 
     if (!_apiAvailable) showReadOnlyNotice();
@@ -310,8 +378,9 @@
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
-          _picks     = data.picks;
-          _ownership = data.ownership;
+          _picks      = data.picks;
+          _ownership  = data.ownership;
+          _yearStatus = data.year_status || {};
           status.textContent = 'Draft order set.';
           render();
         } else {
@@ -320,6 +389,52 @@
       })
       .catch(err => { status.textContent = `Network error: ${err.message}`; })
       .finally(() => { btn.disabled = false; });
+  }
+
+  // ── Mark draft year complete ──────────────────────────────────────────────
+
+  function completeDraftYear(btn) {
+    const year       = +btn.dataset.year;
+    const yearBlock  = btn.closest('.dp-year-block');
+    const statusEl   = yearBlock ? yearBlock.querySelector('.dp-complete-status') : null;
+
+    const confirmed = window.confirm(
+      `Mark the ${year} draft as completed?\n\n` +
+      `All ${year} picks will be treated as spent inventory and removed from active trading views. ` +
+      `This cannot be undone from the UI.`
+    );
+    if (!confirmed) return;
+
+    btn.disabled = true;
+    if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.hidden = false; }
+
+    fetch('/api/picks/complete-year', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({year}),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          _picks      = data.picks;
+          _ownership  = data.ownership;
+          _yearStatus = data.year_status || {};
+          // Sync DRAFT_PICKS_DATA for other views.
+          DRAFT_PICKS_DATA = _picks.map(p => ({
+            ...p,
+            owner: (_ownership[p.pick_id] || {}).owner || p.original_team || null,
+          }));
+          ALL_PICK_YEARS = [...new Set(DRAFT_PICKS_DATA.map(p => p.year))].sort((a, b) => a - b);
+          render();
+        } else {
+          if (statusEl) { statusEl.textContent = `Error: ${data.error}`; }
+          btn.disabled = false;
+        }
+      })
+      .catch(err => {
+        if (statusEl) { statusEl.textContent = `Network error: ${err.message}`; }
+        btn.disabled = false;
+      });
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -373,10 +488,11 @@
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(({picks, ownership}) => {
+      .then(({picks, ownership, year_status}) => {
         _apiAvailable = true;
-        _picks     = picks;
-        _ownership = ownership;
+        _picks        = picks;
+        _ownership    = ownership;
+        _yearStatus   = year_status || {};
 
         // If no team picks exist yet but ALL_LG_TEAMS is available, auto-register.
         const hasTeamPicks = picks.some(p => !p.is_compensatory);
@@ -389,8 +505,9 @@
             .then(r => r.json())
             .then(data => {
               if (data.ok) {
-                _picks     = data.picks;
-                _ownership = data.ownership;
+                _picks      = data.picks;
+                _ownership  = data.ownership;
+                _yearStatus = data.year_status || {};
               }
             });
         }

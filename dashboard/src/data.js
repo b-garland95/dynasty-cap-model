@@ -269,9 +269,10 @@ function loadData() {
       return r.json();
     })
     .then(({ picks, ownership }) => {
+      // ownership values are now {original_team, owner, slot} records.
       DRAFT_PICKS_DATA = picks.map(p => ({
         ...p,
-        owner: ownership[p.pick_id] || null,
+        owner: (ownership[p.pick_id] || {}).owner || p.original_team || null,
       }));
       ALL_PICK_YEARS = [...new Set(DRAFT_PICKS_DATA.map(p => p.year))].sort((a, b) => a - b);
       console.log(`Draft picks  : ${DRAFT_PICKS_DATA.length} picks across ${ALL_PICK_YEARS.length} years`);

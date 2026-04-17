@@ -1,22 +1,27 @@
-// League Config — Draft Pick Ownership Management
+// Draft Pick Ownership Management
 //
-// Renders a per-year assignment grid where each row is one pick and each pick
-// has a team dropdown. Saving POSTs the full ownership map to /api/picks.
+// Layout per year:
+//   - Known-order year (target_season with order set):
+//       "Set Draft Order" section (slot assignments) + pick list with slots shown
+//   - Unknown-order year (future years or target_season before order is set):
+//       Pick list showing original team → current owner, no slot numbers
 //
-// Ownership records use the new format: pick_id → {original_team, owner}.
-// Years with order_known=false show a banner and placeholder slot labels.
+// Pick rows display: Original Team | Current Owner (dropdown)
+// Comp picks appear at the bottom of each year section.
 //
-// Graceful degradation: if /api/picks is not reachable (direct file serving),
-// the panel shows pick data in read-only mode with a notice.
+// Ownership uses the new format: pick_id → {original_team, owner, slot}.
+// Graceful degradation: read-only when Flask server is unreachable.
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
 
-  // Live ownership map: pick_id → {original_team: str|null, owner: str|null}.
-  // Mutated as the user changes dropdowns; flushed to server on Save.
+  // Full picks list returned by the server (includes original_team, order_known, etc.)
+  let _picks = [];
+
+  // Ownership map: pick_id → {original_team, owner, slot}
   let _ownership = {};
 
-  // Full team list derived from ALL_LG_TEAMS + any assigned owners.
+  // Sorted unique team names for dropdowns.
   let _teams = [];
 
   let _apiAvailable = false;
@@ -24,103 +29,178 @@
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  function getOwner(pick_id) {
+  function ownerOf(pick_id) {
     const rec = _ownership[pick_id];
-    return (rec && rec.owner) ? rec.owner : null;
-  }
-
-  function getOriginalTeam(pick_id) {
-    const rec = _ownership[pick_id];
-    return (rec && rec.original_team) ? rec.original_team : null;
+    if (rec && rec.owner != null) return rec.owner;
+    // Fall back to pick's original_team from _picks.
+    const pick = _picks.find(p => p.pick_id === pick_id);
+    return (pick && pick.original_team) || null;
   }
 
   function collectTeams() {
-    const base  = Array.isArray(ALL_LG_TEAMS) ? ALL_LG_TEAMS : [];
-    const extra = Object.values(_ownership)
-      .map(rec => rec && rec.owner)
+    const fromOwnership = Object.values(_ownership)
+      .map(r => r && r.owner)
       .filter(Boolean);
-    return [...new Set([...base, ...extra])].sort();
+    const fromPicks = _picks.map(p => p.original_team).filter(Boolean);
+    const base = Array.isArray(ALL_LG_TEAMS) ? ALL_LG_TEAMS : [];
+    return [...new Set([...base, ...fromOwnership, ...fromPicks])].sort();
   }
 
-  function slotLabel(p) {
-    if (p.order_known) {
-      return `${p.round}.${String(p.slot).padStart(2, '0')}`;
-    }
-    // Slot number is a placeholder until draft order is set.
-    return `Rd.${p.round} #${String(p.slot).padStart(2, '0')} (order TBD)`;
+  function salaryLabel(s) {
+    return s != null ? `$${s}` : '—';
   }
 
-  function salaryLabel(salary) {
-    return salary != null ? `$${salary}` : '–';
+  function teamOption(value, selected) {
+    return `<option value="${escHtml(value)}" ${value === selected ? 'selected' : ''}>${escHtml(value)}</option>`;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────
 
-  function renderYearBlock(year, picks) {
-    const orderKnown = picks.some(p => p.order_known);
-    const banner = orderKnown ? '' :
-      `<p class="dp-order-unknown-notice">
-         Draft order not yet finalized — slot numbers are placeholders, not real positions.
-       </p>`;
+  function renderPickRow(pick) {
+    const owner     = ownerOf(pick.pick_id) || '';
+    const origTeam  = pick.original_team || '—';
+    const traded    = pick.original_team && owner && pick.original_team !== owner;
+    const tradeTag  = traded ? '<span class="dp-traded-tag">traded</span>' : '';
 
-    const roundGroups = {};
-    picks.forEach(p => {
-      (roundGroups[p.round] = roundGroups[p.round] || []).push(p);
-    });
+    const opts = ['', ..._teams]
+      .map(t => `<option value="${escHtml(t)}" ${t === owner ? 'selected' : ''}>${t ? escHtml(t) : '— unowned —'}</option>`)
+      .join('');
 
-    const roundHtml = Object.keys(roundGroups)
-      .sort((a, b) => +a - +b)
-      .map(rnd => {
-        const roundPicks = roundGroups[rnd];
-        const rows = roundPicks.map(p => {
-          const owner    = getOwner(p.pick_id) || '';
-          const origTeam = getOriginalTeam(p.pick_id) || '';
-          const traded   = origTeam && owner && origTeam !== owner;
-          const tradeTag = traded ? ' <span class="dp-traded-tag">traded</span>' : '';
-          const compTag  = p.is_compensatory ? ' <span class="dp-comp-tag">comp</span>' : '';
+    const slotCell = (pick.order_known && pick.slot != null)
+      ? `<td class="dp-slot-cell mono">#${String(pick.slot).padStart(2, '0')}</td>`
+      : '';
 
-          const options = ['', ..._teams].map(t =>
-            `<option value="${t}" ${t === owner ? 'selected' : ''}>${t || '— unowned —'}</option>`
-          ).join('');
+    return `
+      <tr data-pick-id="${escHtml(pick.pick_id)}">
+        ${slotCell}
+        <td class="dp-orig-team">${escHtml(origTeam)}</td>
+        <td class="dp-salary-cell num">${salaryLabel(pick.salary)}</td>
+        <td class="dp-owner-cell">
+          <select class="pick-owner-select" data-pick-id="${escHtml(pick.pick_id)}">${opts}</select>
+          ${tradeTag}
+        </td>
+      </tr>`;
+  }
 
-          return `
-            <tr data-pick-id="${p.pick_id}">
-              <td class="mono">${slotLabel(p)}${compTag}</td>
-              <td class="num">${salaryLabel(p.salary)}</td>
-              <td class="dp-original-team">${origTeam || '—'}</td>
-              <td>
-                <select class="pick-owner-select" data-pick-id="${p.pick_id}">
-                  ${options}
-                </select>
-                ${tradeTag}
-              </td>
-            </tr>`;
-        }).join('');
+  function renderCompRow(pick) {
+    const owner = ownerOf(pick.pick_id) || '';
+    const opts  = ['', ..._teams]
+      .map(t => `<option value="${escHtml(t)}" ${t === owner ? 'selected' : ''}>${t ? escHtml(t) : '— unowned —'}</option>`)
+      .join('');
+    const slotStr = pick.slot != null ? `Slot ${pick.slot}` : '—';
 
-        return `
-          <div class="dp-round-block">
-            <h4 class="dp-round-title">Round ${rnd}</h4>
-            <table class="data-table dp-pick-table">
-              <thead>
-                <tr>
-                  <th>Pick</th>
-                  <th class="num">Salary</th>
-                  <th>Originally Assigned</th>
-                  <th>Current Owner</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>`;
-      }).join('');
+    return `
+      <tr data-pick-id="${escHtml(pick.pick_id)}">
+        <td class="dp-comp-label">Comp · ${slotStr}</td>
+        <td class="dp-salary-cell num">${salaryLabel(pick.salary)}</td>
+        <td class="dp-owner-cell" colspan="2">
+          <select class="pick-owner-select" data-pick-id="${escHtml(pick.pick_id)}">${opts}</select>
+        </td>
+      </tr>`;
+  }
+
+  function renderRoundSection(rnd, regularPicks, compPicks, orderKnown) {
+    const hasSlot   = orderKnown;
+    const slotHeader = hasSlot ? '<th class="dp-slot-th">Slot</th>' : '';
+    const colspan   = hasSlot ? '' : '';
+
+    const regRows  = regularPicks.map(renderPickRow).join('');
+    const compRows = compPicks.map(renderCompRow).join('');
+    const divider  = compRows
+      ? `<tr class="dp-comp-divider"><td colspan="4" class="dp-comp-divider-cell">Compensatory Picks</td></tr>${compRows}`
+      : '';
+
+    return `
+      <div class="dp-round-section">
+        <h4 class="dp-round-label">Round ${rnd}</h4>
+        <table class="dp-pick-table">
+          <thead>
+            <tr>
+              ${slotHeader}
+              <th>Original Team</th>
+              <th class="num">Salary</th>
+              <th>Current Owner</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${regRows}
+            ${divider}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderDraftOrderSection(year, picksForYear) {
+    // Only for the target season — allows the user to assign slots.
+    const dp_cfg    = LEAGUE_CONFIG['draft_picks.rounds'] ? null : null;
+    const numTeams  = _teams.length;
+    if (!numTeams) return '';
+
+    const slotRows = Array.from({length: numTeams}, (_, i) => {
+      const slot = i + 1;
+      // Find who is currently assigned to this slot for round 1 of this year.
+      const assignedPick = picksForYear.find(
+        p => !p.is_compensatory && p.slot === slot && p.round === 1
+      );
+      const currentTeam = assignedPick ? (assignedPick.original_team || '') : '';
+      const opts = ['', ..._teams]
+        .map(t => `<option value="${escHtml(t)}" ${t === currentTeam ? 'selected' : ''}>${t ? escHtml(t) : '— select team —'}</option>`)
+        .join('');
+      return `
+        <div class="dp-order-row">
+          <span class="dp-order-slot">#${slot}</span>
+          <select class="dp-order-select" data-slot="${slot}">${opts}</select>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="dp-order-section" id="dp-order-${year}">
+        <details>
+          <summary class="dp-order-summary">Set Draft Order (${year})</summary>
+          <div class="dp-order-body">
+            <p class="dp-order-hint">Assign each slot position to a team. Applies to all rounds.</p>
+            <div class="dp-order-grid">${slotRows}</div>
+            <button class="dp-apply-order-btn action-btn" data-year="${year}">Apply Order</button>
+            <span class="dp-order-status" hidden></span>
+          </div>
+        </details>
+      </div>`;
+  }
+
+  function renderYearBlock(year, picksForYear, isTargetSeason) {
+    const orderKnown = picksForYear.some(p => p.order_known);
+    const roundNums  = [...new Set(picksForYear.map(p => p.round))].sort((a, b) => a - b);
+
+    const notice = (!orderKnown && !isTargetSeason)
+      ? `<p class="dp-order-unknown-notice">Draft order not yet set — picks are identified by original team, not slot.</p>`
+      : '';
+
+    const orderSection = isTargetSeason ? renderDraftOrderSection(year, picksForYear) : '';
+
+    const rounds = roundNums.map(rnd => {
+      const reg  = picksForYear.filter(p => p.round === rnd && !p.is_compensatory);
+      const comp = picksForYear.filter(p => p.round === rnd && p.is_compensatory);
+      return renderRoundSection(rnd, reg, comp, orderKnown);
+    }).join('');
 
     return `
       <div class="dp-year-block">
         <h3 class="dp-year-title">${year} Draft</h3>
-        ${banner}
-        <div class="dp-rounds">${roundHtml}</div>
+        ${notice}
+        ${orderSection}
+        <div class="dp-rounds-list">${rounds}</div>
       </div>`;
   }
+
+  // ── Main render ────────────────────────────────────────────────────────────
 
   function render() {
     const container = document.getElementById('dp-years-container');
@@ -131,36 +211,38 @@
     loading.hidden = true;
     error.hidden   = true;
 
-    if (!DRAFT_PICKS_DATA || !DRAFT_PICKS_DATA.length) {
-      error.textContent = 'No pick data available. Run scripts/export_draft_picks.py or start the Flask server.';
-      error.hidden = false;
-      return;
-    }
-
     _teams = collectTeams();
 
+    if (!_picks.length) {
+      if (_apiAvailable) {
+        error.textContent = 'No picks found. Use "Initialize Teams" below or register teams via the API.';
+      } else {
+        error.textContent = 'No pick data available. Start the Flask server to enable pick management.';
+      }
+      error.hidden = false;
+    }
+
+    const targetSeason = getTargetSeason();
     const byYear = {};
-    DRAFT_PICKS_DATA.forEach(p => {
-      (byYear[p.year] = byYear[p.year] || []).push(p);
-    });
+    _picks.forEach(p => { (byYear[p.year] = byYear[p.year] || []).push(p); });
 
     container.innerHTML = Object.keys(byYear)
       .sort((a, b) => +a - +b)
-      .map(y => renderYearBlock(+y, byYear[y]))
+      .map(y => renderYearBlock(+y, byYear[y], +y === targetSeason))
       .join('');
 
-    // Wire up change listeners — only update owner, preserve original_team.
+    // Wire dropdowns.
     container.querySelectorAll('.pick-owner-select').forEach(sel => {
       sel.addEventListener('change', () => {
-        const pickId = sel.dataset.pickId;
-        const existing = _ownership[pickId] || {original_team: null, owner: null};
+        const pickId  = sel.dataset.pickId;
+        const existing = _ownership[pickId] || {original_team: null, owner: null, slot: null};
         _ownership[pickId] = {...existing, owner: sel.value || null};
-        // Refresh the traded tag inline without full re-render.
+        // Refresh traded badge.
         const row = sel.closest('tr');
         if (row) {
-          const origTeam = existing.original_team || '';
-          const newOwner = sel.value || '';
-          const traded   = origTeam && newOwner && origTeam !== newOwner;
+          const orig = existing.original_team || '';
+          const nw   = sel.value || '';
+          const traded = orig && nw && orig !== nw;
           let tag = row.querySelector('.dp-traded-tag');
           if (traded && !tag) {
             tag = document.createElement('span');
@@ -174,20 +256,70 @@
       });
     });
 
-    if (!_apiAvailable) {
-      showReadOnlyNotice();
-    }
+    // Wire draft-order apply buttons.
+    container.querySelectorAll('.dp-apply-order-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyDraftOrder(btn));
+    });
+
+    if (!_apiAvailable) showReadOnlyNotice();
   }
 
-  function showReadOnlyNotice() {
-    const error = document.getElementById('dp-error');
-    error.textContent =
-      'Flask server not detected — pick assignments are display-only. ' +
-      'Run `python dashboard/server.py` to enable saving.';
-    error.hidden = false;
+  function getTargetSeason() {
+    // Prefer server config; fall back to smallest pick year + 0.
+    if (LEAGUE_CONFIG && LEAGUE_CONFIG['season.target_season']) {
+      return +LEAGUE_CONFIG['season.target_season'];
+    }
+    const years = [...new Set(_picks.map(p => p.year))].sort((a, b) => a - b);
+    return years[0] || 0;
+  }
 
-    const saveBtn = document.getElementById('dp-save-btn');
-    if (saveBtn) saveBtn.disabled = true;
+  // ── Draft order ───────────────────────────────────────────────────────────
+
+  function applyDraftOrder(btn) {
+    const year    = +btn.dataset.year;
+    const section = btn.closest('.dp-order-section');
+    const selects = section.querySelectorAll('.dp-order-select');
+    const status  = section.querySelector('.dp-order-status');
+
+    const order = [];
+    for (const sel of selects) {
+      if (!sel.value) {
+        status.textContent = `Slot #${sel.dataset.slot} has no team assigned.`;
+        status.hidden = false;
+        return;
+      }
+      order.push(sel.value);
+    }
+
+    const unique = new Set(order);
+    if (unique.size !== order.length) {
+      status.textContent = 'Each team must appear exactly once in the draft order.';
+      status.hidden = false;
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = 'Applying…';
+    status.hidden = false;
+
+    fetch('/api/picks/draft-order', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({year, order}),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          _picks     = data.picks;
+          _ownership = data.ownership;
+          status.textContent = 'Draft order set.';
+          render();
+        } else {
+          status.textContent = `Error: ${data.error}`;
+        }
+      })
+      .catch(err => { status.textContent = `Network error: ${err.message}`; })
+      .finally(() => { btn.disabled = false; });
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -204,13 +336,13 @@
 
     fetch('/api/picks', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body:    JSON.stringify(_ownership),
     })
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
-          statusEl.textContent = 'Saved successfully.';
+          statusEl.textContent = 'Saved.';
           statusEl.className   = 'save-status save-status-ok';
         } else {
           statusEl.textContent = `Save failed: ${data.error || 'unknown error'}`;
@@ -233,31 +365,56 @@
     if (_initialized) { render(); return; }
     _initialized = true;
 
-    const saveBtn = document.getElementById('dp-save-btn');
-    if (saveBtn) saveBtn.addEventListener('click', saveOwnership);
+    document.getElementById('dp-save-btn')
+      ?.addEventListener('click', saveOwnership);
 
     fetch('/api/picks')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(({ picks, ownership }) => {
+      .then(({picks, ownership}) => {
         _apiAvailable = true;
-        // ownership is now {pick_id: {original_team, owner}}.
-        _ownership = Object.assign({}, ownership);
-        DRAFT_PICKS_DATA = picks.map(p => ({
+        _picks     = picks;
+        _ownership = ownership;
+
+        // If no team picks exist yet but ALL_LG_TEAMS is available, auto-register.
+        const hasTeamPicks = picks.some(p => !p.is_compensatory);
+        if (!hasTeamPicks && Array.isArray(ALL_LG_TEAMS) && ALL_LG_TEAMS.length) {
+          return fetch('/api/picks/init-teams', {
+            method:  'POST',
+            headers: {'Content-Type': 'application/json'},
+            body:    JSON.stringify({teams: ALL_LG_TEAMS}),
+          })
+            .then(r => r.json())
+            .then(data => {
+              if (data.ok) {
+                _picks     = data.picks;
+                _ownership = data.ownership;
+              }
+            });
+        }
+      })
+      .then(() => {
+        // Keep DRAFT_PICKS_DATA in sync for other views that use it.
+        DRAFT_PICKS_DATA = _picks.map(p => ({
           ...p,
-          owner: (ownership[p.pick_id] || {}).owner || null,
+          owner: (_ownership[p.pick_id] || {}).owner || p.original_team || null,
         }));
         ALL_PICK_YEARS = [...new Set(DRAFT_PICKS_DATA.map(p => p.year))].sort((a, b) => a - b);
         render();
       })
       .catch(() => {
-        // Fall back to pre-loaded CSV data (read-only mode).
         _apiAvailable = false;
+        // Fall back to pre-loaded CSV data.
+        _picks = DRAFT_PICKS_DATA.map(p => ({...p, order_known: false, is_compensatory: false}));
         _ownership = {};
-        DRAFT_PICKS_DATA.forEach(p => {
-          _ownership[p.pick_id] = {original_team: null, owner: p.owner || null};
+        _picks.forEach(p => {
+          _ownership[p.pick_id] = {
+            original_team: p.original_team || null,
+            owner: p.owner || null,
+            slot: p.slot || null,
+          };
         });
         render();
       });

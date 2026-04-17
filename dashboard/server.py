@@ -48,7 +48,12 @@ from src.contracts.draft_picks import (
     DEFAULT_OWNERSHIP_PATH,
     generate_picks,
     load_ownership,
+    make_pick_record,
+    make_team_pick_id,
+    normalize_team_key,
+    register_teams,
     save_ownership,
+    set_draft_order,
 )
 from src.contracts.phase3_exports import export_phase3_tables
 from src.contracts.phase3_tables import validate_roster_csv
@@ -76,7 +81,7 @@ app = Flask(__name__, static_folder=None)
 
 # ── Config — loaded once at startup ────────────────────────────────────────
 _CONFIG = load_league_config()
-_PICKS  = generate_picks(_CONFIG)
+# _PICKS is derived per-request from ownership; no startup cache needed.
 
 
 def _roster_csv_path() -> Path:
@@ -118,17 +123,22 @@ def src_files(filename: str) -> Response:
 
 @app.route("/api/picks", methods=["GET"])
 def api_get_picks() -> Response:
-    """Return the full pick universe and current ownership."""
+    """Return the full pick universe and current ownership.
+
+    Picks are derived from the ownership file so team-based picks appear
+    automatically once teams are registered.
+    """
     ownership = load_ownership()
-    return jsonify({"picks": _PICKS, "ownership": ownership})
+    picks = generate_picks(_CONFIG, ownership)
+    return jsonify({"picks": picks, "ownership": ownership})
 
 
 @app.route("/api/picks", methods=["POST"])
 def api_save_picks() -> Response:
-    """Accept an ownership object and persist it to disk.
+    """Accept a full ownership object and persist it.
 
-    Accepts both the new format  {pick_id: {original_team, owner}}
-    and the legacy format        {pick_id: string | null}  (auto-migrated).
+    Expected body: {pick_id: {original_team, owner, slot}, ...}
+    Also accepts the legacy format {pick_id: string | null} (auto-migrated).
     """
     data = request.get_json(force=True, silent=True)
     if not isinstance(data, dict):
@@ -137,29 +147,24 @@ def api_save_picks() -> Response:
     normalized: dict = {}
     for pick_id, value in data.items():
         if value is None or isinstance(value, str):
-            # Legacy format — treat string as both original_team and owner.
-            normalized[pick_id] = {"original_team": value, "owner": value}
+            normalized[pick_id] = {"original_team": value, "owner": value, "slot": None}
         elif isinstance(value, dict):
             ot = value.get("original_team")
             ow = value.get("owner")
+            sl = value.get("slot")
             if ot is not None and not isinstance(ot, str):
                 return jsonify({"ok": False,
                                 "error": f"original_team for {pick_id!r} must be string or null"}), 400
             if ow is not None and not isinstance(ow, str):
                 return jsonify({"ok": False,
                                 "error": f"owner for {pick_id!r} must be string or null"}), 400
-            normalized[pick_id] = {"original_team": ot, "owner": ow}
+            if sl is not None and not isinstance(sl, int):
+                return jsonify({"ok": False,
+                                "error": f"slot for {pick_id!r} must be int or null"}), 400
+            normalized[pick_id] = {"original_team": ot, "owner": ow, "slot": sl}
         else:
             return jsonify({"ok": False,
                             "error": f"Invalid ownership value for {pick_id!r}"}), 400
-
-    valid_ids = {p["pick_id"] for p in _PICKS}
-    unknown = [pid for pid in normalized if pid not in valid_ids]
-    if unknown:
-        return jsonify({
-            "ok": False,
-            "error": f"Unknown pick IDs: {unknown[:5]}",
-        }), 400
 
     try:
         save_ownership(normalized)
@@ -167,6 +172,78 @@ def api_save_picks() -> Response:
         return jsonify({"ok": False, "error": str(exc)}), 500
 
     return jsonify({"ok": True})
+
+
+@app.route("/api/picks/init-teams", methods=["POST"])
+def api_init_teams() -> Response:
+    """Register a team list into the ownership file for all tracked years.
+
+    Body: {"teams": ["Team A", "Team B", ...]}
+
+    Creates ownership records for any team/year/round combination that does
+    not already exist.  Existing records are not overwritten.
+    """
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("teams"), list):
+        return jsonify({"ok": False, "error": "Body must be {teams: [...]}"}), 400
+
+    teams = [t for t in data["teams"] if isinstance(t, str) and t.strip()]
+    if not teams:
+        return jsonify({"ok": False, "error": "teams list is empty"}), 400
+
+    dp_cfg = _CONFIG.get("draft_picks", {})
+    target_season = int(_CONFIG["season"]["target_season"])
+    future_years = int(dp_cfg.get("future_years_tracked", 2))
+    rounds = int(dp_cfg.get("rounds", 4))
+    years = list(range(target_season, target_season + future_years + 1))
+
+    ownership = load_ownership()
+    register_teams(ownership, teams, years, rounds)
+
+    try:
+        save_ownership(ownership)
+    except Exception as exc:  # pragma: no cover
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    picks = generate_picks(_CONFIG, ownership)
+    return jsonify({"ok": True, "picks": picks, "ownership": ownership})
+
+
+@app.route("/api/picks/draft-order", methods=["POST"])
+def api_set_draft_order() -> Response:
+    """Set the draft slot order for one year.
+
+    Body: {"year": 2026, "order": ["Team A", "Team B", ...]}
+
+    Each entry in 'order' is a team name; position 0 = slot 1.
+    The slot is set on ALL rounds for that year simultaneously (draft order
+    applies across all rounds).
+    """
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Body must be a JSON object"}), 400
+
+    year = data.get("year")
+    order = data.get("order")
+    if not isinstance(year, int):
+        return jsonify({"ok": False, "error": "'year' must be an integer"}), 400
+    if not isinstance(order, list) or not all(isinstance(t, str) for t in order):
+        return jsonify({"ok": False, "error": "'order' must be a list of team name strings"}), 400
+
+    dp_cfg = _CONFIG.get("draft_picks", {})
+    rounds = int(dp_cfg.get("rounds", 4))
+
+    ownership = load_ownership()
+    for rnd in range(1, rounds + 1):
+        set_draft_order(ownership, year, rnd, order)
+
+    try:
+        save_ownership(ownership)
+    except Exception as exc:  # pragma: no cover
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    picks = generate_picks(_CONFIG, ownership)
+    return jsonify({"ok": True, "picks": picks, "ownership": ownership})
 
 
 # ── League Config API ──────────────────────────────────────────────────────
@@ -192,7 +269,6 @@ def api_save_config() -> Response:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     _CONFIG = updated
-    _PICKS = generate_picks(_CONFIG)
 
     return jsonify({"ok": True, "config": get_editable_config(_CONFIG)})
 

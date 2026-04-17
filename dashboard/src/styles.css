@@ -639,6 +639,13 @@ body {
   color: #fff;
 }
 
+.pt-xaxis-toggle {
+  display: flex;
+  gap: 4px;
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+
 /* ════════════════════════════════════════════════════════════
    Section Navigation
    ════════════════════════════════════════════════════════════ */

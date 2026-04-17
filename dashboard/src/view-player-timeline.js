@@ -4,6 +4,7 @@
 let ptInitialized = false;
 let selectedPlayers = [];   // [{ id, player, season, color }]
 let ptMode = 'points-start'; // 'points-start' | 'season-dollar'
+let ptXMode = 'by-season';  // 'by-season' | 'years-in-league'
 let ptNextId = 0;
 
 const PT_COLORS = ['#6c8cff', '#e06c75', '#98c379', '#d19a66', '#c678dd'];
@@ -16,6 +17,7 @@ function initPlayerTimeline() {
 
   _ptWireSearch();
   _ptWireModeToggle();
+  _ptWireXAxisToggle();
 
   // Render empty initial state
   _ptUpdateView();
@@ -210,12 +212,24 @@ function _ptRenderMetricCards() {
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 
 function _ptWireModeToggle() {
-  document.querySelectorAll('.pt-mode-btn').forEach(btn => {
+  document.querySelectorAll('.pt-mode-btn[data-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       ptMode = btn.dataset.mode;
-      document.querySelectorAll('.pt-mode-btn').forEach(b => {
+      document.querySelectorAll('.pt-mode-btn[data-mode]').forEach(b => {
         b.classList.toggle('active', b.dataset.mode === ptMode);
       });
+      document.getElementById('pt-xaxis-toggle').hidden = (ptMode !== 'season-dollar');
+      renderTimelineChart();
+    });
+  });
+}
+
+function _ptWireXAxisToggle() {
+  document.querySelectorAll('[data-xmode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ptXMode = btn.dataset.xmode;
+      document.querySelectorAll('[data-xmode]').forEach(b =>
+        b.classList.toggle('active', b.dataset.xmode === ptXMode));
       renderTimelineChart();
     });
   });
@@ -407,35 +421,78 @@ function _ptModeA() {
 // ── Mode B: Season $ ──────────────────────────────────────────────────────────
 
 function _ptModeC() {
-  const ctx    = document.getElementById('chart-player-timeline').getContext('2d');
-  const labels = ALL_SEASONS.map(String);
-
-  // One dataset per unique player name; color from first selected season of that player
+  const ctx         = document.getElementById('chart-player-timeline').getContext('2d');
   const playerNames = [...new Set(selectedPlayers.map(s => s.player))];
+  const multi       = playerNames.length > 1;
 
-  const datasets = playerNames.map(playerName => {
-    const color = selectedPlayers.find(s => s.player === playerName).color;
+  let labels, datasets, tooltipSeasonFor;
 
-    const data = ALL_SEASONS.map(season => {
-      const row = SEASON_DATA.find(r => r.player === playerName && r.season === season);
-      return row != null ? row.dollar_value : null;
+  if (ptXMode === 'years-in-league') {
+    // First season ever recorded for each player across the full dataset
+    const firstSeasonMap = {};
+    playerNames.forEach(p => {
+      const seasons = SEASON_DATA.filter(r => r.player === p).map(r => r.season);
+      firstSeasonMap[p] = Math.min(...seasons);
     });
 
-    return {
-      label:              playerName,
-      data,
-      backgroundColor:    hexToRgba(color, 0.6),
-      borderColor:        color,
-      borderWidth:        1,
-      borderRadius:       3,
-      spanGaps:           false
-    };
-  });
+    // How many years does the longest career span?
+    const maxYears = Math.max(...playerNames.map(p => {
+      const seasons = SEASON_DATA.filter(r => r.player === p).map(r => r.season);
+      return Math.max(...seasons) - firstSeasonMap[p] + 1;
+    }));
+
+    labels = Array.from({ length: maxYears }, (_, i) => `Yr ${i + 1}`);
+
+    // Helper: given player + dataIndex, recover the actual season
+    tooltipSeasonFor = (pName, dataIndex) => firstSeasonMap[pName] + dataIndex;
+
+    datasets = playerNames.map(playerName => {
+      const color       = selectedPlayers.find(s => s.player === playerName).color;
+      const firstSeason = firstSeasonMap[playerName];
+      const data        = Array(maxYears).fill(null);
+
+      SEASON_DATA
+        .filter(r => r.player === playerName)
+        .forEach(r => {
+          const idx = r.season - firstSeason;
+          if (idx >= 0 && idx < maxYears) data[idx] = r.dollar_value;
+        });
+
+      return multi
+        ? { label: playerName, data, borderColor: color, backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, fill: false,
+            tension: 0.2, spanGaps: false }
+        : { label: playerName, data, backgroundColor: hexToRgba(color, 0.6),
+            borderColor: color, borderWidth: 1, borderRadius: 3, spanGaps: false };
+    });
+
+  } else {
+    // By Season — original behaviour
+    labels = ALL_SEASONS.map(String);
+    tooltipSeasonFor = (_pName, dataIndex) => ALL_SEASONS[dataIndex];
+
+    datasets = playerNames.map(playerName => {
+      const color = selectedPlayers.find(s => s.player === playerName).color;
+      const data  = ALL_SEASONS.map(season => {
+        const row = SEASON_DATA.find(r => r.player === playerName && r.season === season);
+        return row != null ? row.dollar_value : null;
+      });
+
+      return multi
+        ? { label: playerName, data, borderColor: color, backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, fill: false,
+            tension: 0.2, spanGaps: false }
+        : { label: playerName, data, backgroundColor: hexToRgba(color, 0.6),
+            borderColor: color, borderWidth: 1, borderRadius: 3, spanGaps: false };
+    });
+  }
+
+  const xTitle = ptXMode === 'years-in-league' ? 'Years in League' : 'Season';
 
   const scales = {
     x: {
       title: {
-        display: true, text: 'Season',
+        display: true, text: xTitle,
         color: THEME.muted, font: { family: 'DM Sans', size: 12 }
       },
       ticks: { color: THEME.muted, font: { family: 'DM Sans', size: 11 } },
@@ -458,20 +515,20 @@ function _ptModeC() {
 
   const options = _ptOptions(scales, {});
 
-  // Custom tooltip: "{player}: ${dv} (ESV: {esv} | {pos}{rank})"
   options.plugins.tooltip.callbacks = {
     label: ctx => {
       const pName  = ctx.dataset.label;
-      const season = ALL_SEASONS[ctx.dataIndex];
+      const season = tooltipSeasonFor(pName, ctx.dataIndex);
       const row    = SEASON_DATA.find(r => r.player === pName && r.season === season);
       if (!row) return null;
-      return `${pName}: $${row.dollar_value.toFixed(2)} ` +
+      const seasonTag = ptXMode === 'years-in-league' ? ` (${season})` : '';
+      return `${pName}${seasonTag}: $${row.dollar_value.toFixed(2)} ` +
              `(ESV: ${row.esv.toFixed(1)} | ${row.position}${row.pos_rank})`;
     }
   };
 
   chartInstances['player-timeline'] = new Chart(ctx, {
-    type: 'bar',
+    type: multi ? 'line' : 'bar',
     data: { labels, datasets },
     options
   });

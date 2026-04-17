@@ -239,6 +239,15 @@
     });
   }
 
+  function computeCapRemaining(team, currentCapUsage) {
+    const baseCap = (typeof LEAGUE_CONFIG !== 'undefined' && LEAGUE_CONFIG['cap.base_cap']) || 0;
+    const adj = (typeof TEAM_ADJUSTMENTS !== 'undefined' && TEAM_ADJUSTMENTS[team]) || {};
+    const dm = +(adj.dead_money || 0);
+    const ct = +(adj.cap_transactions || 0);
+    const ro = +(adj.rollover || 0);
+    return baseCap - currentCapUsage - dm - ct + ro;
+  }
+
   function renderCapTable() {
     const tbody = document.getElementById('cap-table-body');
     if (!tbody) return;
@@ -249,10 +258,13 @@
 
     tbody.innerHTML = sorted.map(r => {
       const surpColor = surplusColor(r[fields.surplus]);
+      const capRemaining = computeCapRemaining(r.team, r.current_cap_usage);
+      const crColor = capRemaining >= 0 ? 'var(--surplus-pos)' : 'var(--surplus-neg)';
       return `
         <tr>
           <td>${r.team}</td>
           <td class="num">${fmt1(r.current_cap_usage)}</td>
+          <td class="num" style="color:${crColor};">${fmt1(capRemaining)}</td>
           <td class="num">${fmt1(r[fields.value])}</td>
           <td class="num">${fmt1(r[fields.cap])}</td>
           <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r[fields.surplus])}</td>

@@ -21,6 +21,59 @@ def _to_bool(value: Any) -> bool:
     return text in {"true", "t", "1", "yes", "y"}
 
 
+ROSTER_REQUIRED_COLUMNS = {
+    "team",
+    "player",
+    "position",
+    "current_salary",
+    "real_salary",
+    "extension_salary",
+    "years",
+    "ps_eligible",
+    "has_been_extended",
+    "has_been_tagged",
+    "contract_eligible",
+    "extension_eligible",
+    "tag_eligible",
+}
+
+ROSTER_NUMERIC_COLUMNS = {"current_salary", "real_salary", "extension_salary", "years"}
+ROSTER_BOOLEAN_COLUMNS = {
+    "ps_eligible", "has_been_extended", "has_been_tagged",
+    "contract_eligible", "extension_eligible", "tag_eligible",
+}
+
+
+def validate_roster_csv(file_path: str) -> dict[str, Any]:
+    """Validate a roster CSV file without building the full ledger.
+
+    Returns ``{"valid": True, "rows": N, "teams": [...]}`` on success,
+    or ``{"valid": False, "error": "..."}`` on failure.
+    """
+    try:
+        raw_df = pd.read_csv(file_path)
+    except Exception as exc:
+        return {"valid": False, "error": f"Cannot read CSV: {exc}"}
+
+    if raw_df.empty:
+        return {"valid": False, "error": "Roster CSV has no data rows"}
+
+    normalized_columns = {_normalize_column_name(col): col for col in raw_df.columns}
+    missing = sorted(ROSTER_REQUIRED_COLUMNS - set(normalized_columns))
+    if missing:
+        return {"valid": False, "error": f"Missing required columns: {missing}"}
+
+    for col_key in ROSTER_NUMERIC_COLUMNS:
+        original_col = normalized_columns[col_key]
+        try:
+            pd.to_numeric(raw_df[original_col], errors="raise")
+        except (ValueError, TypeError) as exc:
+            return {"valid": False, "error": f"Column {original_col!r} has non-numeric values: {exc}"}
+
+    teams = sorted(raw_df[normalized_columns["team"]].dropna().unique().tolist())
+    return {"valid": True, "rows": len(raw_df), "teams": teams}
+
+
 def build_contract_ledger(roster_csv_path: str) -> pd.DataFrame:
     """
     Build Phase 3 Table 1 (Player Contract Ledger) from a League Tycoon roster CSV.
@@ -28,22 +81,7 @@ def build_contract_ledger(roster_csv_path: str) -> pd.DataFrame:
     raw_df = pd.read_csv(roster_csv_path)
     normalized_columns = {_normalize_column_name(col): col for col in raw_df.columns}
 
-    required = {
-        "team",
-        "player",
-        "position",
-        "current_salary",
-        "real_salary",
-        "extension_salary",
-        "years",
-        "ps_eligible",
-        "has_been_extended",
-        "has_been_tagged",
-        "contract_eligible",
-        "extension_eligible",
-        "tag_eligible",
-    }
-    missing = sorted(required.difference(normalized_columns))
+    missing = sorted(ROSTER_REQUIRED_COLUMNS.difference(normalized_columns))
     if missing:
         raise ValueError(f"Missing required columns in roster export: {missing}")
 

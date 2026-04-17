@@ -1814,3 +1814,47 @@ body {
   color: var(--muted);
 }
 
+
+/* ── Free Agent Market ──────────────────────────────────────────────────────── */
+
+.fa-env-section {
+  margin-bottom: 20px;
+}
+
+.fa-env-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fa-env-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  min-width: 180px;
+  flex: 1 1 180px;
+}
+
+.fa-env-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.fa-env-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.fa-env-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}

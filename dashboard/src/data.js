@@ -10,6 +10,8 @@ const DATA_PATHS = {
   surplus:         '../data/contract_surplus.csv',
   capHealth:       '../data/team_cap_health.csv',
   ledger:          '../data/contract_ledger.csv',
+  faMarket:        '../data/free_agent_market.csv',
+  faMarketEnv:     '../data/fa_market_environment.csv',
 };
 
 // ── Phase 1 (Historical) ─────────────────────────────────────────────────────
@@ -33,6 +35,12 @@ let SURPLUS_DATA    = [];
 let CAP_HEALTH_DATA = [];
 let LEDGER_DATA     = [];
 let ALL_LG_TEAMS    = [];  // sorted unique fantasy team names from SURPLUS_DATA
+
+// ── Free Agent Market ────────────────────────────────────────────────────────
+// Loaded from free_agent_market.csv (phase3 export) or computed on-the-fly in
+// view-free-agent-market.js from TV_DATA + CAP_HEALTH_DATA when the CSV is absent.
+let FA_MARKET_DATA = [];   // player-level market table
+let FA_MARKET_ENV  = {};   // league-level cap environment (single-row CSV → object)
 
 // ── Draft Pick Inventory ─────────────────────────────────────────────────────
 // Loaded from /api/picks (Flask server) or falls back to draft_pick_inventory.csv.
@@ -145,7 +153,9 @@ function loadData() {
     parseCsv(DATA_PATHS.surplus),
     parseCsv(DATA_PATHS.capHealth),
     parseCsv(DATA_PATHS.ledger),
-  ]).then(([headshotsRaw, tvRaw, surplusRaw, capRaw, ledgerRaw]) => {
+    parseCsv(DATA_PATHS.faMarket),
+    parseCsv(DATA_PATHS.faMarketEnv),
+  ]).then(([headshotsRaw, tvRaw, surplusRaw, capRaw, ledgerRaw, faMarketRaw, faMarketEnvRaw]) => {
 
     // ── Headshot map ─────────────────────────────────────────────────────────
     headshotsRaw.forEach(r => {
@@ -255,11 +265,41 @@ function loadData() {
         needs_schedule_validation: r.needs_schedule_validation === true || r.needs_schedule_validation === 'True',
       }));
 
+    // ── Free Agent Market ─────────────────────────────────────────────────────
+    FA_MARKET_DATA = faMarketRaw
+      .filter(r => r.player && r.position)
+      .map(r => ({
+        player:                String(r.player),
+        position:              String(r.position),
+        team:                  String(r.team || ''),
+        adp:                   +(r.adp          ?? 0) || 0,
+        is_rostered:           r.is_rostered === true || r.is_rostered === 'True',
+        esv_p25:               +(r.esv_p25      ?? 0) || 0,
+        esv_p50:               +(r.esv_p50      ?? 0) || 0,
+        esv_p75:               +(r.esv_p75      ?? 0) || 0,
+        projected_value:       +(r.projected_value       ?? 0) || 0,
+        market_adjusted_value: +(r.market_adjusted_value ?? 0) || 0,
+        market_premium_pct:    +(r.market_premium_pct    ?? 0) || 0,
+      }));
+
+    if (faMarketEnvRaw.length > 0) {
+      const envRow = faMarketEnvRaw[0];
+      FA_MARKET_ENV = {
+        total_cap_available:  +(envRow.total_cap_available  ?? null),
+        total_fa_value:       +(envRow.total_fa_value       ?? null),
+        cap_to_value_ratio:   +(envRow.cap_to_value_ratio   ?? null),
+        market_multiplier:    +(envRow.market_multiplier    ?? null),
+        inflation_pct:        +(envRow.inflation_pct        ?? null),
+        alpha:                +(envRow.alpha                ?? null),
+      };
+    }
+
     console.log(`Headshots    : ${Object.keys(HEADSHOT_MAP).length}`);
     console.log(`TV forecasts : ${TV_DATA.length}`);
     console.log(`Surplus rows : ${SURPLUS_DATA.length}`);
     console.log(`Cap health   : ${CAP_HEALTH_DATA.length} teams`);
     console.log(`Ledger rows  : ${LEDGER_DATA.length}`);
+    console.log(`FA market    : ${FA_MARKET_DATA.length} players`);
   });
 
   // Draft picks — loaded from the Flask API if available, else from static CSV.

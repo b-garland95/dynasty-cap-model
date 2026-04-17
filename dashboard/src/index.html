@@ -244,6 +244,7 @@
           <button class="sub-tab-btn active" data-subtab="contract-surplus">Contract Surplus</button>
           <button class="sub-tab-btn"        data-subtab="cap-health">Cap Health</button>
           <button class="sub-tab-btn"        data-subtab="pick-inventory">Pick Inventory</button>
+          <button class="sub-tab-btn"        data-subtab="free-agent-market">Free Agent Market</button>
         </div>
 
         <!-- Contract Surplus sub-panel -->
@@ -352,6 +353,54 @@
             </table>
           </div>
         </div><!-- #sub-pick-inventory -->
+
+        <!-- Free Agent Market sub-panel -->
+        <div id="sub-free-agent-market" class="sub-tab-panel" hidden>
+
+          <!-- League cap environment summary -->
+          <div class="fa-env-section">
+            <div id="fa-env-cards" class="fa-env-cards"></div>
+          </div>
+
+          <!-- Controls -->
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="fa-position">Position</label>
+              <select id="fa-position">
+                <option value="All">All</option>
+                <option value="QB">QB</option>
+                <option value="RB">RB</option>
+                <option value="WR">WR</option>
+                <option value="TE">TE</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="fa-include-rostered" />
+                Include Rostered Players
+              </label>
+            </div>
+          </div>
+
+          <!-- Player table -->
+          <div class="table-wrapper">
+            <table id="fa-market-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Pos</th>
+                  <th>Team</th>
+                  <th data-sort="adp"                   class="num">ADP ↕</th>
+                  <th data-sort="projected_value"        class="num sort-desc">Proj Value ↕</th>
+                  <th data-sort="market_adjusted_value"  class="num">Market Value ↕</th>
+                  <th class="num">Premium %</th>
+                </tr>
+              </thead>
+              <tbody id="fa-market-tbody"></tbody>
+            </table>
+          </div>
+
+        </div><!-- #sub-free-agent-market -->
 
       </div><!-- #panel-league -->
 
@@ -606,6 +655,7 @@
   <script src="view-positional-efficiency.js"></script>
   <script src="view-forecasted.js"></script>
   <script src="view-league.js"></script>
+  <script src="view-free-agent-market.js"></script>
   <script src="view-league-config.js"></script>
   <script src="view-draft-picks.js"></script>
   <script src="view-contract-validation.js"></script>

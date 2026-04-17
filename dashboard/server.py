@@ -38,6 +38,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import pandas as pd
+
 # Ensure src/ is importable when running as `python dashboard/server.py`.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -59,8 +61,24 @@ from src.contracts.draft_picks import (
     save_year_status,
     set_draft_order,
 )
+from src.contracts.contract_validation import (
+    DEFAULT_OVERRIDES_PATH as DEFAULT_VALIDATION_OVERRIDES_PATH,
+    VALIDATION_STATUS_PATH,
+    get_validated_players,
+    get_validation_queue,
+    load_validation_status,
+    mark_player_validated,
+    save_validation_status,
+    update_schedule_overrides,
+)
 from src.contracts.phase3_exports import export_phase3_tables
-from src.contracts.phase3_tables import validate_roster_csv
+from src.contracts.phase3_tables import (
+    apply_schedule_overrides,
+    build_contract_ledger,
+    build_salary_schedule,
+    load_schedule_overrides,
+    validate_roster_csv,
+)
 from src.contracts.team_adjustments import (
     load_team_adjustments,
     save_team_adjustments,
@@ -423,6 +441,141 @@ def api_recompute() -> Response:
     }
 
     return jsonify({"ok": True, "duration_ms": duration_ms, "tables": table_counts})
+
+
+# ── Contract Schedule Validation API ──────────────────────────────────────────
+
+def _build_validated_schedule() -> tuple[pd.DataFrame | None, str | None]:
+    """Build the salary schedule (with overrides applied) or return (None, error_msg)."""
+    roster_path = _roster_csv_path()
+    if not roster_path.exists():
+        return None, f"Roster file not found at {roster_path}"
+    try:
+        ledger = build_contract_ledger(str(roster_path))
+        schedule = build_salary_schedule(ledger, _CONFIG)
+        overrides = load_schedule_overrides(str(DEFAULT_SCHEDULE_OVERRIDES_CSV))
+        schedule = apply_schedule_overrides(schedule, overrides)
+    except Exception as exc:
+        return None, str(exc)
+    return schedule, None
+
+
+@app.route("/api/contract-validation/queue", methods=["GET"])
+def api_validation_queue() -> Response:
+    """Return players flagged for contract schedule validation that haven't been validated yet."""
+    schedule, err = _build_validated_schedule()
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
+
+    status = load_validation_status()
+    queue = get_validation_queue(schedule, status)
+    return jsonify({"ok": True, "queue": queue, "count": len(queue)})
+
+
+@app.route("/api/contract-validation/validated", methods=["GET"])
+def api_validation_validated() -> Response:
+    """Return players whose contract schedule has been validated."""
+    schedule, err = _build_validated_schedule()
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
+
+    status = load_validation_status()
+    validated = get_validated_players(schedule, status)
+    return jsonify({"ok": True, "validated": validated, "count": len(validated)})
+
+
+@app.route("/api/contract-validation/player", methods=["GET"])
+def api_validation_player() -> Response:
+    """Return schedule rows for a specific player (query params: player, team)."""
+    player = request.args.get("player", "").strip()
+    team = request.args.get("team", "").strip()
+    if not player or not team:
+        return jsonify({"ok": False, "error": "Query params 'player' and 'team' are required"}), 400
+
+    schedule, err = _build_validated_schedule()
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
+
+    from src.contracts.contract_validation import _to_schedule_records
+
+    rows = schedule[(schedule["player"] == player) & (schedule["team"] == team)].sort_values("year_index")
+    if rows.empty:
+        return jsonify({"ok": False, "error": f"Player '{player}' on team '{team}' not found"}), 404
+
+    position = str(rows.iloc[0]["position"])
+    return jsonify({
+        "ok": True,
+        "player": player,
+        "team": team,
+        "position": position,
+        "schedule": _to_schedule_records(rows),
+    })
+
+
+@app.route("/api/contract-validation/save", methods=["POST"])
+def api_validation_save() -> Response:
+    """Save updated schedule override rows and mark the player as validated.
+
+    Expected body::
+
+        {
+          "player": "Patrick Mahomes",
+          "team": "Chiefs",
+          "position": "QB",
+          "schedule": [
+            {"year_index": 0, "cap_hit_real": 25.0, "cap_hit_current": 25.0},
+            {"year_index": 1, "cap_hit_real": 28.0}
+          ]
+        }
+    """
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Body must be a JSON object"}), 400
+
+    player = data.get("player", "")
+    team = data.get("team", "")
+    position = data.get("position", "")
+    schedule_rows = data.get("schedule")
+
+    if not isinstance(player, str) or not player.strip():
+        return jsonify({"ok": False, "error": "'player' is required"}), 400
+    if not isinstance(team, str) or not team.strip():
+        return jsonify({"ok": False, "error": "'team' is required"}), 400
+    if not isinstance(position, str) or not position.strip():
+        return jsonify({"ok": False, "error": "'position' is required"}), 400
+    if not isinstance(schedule_rows, list) or not schedule_rows:
+        return jsonify({"ok": False, "error": "'schedule' must be a non-empty list"}), 400
+
+    for i, row in enumerate(schedule_rows):
+        if not isinstance(row, dict):
+            return jsonify({"ok": False, "error": f"schedule[{i}] must be an object"}), 400
+        if "year_index" not in row or "cap_hit_real" not in row:
+            return jsonify({"ok": False, "error": f"schedule[{i}] missing year_index or cap_hit_real"}), 400
+        try:
+            row["year_index"] = int(row["year_index"])
+            row["cap_hit_real"] = float(row["cap_hit_real"])
+        except (TypeError, ValueError) as exc:
+            return jsonify({"ok": False, "error": f"schedule[{i}] invalid numeric value: {exc}"}), 400
+
+    try:
+        update_schedule_overrides(
+            overrides_path=str(DEFAULT_SCHEDULE_OVERRIDES_CSV),
+            player=player.strip(),
+            team=team.strip(),
+            position=position.strip(),
+            schedule_rows=schedule_rows,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Failed to write overrides: {exc}"}), 500
+
+    try:
+        status = load_validation_status()
+        status = mark_player_validated(status, player.strip(), team.strip())
+        save_validation_status(status)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Failed to save validation status: {exc}"}), 500
+
+    return jsonify({"ok": True, "player": player.strip(), "team": team.strip()})
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────

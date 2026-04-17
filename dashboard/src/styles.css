@@ -1635,3 +1635,182 @@ body {
   margin-top: 12px;
   margin-left: 0;
 }
+
+/* ════════════════════════════════════════════════════════════
+   Contract Schedule Validation
+   ════════════════════════════════════════════════════════════ */
+
+.cv-header {
+  margin-bottom: 24px;
+}
+
+.cv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.cv-badge {
+  display: inline-block;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  letter-spacing: 0.2px;
+}
+
+.cv-badge-pending {
+  background: rgba(229, 169, 106, 0.15);
+  color: var(--surplus-neg);
+  border: 1px solid rgba(229, 169, 106, 0.3);
+}
+
+.cv-badge-validated {
+  background: rgba(126, 200, 154, 0.12);
+  color: var(--surplus-pos);
+  border: 1px solid rgba(126, 200, 154, 0.25);
+}
+
+.cv-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 20px 0 12px;
+}
+
+.cv-empty-state {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.cv-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cv-player-list-validated .cv-player-card {
+  opacity: 0.7;
+}
+
+.cv-player-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cv-player-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.cv-player-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+  min-width: 120px;
+}
+
+.cv-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-pos-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--muted);
+}
+
+.cv-pos-badge.pos-qb { color: var(--pos-qb); background: rgba(224, 108, 117, 0.12); }
+.cv-pos-badge.pos-rb { color: var(--pos-rb); background: rgba(97, 175, 239, 0.12); }
+.cv-pos-badge.pos-wr { color: var(--pos-wr); background: rgba(152, 195, 121, 0.12); }
+.cv-pos-badge.pos-te { color: var(--pos-te); background: rgba(209, 154, 102, 0.12); }
+
+.cv-team-name {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cv-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.cv-status-pending {
+  background: rgba(229, 169, 106, 0.15);
+  color: var(--surplus-neg);
+  border: 1px solid rgba(229, 169, 106, 0.25);
+}
+
+.cv-status-validated {
+  background: rgba(126, 200, 154, 0.12);
+  color: var(--surplus-pos);
+  border: 1px solid rgba(126, 200, 154, 0.2);
+}
+
+.cv-schedule-wrapper {
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+}
+
+.cv-schedule-table {
+  margin-bottom: 0;
+}
+
+.cv-schedule-table .cv-src-cell {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.cv-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cv-save-status {
+  font-size: 12px;
+}
+
+.cv-validated-details summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-validated-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.cv-validated-summary {
+  color: var(--muted);
+}
+
+.cv-validated-summary #cv-validated-count-inline {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+

@@ -35,6 +35,10 @@ const SECTIONS = {
     tabs: ['league-settings', 'draft-picks'],
     defaultTab: 'league-settings'
   },
+  'contracts': {
+    tabs: ['schedule-validation'],
+    defaultTab: 'schedule-validation'
+  },
 };
 
 // ── View init functions ───────────────────────────────────────────────────────
@@ -49,6 +53,7 @@ const VIEW_INIT_FNS = {
   'league':                () => initLeague(),
   'league-settings':       () => initLeagueSettings(),
   'draft-picks':           () => initDraftPicks(),
+  'schedule-validation':   () => initContractValidation(),
 };
 
 // ── Tab switching ─────────────────────────────────────────────────────────────

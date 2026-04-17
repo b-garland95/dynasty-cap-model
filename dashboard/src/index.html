@@ -33,6 +33,7 @@
       <button class="section-btn"        data-section="forecasted">Forecasted</button>
       <button class="section-btn"        data-section="league">League Analysis</button>
       <button class="section-btn"        data-section="league-config">League Config</button>
+      <button class="section-btn"        data-section="contracts">Contracts</button>
     </nav>
 
     <!-- ── Sub-tab Navigation ─────────────────────────────────────────── -->
@@ -54,6 +55,9 @@
       <!-- League Config tabs (hidden until section selected) -->
       <button class="tab-btn" data-tab="league-settings" data-section="league-config" role="tab" hidden>League Settings</button>
       <button class="tab-btn" data-tab="draft-picks" data-section="league-config" role="tab" hidden>Draft Picks</button>
+
+      <!-- Contracts tabs (hidden until section selected) -->
+      <button class="tab-btn" data-tab="schedule-validation" data-section="contracts" role="tab" hidden>Schedule Validation</button>
 
     </nav>
 
@@ -461,6 +465,46 @@
 
       </div><!-- #panel-draft-picks -->
 
+      <!-- ── CONTRACTS — SCHEDULE VALIDATION ─────────────────────────── -->
+
+      <div id="panel-schedule-validation" class="tab-panel" role="tabpanel">
+
+        <div class="cv-header">
+          <h2 class="section-heading">Contract Schedule Validation</h2>
+          <p class="section-desc">
+            Review players whose contract schedules require validation (instrument-adjusted deals
+            with extended or tagged contracts). Confirm or correct the year-by-year cap hit
+            schedule, then mark as validated. Validated schedules are persisted as curated overrides.
+          </p>
+          <div class="cv-header-actions">
+            <button id="cv-refresh-btn" class="action-btn action-btn-secondary">Refresh Queue</button>
+            <span id="cv-queue-count" class="cv-badge cv-badge-pending" hidden></span>
+            <span id="cv-validated-count" class="cv-badge cv-badge-validated" hidden></span>
+          </div>
+        </div>
+
+        <div id="cv-loading" class="dp-loading">Loading validation queue…</div>
+        <div id="cv-error"   class="dp-error"   hidden></div>
+
+        <!-- Pending queue -->
+        <div id="cv-pending-section" hidden>
+          <h3 class="cv-section-title">Needs Review</h3>
+          <div id="cv-pending-list" class="cv-player-list"></div>
+        </div>
+
+        <!-- Validated players (collapsed by default) -->
+        <div id="cv-validated-section" hidden>
+          <details class="cv-validated-details">
+            <summary class="cv-section-title cv-validated-summary">
+              Validated
+              <span id="cv-validated-count-inline"></span>
+            </summary>
+            <div id="cv-validated-list" class="cv-player-list cv-player-list-validated"></div>
+          </details>
+        </div>
+
+      </div><!-- #panel-schedule-validation -->
+
     </main><!-- .tab-panels -->
 
   </div><!-- #app -->
@@ -564,6 +608,7 @@
   <script src="view-league.js"></script>
   <script src="view-league-config.js"></script>
   <script src="view-draft-picks.js"></script>
+  <script src="view-contract-validation.js"></script>
   <script src="app.js"></script>
 
 </body>

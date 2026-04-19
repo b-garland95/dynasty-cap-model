@@ -32,6 +32,19 @@ function hexToRgba(hex, alpha) {
 }
 
 /**
+ * Build the standard player identifier for tooltip labels.
+ * Produces "Player (Team · Position)", omitting any missing parts.
+ * @param {string} player
+ * @param {string} [position]
+ * @param {string} [team]
+ * @returns {string}
+ */
+function fmtPlayerDim(player, position, team) {
+  const dims = [team, position].filter(Boolean).join(' · ');
+  return dims ? `${player} (${dims})` : player;
+}
+
+/**
  * Wrap a player name in a clickable span that triggers the player modal.
  * Safe to inject via innerHTML; escapes double-quotes in the data attribute.
  * @param {string} name

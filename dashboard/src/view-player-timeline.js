@@ -411,6 +411,24 @@ function _ptModeA() {
   options.plugins.tooltip.filter =
     (item, data) => !data.datasets[item.datasetIndex].label.startsWith('Repl');
 
+  options.plugins.tooltip.callbacks = {
+    title: items => items[0] ? `Week ${items[0].label}` : '',
+    label: ctx => {
+      const lbl = ctx.dataset.label;
+      // Start% line — suppress (start% shown inline in points label below)
+      if (lbl.startsWith('Start%:')) return null;
+      // Points bar — lbl is "Player Season" (season is the trailing 4-digit year)
+      const lastSpace = lbl.lastIndexOf(' ');
+      const player = lbl.slice(0, lastSpace);
+      const season = +lbl.slice(lastSpace + 1);
+      const week   = +ctx.label;
+      const row    = (typeof WEEKLY_DATA !== 'undefined' ? WEEKLY_DATA : [])
+        .find(r => r.player === player && r.season === season && r.week === week);
+      if (!row) return ` ${lbl}: ${ctx.formattedValue} pts`;
+      return ` ${lbl}: ${row.points.toFixed(1)} pts  (ESV ${row.esv_week.toFixed(1)}, Start ${(row.start_prob * 100).toFixed(0)}%)`;
+    }
+  };
+
   chartInstances['player-timeline'] = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets },
@@ -524,8 +542,8 @@ function _ptModeC() {
       const row    = SEASON_DATA.find(r => r.player === pName && r.season === season);
       if (!row) return null;
       const seasonTag = ptXMode === 'years-in-league' ? ` (${season})` : '';
-      return `${pName}${seasonTag}: $${row.dollar_value.toFixed(2)} ` +
-             `(ESV: ${row.esv.toFixed(1)} | ${row.position}${row.pos_rank})`;
+      return `${pName}${seasonTag}: $${row.dollar_value.toFixed(1)} ` +
+             `(ESV ${row.esv.toFixed(1)}, ${row.position} #${row.pos_rank})`;
     }
   };
 

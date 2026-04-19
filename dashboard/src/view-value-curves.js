@@ -163,7 +163,7 @@ function _vcRenderSingleSeason(ctx, season, topN) {
       title: () => '',
       label: ctx => {
         const p = ctx.raw;
-        return `${ctx.dataset.label} #${p.x}: ${p.player} — $${p.y.toFixed(2)}`;
+        return `${ctx.dataset.label} #${p.x}: ${p.player} — $${p.y.toFixed(1)}`;
       }
     }
   });
@@ -241,10 +241,10 @@ function _vcRenderAllSeasons(ctx, topN) {
         // scatter dot
         if (ctx.dataset.hideLegend) {
           const pos = ctx.dataset.label.split(' ')[0];
-          return `${pos}: ${p.player} ${p.season} — $${p.y.toFixed(2)}`;
+          return `${pos}: ${p.player} ${p.season} — $${p.y.toFixed(1)}`;
         }
         // average line
-        return `${ctx.dataset.label} avg #${p.x}: $${p.y.toFixed(2)}`;
+        return `${ctx.dataset.label} avg #${p.x}: $${p.y.toFixed(1)}`;
       }
     }
   });

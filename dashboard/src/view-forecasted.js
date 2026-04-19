@@ -237,7 +237,7 @@
             callbacks: {
               label: ctx2 => {
                 const d = ctx2.raw;
-                return ` ${d.player} (${d.team}) — ADP ${fmtInt(d.x)}, ESV ${fmt1(d.y)}`;
+                return ` ${fmtPlayerDim(d.player, ctx2.dataset.label, d.team)} — ADP ${fmtInt(d.x)}, ESV ${fmt1(d.y)}`;
               }
             }
           }

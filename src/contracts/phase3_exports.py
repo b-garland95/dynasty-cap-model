@@ -65,6 +65,30 @@ def export_phase3_tables(
         fa_market_df.to_csv(output_path / "free_agent_market.csv", index=False)
         fa_env_df = pd.DataFrame([fa_env])
         fa_env_df.to_csv(output_path / "fa_market_environment.csv", index=False)
+
+        # Attach per-team effective cap to the cap health dashboard.
+        # effective_cap_remaining = cap_remaining / market_multiplier so that
+        # inflated markets reduce purchasing power rather than inflating player values.
+        multiplier = fa_env["market_multiplier"]
+        base_cap = float(config["cap"]["base_cap"])
+        cap_dash = downstream_tables["team_cap_health_dashboard"].copy()
+
+        def _cap_remaining(row: pd.Series) -> float:
+            t = team_adj.get(str(row["team"]), {})
+            raw = (
+                base_cap
+                - float(row["current_cap_usage"])
+                - float(t.get("dead_money", 0.0))
+                - float(t.get("cap_transactions", 0.0))
+                + float(t.get("rollover", 0.0))
+            )
+            return max(raw, 0.0)
+
+        cap_dash["cap_remaining"] = cap_dash.apply(_cap_remaining, axis=1)
+        cap_dash["effective_cap_remaining"] = cap_dash["cap_remaining"] / multiplier
+        downstream_tables["team_cap_health_dashboard"] = cap_dash
+        cap_dash.to_csv(output_path / "team_cap_health_dashboard.csv", index=False)
+
         fa_tables = {"free_agent_market": fa_market_df, "fa_market_environment": fa_env_df}
 
     return {

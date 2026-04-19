@@ -90,17 +90,34 @@ def test_market_multiplier_cap_deficit():
     assert env["inflation_pct"] < 0.0
 
 
-def test_market_adjusted_value_applies_multiplier():
+def test_market_adjusted_value_equals_projected_value():
+    # Adjustment goes on the cap side; player values should be unchanged.
     tv = _tv_df()
     cfg = _mini_config(base_cap=300.0, n_teams=2, alpha=0.5)
     cap_h = _cap_health_df(cap_usage_per_team=100.0, n_teams=2)
 
     player_df, env = build_free_agent_market_table(tv, cap_h, cfg)
-    multiplier = env["market_multiplier"]
 
     for _, row in player_df.iterrows():
-        expected = row["projected_value"] * multiplier
-        assert math.isclose(row["market_adjusted_value"], expected, rel_tol=1e-9)
+        assert math.isclose(row["market_adjusted_value"], row["projected_value"], rel_tol=1e-9)
+    # market_premium_pct is still populated as an informational signal
+    assert all(player_df["market_premium_pct"] == env["inflation_pct"])
+
+
+def test_negative_tv_excluded_from_total_fa_value():
+    # Negative TV players are long-tail non-picks; they must not reduce total_fa_value.
+    tv = pd.DataFrame([
+        {"player": "Good FA",  "position": "WR", "team": "KC",  "tv_y0":  20.0, "is_rostered": False},
+        {"player": "Bad FA",   "position": "RB", "team": "DAL", "tv_y0":  -5.0, "is_rostered": False},
+        {"player": "Rostered", "position": "QB", "team": "NE",  "tv_y0":  30.0, "is_rostered": True},
+    ])
+    cfg = _mini_config()
+    cap_h = _cap_health_df()
+
+    env = compute_cap_environment(tv, cap_h, cfg)
+
+    # Only the positive FA value (20.0) should count; -5.0 and 30.0 (rostered) excluded
+    assert math.isclose(env["total_fa_value"], 20.0, rel_tol=1e-9)
 
 
 def test_zero_fa_value_returns_neutral_multiplier():

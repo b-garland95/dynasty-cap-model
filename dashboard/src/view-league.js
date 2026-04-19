@@ -285,7 +285,7 @@
             callbacks: {
               label: ctx2 => {
                 const d = ctx2.raw;
-                return ` ${d.player} (${d.team} · ${d.position}) — Cap $${fmt1(d.x)}, ${scatterYMode === 'value' ? 'Value' : 'Surplus'} $${fmt1(d.y)}`;
+                return ` ${fmtPlayerDim(d.player, d.position, d.team)} — Cap $${fmt1(d.x)}, ${scatterYMode === 'value' ? 'Value' : 'Surplus'} $${fmt1(d.y)}`;
               }
             }
           }

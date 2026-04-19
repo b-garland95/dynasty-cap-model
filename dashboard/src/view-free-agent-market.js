@@ -256,4 +256,5 @@
 
   window.initFreeAgentMarket   = initFreeAgentMarket;
   window.refreshFreeAgentMarket = refresh;
+  window.getCapEnvironment      = _getCapEnvironment;
 })();

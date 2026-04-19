@@ -366,6 +366,9 @@
     if (tabId === 'free-agent-market' && typeof window.refreshFreeAgentMarket === 'function') {
       window.refreshFreeAgentMarket();
     }
+    if (tabId === 'trade-proposal' && typeof window.refreshTradeProposal === 'function') {
+      window.refreshTradeProposal();
+    }
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────

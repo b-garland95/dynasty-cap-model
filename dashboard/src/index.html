@@ -249,6 +249,7 @@
           <button class="sub-tab-btn"        data-subtab="cap-health">Cap Health</button>
           <button class="sub-tab-btn"        data-subtab="pick-inventory">Pick Inventory</button>
           <button class="sub-tab-btn"        data-subtab="free-agent-market">Free Agent Market</button>
+          <button class="sub-tab-btn"        data-subtab="trade-proposal">Trade Proposal</button>
         </div>
 
         <!-- Contract Surplus sub-panel -->
@@ -405,6 +406,75 @@
           </div>
 
         </div><!-- #sub-free-agent-market -->
+
+        <!-- Trade Proposal sub-panel -->
+        <div id="sub-trade-proposal" class="sub-tab-panel" hidden>
+
+          <!-- Team selectors -->
+          <div class="view-controls">
+            <div class="control-group">
+              <label for="tp-team-a">Team A</label>
+              <select id="tp-team-a"></select>
+            </div>
+            <div class="control-group">
+              <label for="tp-team-b">Team B</label>
+              <select id="tp-team-b"></select>
+            </div>
+            <div class="control-group">
+              <button id="tp-reset-btn" class="action-btn">Reset Trade</button>
+            </div>
+          </div>
+
+          <!-- Tradeoff chart -->
+          <div class="chart-container" style="height: 320px;">
+            <canvas id="chart-trade-proposal"></canvas>
+          </div>
+
+          <!-- Summary delta strip -->
+          <div id="tp-summary" class="tp-summary"></div>
+
+          <!-- Asset pickers: two columns -->
+          <div class="tp-asset-grid">
+            <div class="tp-asset-column">
+              <h3 class="tp-col-title" id="tp-col-a-title">Team A sends</h3>
+              <div class="tp-section">
+                <div class="tp-section-title">Players</div>
+                <div class="tp-picker-list" id="tp-players-a"></div>
+              </div>
+              <div class="tp-section">
+                <div class="tp-section-title">Picks</div>
+                <div class="tp-picker-list" id="tp-picks-a"></div>
+              </div>
+              <div class="tp-section">
+                <div class="tp-section-title">Cap $ Sent (current year)</div>
+                <input type="number" id="tp-cap-a" class="tp-cap-input" min="0" step="1" value="0" />
+                <div class="tp-help">Positive = A sends cap to B (A's cap hit drops, B's rises).</div>
+              </div>
+            </div>
+
+            <div class="tp-asset-column">
+              <h3 class="tp-col-title" id="tp-col-b-title">Team B sends</h3>
+              <div class="tp-section">
+                <div class="tp-section-title">Players</div>
+                <div class="tp-picker-list" id="tp-players-b"></div>
+              </div>
+              <div class="tp-section">
+                <div class="tp-section-title">Picks</div>
+                <div class="tp-picker-list" id="tp-picks-b"></div>
+              </div>
+              <div class="tp-section">
+                <div class="tp-section-title">Cap $ Sent (current year)</div>
+                <input type="number" id="tp-cap-b" class="tp-cap-input" min="0" step="1" value="0" />
+                <div class="tp-help">Positive = B sends cap to A (B's cap hit drops, A's rises).</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="tp-footnote">
+            Pick value is not yet modeled — picks are tradeable but contribute $0 to all four metrics.
+          </p>
+
+        </div><!-- #sub-trade-proposal -->
 
       </div><!-- #panel-league -->
 
@@ -660,6 +730,7 @@
   <script src="view-forecasted.js"></script>
   <script src="view-league.js"></script>
   <script src="view-free-agent-market.js"></script>
+  <script src="view-trade-proposal.js"></script>
   <script src="view-league-config.js"></script>
   <script src="view-draft-picks.js"></script>
   <script src="view-contract-validation.js"></script>

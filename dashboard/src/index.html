@@ -278,6 +278,33 @@
               <select id="surplus-team"><option value="All">All Teams</option></select>
             </div>
           </div>
+          <!-- Scatter controls -->
+          <div class="view-controls" style="margin-top:0; margin-bottom:8px;">
+            <div class="control-group">
+              <label>Y Axis</label>
+              <div class="toggle-group" id="scatter-y-toggle">
+                <button class="toggle-btn active" data-value="value">Projected Value</button>
+                <button class="toggle-btn"        data-value="surplus">Surplus</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Color by</label>
+              <div class="toggle-group" id="scatter-color-toggle">
+                <button class="toggle-btn active" data-value="position">Position</button>
+                <button class="toggle-btn"        data-value="team">Team</button>
+              </div>
+            </div>
+            <div class="control-group" id="scatter-clear-wrap" hidden>
+              <button id="scatter-clear-btn" class="toggle-btn">Clear Selection</button>
+            </div>
+          </div>
+
+          <!-- Scatter chart -->
+          <div class="chart-container scatter-chart-wrap" style="height:340px; margin-bottom:0;">
+            <div id="scatter-select-box"></div>
+            <canvas id="chart-contract-scatter"></canvas>
+          </div>
+
           <div class="table-wrapper">
             <table id="surplus-table" class="data-table">
               <thead>

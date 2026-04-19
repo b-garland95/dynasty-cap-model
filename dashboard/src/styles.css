@@ -2003,3 +2003,49 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   Scatter plot — toggle buttons + drag-select overlay
+   ════════════════════════════════════════════════════════════ */
+
+.toggle-group {
+  display: flex;
+  gap: 2px;
+}
+
+.toggle-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Parent must be position:relative for the overlay to anchor */
+.scatter-chart-wrap {
+  position: relative;
+}
+
+#scatter-select-box {
+  position: absolute;
+  border: 1px dashed rgba(255, 255, 255, 0.6);
+  background: rgba(108, 140, 255, 0.1);
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+}

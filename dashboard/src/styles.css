@@ -1865,3 +1865,141 @@ body {
   color: var(--muted);
   line-height: 1.4;
 }
+
+/* ── Trade Proposal ─────────────────────────────────────────────────────── */
+
+.tp-summary {
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.tp-summary-table th,
+.tp-summary-table td {
+  padding: 8px 12px;
+}
+
+.tp-asset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.tp-asset-column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.tp-col-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.tp-section {
+  margin-bottom: 16px;
+}
+
+.tp-section:last-child {
+  margin-bottom: 0;
+}
+
+.tp-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.tp-picker-list {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tp-row {
+  display: grid;
+  grid-template-columns: 18px 36px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.tp-row:last-child {
+  border-bottom: none;
+}
+
+.tp-row:hover {
+  background: rgba(108, 140, 255, 0.08);
+}
+
+.tp-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.tp-row-name {
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-row-metric {
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  min-width: 42px;
+  text-align: right;
+}
+
+.tp-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.tp-cap-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 6px 10px;
+  width: 120px;
+}
+
+.tp-cap-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.tp-help {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.tp-footnote {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .tp-asset-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -167,21 +167,72 @@
     if (surplusHdr) surplusHdr.textContent = labels.surplus;
   }
 
+  function computeCapRemaining(team, currentCapUsage) {
+    const baseCap = (typeof LEAGUE_CONFIG !== 'undefined' && LEAGUE_CONFIG['cap.base_cap']) || 0;
+    const adj = (typeof TEAM_ADJUSTMENTS !== 'undefined' && TEAM_ADJUSTMENTS[team]) || {};
+    const dm = +(adj.dead_money || 0);
+    const ct = +(adj.cap_transactions || 0);
+    const ro = +(adj.rollover || 0);
+    return baseCap - currentCapUsage - dm - ct + ro;
+  }
+
+  function getMarketMultiplier() {
+    if (typeof window.getCapEnvironment === 'function') {
+      const env = window.getCapEnvironment();
+      if (env && typeof env.market_multiplier === 'number' && !isNaN(env.market_multiplier)) {
+        return env.market_multiplier;
+      }
+    }
+    if (typeof FA_MARKET_ENV !== 'undefined' &&
+        typeof FA_MARKET_ENV.market_multiplier === 'number' &&
+        !isNaN(FA_MARKET_ENV.market_multiplier)) {
+      return FA_MARKET_ENV.market_multiplier;
+    }
+    return 1;
+  }
+
+  // Placeholder: pick valuations are not yet modeled. Returning 0 keeps the
+  // dataset/column wired so the future implementation only needs to swap in
+  // the real per-team value.
+  function getPickValue(_team) { return 0; }
+
+  function getRosterValueBreakdown(row, fields, multiplier) {
+    const playerValue  = +(row[fields.value] || 0);
+    const capRemaining = computeCapRemaining(row.team, row.current_cap_usage);
+    const capAdjCap    = Math.max(capRemaining, 0) * multiplier;
+    const pickValue    = getPickValue(row.team);
+    return {
+      playerValue,
+      capAdjCap,
+      pickValue,
+      total: playerValue + capAdjCap + pickValue,
+    };
+  }
+
   function renderCapChart() {
     if (capChartInstance) { capChartInstance.destroy(); capChartInstance = null; }
     const ctx = document.getElementById('chart-cap-health');
     if (!ctx || !CAP_HEALTH_DATA.length) return;
 
-    const fields = teamFields();
-    const labels = windowLabels();
+    const fields     = teamFields();
+    const labels     = windowLabels();
+    const multiplier = getMarketMultiplier();
 
-    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b[fields.surplus] - a[fields.surplus]);
+    const rows = CAP_HEALTH_DATA.map(r => ({
+      row: r,
+      breakdown: getRosterValueBreakdown(r, fields, multiplier),
+    }));
+    rows.sort((a, b) => b.breakdown.total - a.breakdown.total);
 
     // Short team labels — take part after " | " if present, else use full name
-    const teamLabels = sorted.map(r => {
-      const parts = r.team.split('|');
-      return parts.length > 1 ? parts[parts.length - 1].trim() : r.team;
+    const teamLabels = rows.map(({ row }) => {
+      const parts = row.team.split('|');
+      return parts.length > 1 ? parts[parts.length - 1].trim() : row.team;
     });
+
+    const playerColor = THEME.accent;
+    const capColor    = '#98c379';
+    const pickColor   = '#d19a66';
 
     capChartInstance = new Chart(ctx.getContext('2d'), {
       type: 'bar',
@@ -189,20 +240,28 @@
         labels: teamLabels,
         datasets: [
           {
-            label: labels.value,
-            data: sorted.map(r => +r[fields.value].toFixed(1)),
-            backgroundColor: hexToRgba(THEME.accent, 0.6),
-            borderColor:     THEME.accent,
+            label: `Players (${labels.value})`,
+            data: rows.map(({ breakdown }) => +breakdown.playerValue.toFixed(1)),
+            backgroundColor: hexToRgba(playerColor, 0.7),
+            borderColor:     playerColor,
             borderWidth: 1,
-            borderRadius: 3,
+            stack: 'roster',
           },
           {
-            label: labels.cap,
-            data: sorted.map(r => +r[fields.cap].toFixed(1)),
-            backgroundColor: hexToRgba('#e06c75', 0.55),
-            borderColor:     '#e06c75',
+            label: `Cap Space × ${multiplier.toFixed(2)}`,
+            data: rows.map(({ breakdown }) => +breakdown.capAdjCap.toFixed(1)),
+            backgroundColor: hexToRgba(capColor, 0.7),
+            borderColor:     capColor,
             borderWidth: 1,
-            borderRadius: 3,
+            stack: 'roster',
+          },
+          {
+            label: 'Picks (TBD)',
+            data: rows.map(({ breakdown }) => +breakdown.pickValue.toFixed(1)),
+            backgroundColor: hexToRgba(pickColor, 0.7),
+            borderColor:     pickColor,
+            borderWidth: 1,
+            stack: 'roster',
           },
         ]
       },
@@ -214,49 +273,54 @@
           tooltip: {
             ...CHART_DEFAULTS.plugins.tooltip,
             callbacks: {
-              title: ctx2 => sorted[ctx2[0].dataIndex]?.team ?? '',
+              title: ctx2 => rows[ctx2[0].dataIndex]?.row.team ?? '',
               label: ctx2 => {
-                const r = sorted[ctx2[0]?.dataIndex ?? ctx2.dataIndex];
-                if (!r) return '';
+                const entry = rows[ctx2[0]?.dataIndex ?? ctx2.dataIndex];
+                if (!entry) return '';
+                const { row, breakdown } = entry;
                 return [
-                  ` ${labels.value}: $${r[fields.value].toFixed(1)}`,
-                  ` ${labels.cap}: $${r[fields.cap].toFixed(1)}`,
-                  ` ${labels.surplus}: $${r[fields.surplus].toFixed(1)}`,
-                  ` Dead $: $${r.dead_money_cut_now_nominal.toFixed(1)}`,
+                  ` Players (${labels.value}): $${breakdown.playerValue.toFixed(1)}`,
+                  ` Market-Adj Cap: $${breakdown.capAdjCap.toFixed(1)}  (× ${multiplier.toFixed(2)})`,
+                  ` Picks: $${breakdown.pickValue.toFixed(1)}`,
+                  ` Total Roster Value: $${breakdown.total.toFixed(1)}`,
+                  ` ${labels.cap}: $${(row[fields.cap] || 0).toFixed(1)}`,
+                  ` ${labels.surplus}: $${(row[fields.surplus] || 0).toFixed(1)}`,
+                  ` Dead $: $${(row.dead_money_cut_now_nominal || 0).toFixed(1)}`,
                 ];
               }
             }
           }
         },
         scales: {
-          x: { ...CHART_DEFAULTS.scales.x, ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxRotation: 35, minRotation: 20 } },
+          x: {
+            ...CHART_DEFAULTS.scales.x,
+            stacked: true,
+            ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxRotation: 35, minRotation: 20 }
+          },
           y: {
             ...CHART_DEFAULTS.scales.y,
-            title: { display: true, text: labels.yAxis, color: THEME.muted, font: { size: 11 } }
+            stacked: true,
+            title: { display: true, text: 'Total Roster Value ($)', color: THEME.muted, font: { size: 11 } }
           }
         }
       }
     });
   }
 
-  function computeCapRemaining(team, currentCapUsage) {
-    const baseCap = (typeof LEAGUE_CONFIG !== 'undefined' && LEAGUE_CONFIG['cap.base_cap']) || 0;
-    const adj = (typeof TEAM_ADJUSTMENTS !== 'undefined' && TEAM_ADJUSTMENTS[team]) || {};
-    const dm = +(adj.dead_money || 0);
-    const ct = +(adj.cap_transactions || 0);
-    const ro = +(adj.rollover || 0);
-    return baseCap - currentCapUsage - dm - ct + ro;
-  }
-
   function renderCapTable() {
     const tbody = document.getElementById('cap-table-body');
     if (!tbody) return;
 
-    const fields = teamFields();
+    const fields     = teamFields();
+    const multiplier = getMarketMultiplier();
 
-    const sorted = CAP_HEALTH_DATA.slice().sort((a, b) => b[fields.surplus] - a[fields.surplus]);
+    const rows = CAP_HEALTH_DATA.map(r => ({
+      row: r,
+      breakdown: getRosterValueBreakdown(r, fields, multiplier),
+    }));
+    rows.sort((a, b) => b.breakdown.total - a.breakdown.total);
 
-    tbody.innerHTML = sorted.map(r => {
+    tbody.innerHTML = rows.map(({ row: r, breakdown }) => {
       const surpColor = surplusColor(r[fields.surplus]);
       const capRemaining = computeCapRemaining(r.team, r.current_cap_usage);
       const crColor = capRemaining >= 0 ? 'var(--surplus-pos)' : 'var(--surplus-neg)';
@@ -265,6 +329,8 @@
           <td>${r.team}</td>
           <td class="num">${fmt1(r.current_cap_usage)}</td>
           <td class="num" style="color:${crColor};">${fmt1(capRemaining)}</td>
+          <td class="num">${fmt1(breakdown.capAdjCap)}</td>
+          <td class="num">${fmt1(breakdown.total)}</td>
           <td class="num">${fmt1(r[fields.value])}</td>
           <td class="num">${fmt1(r[fields.cap])}</td>
           <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r[fields.surplus])}</td>

@@ -6,11 +6,24 @@
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
-  let capChartInstance  = null;
-  let surplusSortKey    = 'surplus_1yr';
-  let surplusSortAsc    = false;
-  let surplusFilter     = { position: 'All', team: 'All' };
-  let valuationWindow   = '1yr';   // '1yr' | '3yr' | '5yr'
+  let capChartInstance     = null;
+  let scatterChartInstance = null;
+  let surplusSortKey       = 'surplus_1yr';
+  let surplusSortAsc       = false;
+  let surplusFilter        = { position: 'All', team: 'All' };
+  let valuationWindow      = '1yr';   // '1yr' | '3yr' | '5yr'
+  let scatterYMode         = 'value';    // 'value' | 'surplus'
+  let scatterColorMode     = 'position'; // 'position' | 'team'
+  let scatterSelection     = new Set();  // player names currently selected
+
+  // Stable team→color map built once per scatter render
+  let _teamColorMap = null;
+
+  const TEAM_PALETTE = [
+    '#e06c75', '#61afef', '#98c379', '#d19a66',
+    '#c678dd', '#56b6c2', '#e5c07b', '#be5046',
+    '#528bff', '#7bc275', '#d0a0d0', '#80aacc',
+  ];
 
   // ── Window field maps ─────────────────────────────────────────────────────
   // Maps a window key to the player-level and team-level field names used for
@@ -51,10 +64,11 @@
 
   // ── Contract Surplus ──────────────────────────────────────────────────────
 
-  function getFilteredSurplus() {
+  function getFilteredSurplus({ ignoreSelection = false } = {}) {
     return SURPLUS_DATA.filter(r => {
       if (surplusFilter.position !== 'All' && r.position !== surplusFilter.position) return false;
       if (surplusFilter.team !== 'All' && r.team !== surplusFilter.team) return false;
+      if (!ignoreSelection && scatterSelection.size > 0 && !scatterSelection.has(r.player)) return false;
       return true;
     });
   }
@@ -148,10 +162,287 @@
     if ([...sel.options].some(o => o.value === current)) sel.value = current;
   }
 
+  // ── Contract Scatter ──────────────────────────────────────────────────────
+
+  function _buildTeamColorMap(rows) {
+    const teams = [...new Set(rows.map(r => r.team))].sort();
+    const map = {};
+    teams.forEach((t, i) => { map[t] = TEAM_PALETTE[i % TEAM_PALETTE.length]; });
+    return map;
+  }
+
+  function _buildBreakEvenDataset(maxCap) {
+    if (scatterYMode === 'value') {
+      const end = maxCap * 1.15;
+      return {
+        type: 'line',
+        label: 'Break-even',
+        data: [{ x: 0, y: 0 }, { x: end, y: end }],
+        borderColor: 'rgba(255,255,255,0.22)',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        order: 0,
+      };
+    } else {
+      return {
+        type: 'line',
+        label: 'Break-even',
+        data: [{ x: 0, y: 0 }, { x: maxCap * 1.15, y: 0 }],
+        borderColor: 'rgba(255,255,255,0.22)',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        order: 0,
+      };
+    }
+  }
+
+  function _pointAlpha(player) {
+    if (scatterSelection.size === 0) return 0.72;
+    return scatterSelection.has(player) ? 0.92 : 0.13;
+  }
+
+  function _pointRadius(player) {
+    if (scatterSelection.size === 0) return 5;
+    return scatterSelection.has(player) ? 6 : 4;
+  }
+
+  function renderSurplusScatter() {
+    if (scatterChartInstance) { scatterChartInstance.destroy(); scatterChartInstance = null; }
+    const canvas = document.getElementById('chart-contract-scatter');
+    if (!canvas) return;
+
+    // Use all position/team-filtered rows (ignore selection for scatter itself)
+    const rows = getFilteredSurplus({ ignoreSelection: true });
+    if (!rows.length) return;
+
+    const fields = playerFields();
+    const labels = windowLabels();
+    const xField = fields.cap;
+    const yField = scatterYMode === 'value' ? fields.value : fields.surplus;
+    const xLabel = labels.cap;
+    const yLabel = scatterYMode === 'value' ? labels.value : labels.surplus;
+
+    const maxCap = Math.max(...rows.map(r => +(r[xField] || 0)));
+
+    // Build team color map once
+    _teamColorMap = _buildTeamColorMap(rows);
+
+    // Group rows by position or team
+    const groups = {};
+    rows.forEach(r => {
+      const key = scatterColorMode === 'position' ? r.position : r.team;
+      (groups[key] = groups[key] || []).push(r);
+    });
+
+    const scatterDatasets = Object.entries(groups).map(([key, groupRows]) => {
+      const baseColor = scatterColorMode === 'position'
+        ? (POS_COLORS[key] || THEME.accent)
+        : (_teamColorMap[key] || THEME.accent);
+
+      return {
+        type: 'scatter',
+        label: key,
+        data: groupRows.map(r => ({
+          x: +(r[xField] || 0),
+          y: +(r[yField] || 0),
+          player: r.player,
+          team: r.team,
+          position: r.position,
+        })),
+        backgroundColor: groupRows.map(r => hexToRgba(baseColor, _pointAlpha(r.player))),
+        borderColor:     groupRows.map(r => hexToRgba(baseColor, Math.min(_pointAlpha(r.player) + 0.2, 1))),
+        borderWidth: 1,
+        pointRadius:      groupRows.map(r => _pointRadius(r.player)),
+        pointHoverRadius: groupRows.map(r => _pointRadius(r.player) + 2),
+        order: 1,
+      };
+    });
+
+    const allDatasets = [...scatterDatasets, _buildBreakEvenDataset(maxCap)];
+
+    scatterChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'scatter',
+      data: { datasets: allDatasets },
+      options: {
+        ...CHART_DEFAULTS,
+        animation: false,
+        plugins: {
+          ...CHART_DEFAULTS.plugins,
+          legend: {
+            ...CHART_DEFAULTS.plugins.legend,
+            display: true,
+            labels: {
+              ...CHART_DEFAULTS.plugins.legend.labels,
+              filter: item => item.text !== 'Break-even',
+            },
+          },
+          tooltip: {
+            ...CHART_DEFAULTS.plugins.tooltip,
+            callbacks: {
+              label: ctx2 => {
+                const d = ctx2.raw;
+                return ` ${d.player} (${d.team} · ${d.position}) — Cap $${fmt1(d.x)}, ${scatterYMode === 'value' ? 'Value' : 'Surplus'} $${fmt1(d.y)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ...CHART_DEFAULTS.scales.x,
+            title: { display: true, text: xLabel, color: THEME.muted, font: { size: 11 } },
+            min: 0,
+          },
+          y: {
+            ...CHART_DEFAULTS.scales.y,
+            title: { display: true, text: yLabel, color: THEME.muted, font: { size: 11 } },
+          }
+        }
+      }
+    });
+
+    _setupScatterInteraction(scatterChartInstance, canvas);
+  }
+
+  function _updateScatterHighlight() {
+    if (!scatterChartInstance) return;
+    scatterChartInstance.data.datasets.forEach(ds => {
+      if (ds.type !== 'scatter') return;
+      ds.backgroundColor = ds.data.map(d => {
+        const base = scatterColorMode === 'position'
+          ? (POS_COLORS[d.position] || THEME.accent)
+          : (_teamColorMap && _teamColorMap[d.team]) || THEME.accent;
+        return hexToRgba(base, _pointAlpha(d.player));
+      });
+      ds.borderColor = ds.data.map(d => {
+        const base = scatterColorMode === 'position'
+          ? (POS_COLORS[d.position] || THEME.accent)
+          : (_teamColorMap && _teamColorMap[d.team]) || THEME.accent;
+        return hexToRgba(base, Math.min(_pointAlpha(d.player) + 0.2, 1));
+      });
+      ds.pointRadius      = ds.data.map(d => _pointRadius(d.player));
+      ds.pointHoverRadius = ds.data.map(d => _pointRadius(d.player) + 2);
+    });
+    scatterChartInstance.update('none');
+  }
+
+  function _updateScatterAndTable() {
+    _updateScatterHighlight();
+    const clearWrap = document.getElementById('scatter-clear-wrap');
+    if (clearWrap) clearWrap.hidden = scatterSelection.size === 0;
+    renderSurplusTable(getFilteredSurplus());
+  }
+
+  function _setupScatterInteraction(chart, canvas) {
+    const overlay = document.getElementById('scatter-select-box');
+    let dragStart = null;
+    let isDragging = false;
+
+    function canvasOffset(e) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      const pos = canvasOffset(e);
+      dragStart = pos;
+      isDragging = false;
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!dragStart || !e.buttons) return;
+      const pos = canvasOffset(e);
+      const dx = pos.x - dragStart.x;
+      const dy = pos.y - dragStart.y;
+      if (!isDragging && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      isDragging = true;
+      if (overlay) {
+        overlay.style.display = 'block';
+        overlay.style.left   = Math.min(dragStart.x, pos.x) + 'px';
+        overlay.style.top    = Math.min(dragStart.y, pos.y) + 'px';
+        overlay.style.width  = Math.abs(dx) + 'px';
+        overlay.style.height = Math.abs(dy) + 'px';
+      }
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (overlay) overlay.style.display = 'none';
+
+      if (!dragStart) return;
+      const pos = canvasOffset(e);
+
+      if (isDragging) {
+        // Convert pixel rect to data coords
+        const x0 = Math.min(dragStart.x, pos.x);
+        const x1 = Math.max(dragStart.x, pos.x);
+        const y0 = Math.min(dragStart.y, pos.y);
+        const y1 = Math.max(dragStart.y, pos.y);
+
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        const dataX0 = xScale.getValueForPixel(x0);
+        const dataX1 = xScale.getValueForPixel(x1);
+        const dataY0 = yScale.getValueForPixel(y1); // pixel y is inverted
+        const dataY1 = yScale.getValueForPixel(y0);
+
+        const inRect = new Set();
+        chart.data.datasets.forEach(ds => {
+          if (ds.type !== 'scatter') return;
+          ds.data.forEach(d => {
+            if (d.x >= dataX0 && d.x <= dataX1 && d.y >= dataY0 && d.y <= dataY1) {
+              inRect.add(d.player);
+            }
+          });
+        });
+
+        if (e.metaKey || e.ctrlKey) {
+          inRect.forEach(p => scatterSelection.add(p));
+        } else {
+          scatterSelection = inRect;
+        }
+      } else {
+        // Single click
+        const elements = chart.getElementsAtEventForMode(e, 'point', { intersect: true }, false);
+        if (elements.length) {
+          const el = elements[0];
+          const ds = chart.data.datasets[el.datasetIndex];
+          if (ds.type === 'scatter') {
+            const d = ds.data[el.index];
+            if (e.metaKey || e.ctrlKey) {
+              if (scatterSelection.has(d.player)) {
+                scatterSelection.delete(d.player);
+              } else {
+                scatterSelection.add(d.player);
+              }
+            } else {
+              scatterSelection = new Set([d.player]);
+            }
+          }
+        } else {
+          scatterSelection = new Set();
+        }
+      }
+
+      dragStart = null;
+      isDragging = false;
+      _updateScatterAndTable();
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (overlay) overlay.style.display = 'none';
+      dragStart = null;
+      isDragging = false;
+    });
+  }
+
   function refreshSurplus() {
     // Reset sort to surplus for active window when window changes.
     surplusSortKey = playerFields().surplus;
     updateSurplusHeaders();
+    renderSurplusScatter();
     renderSurplusTable(getFilteredSurplus());
   }
 
@@ -476,6 +767,39 @@
       });
     }
 
+    // Scatter Y-axis toggle
+    document.querySelectorAll('#scatter-y-toggle .toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        scatterYMode = btn.dataset.value;
+        document.querySelectorAll('#scatter-y-toggle .toggle-btn')
+          .forEach(b => b.classList.toggle('active', b === btn));
+        scatterSelection = new Set();
+        renderSurplusScatter();
+        renderSurplusTable(getFilteredSurplus());
+      });
+    });
+
+    // Scatter color toggle
+    document.querySelectorAll('#scatter-color-toggle .toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        scatterColorMode = btn.dataset.value;
+        document.querySelectorAll('#scatter-color-toggle .toggle-btn')
+          .forEach(b => b.classList.toggle('active', b === btn));
+        scatterSelection = new Set();
+        renderSurplusScatter();
+        renderSurplusTable(getFilteredSurplus());
+      });
+    });
+
+    // Scatter clear-selection button
+    const scatterClearBtn = document.getElementById('scatter-clear-btn');
+    if (scatterClearBtn) {
+      scatterClearBtn.addEventListener('click', () => {
+        scatterSelection = new Set();
+        _updateScatterAndTable();
+      });
+    }
+
     // Surplus position/team filters
     ['surplus-position', 'surplus-team'].forEach(id => {
       const el = document.getElementById(id);
@@ -483,6 +807,8 @@
       el.addEventListener('change', () => {
         if (id === 'surplus-position') surplusFilter.position = el.value;
         if (id === 'surplus-team')     surplusFilter.team     = el.value;
+        scatterSelection = new Set();
+        renderSurplusScatter();
         renderSurplusTable(getFilteredSurplus());
       });
     });

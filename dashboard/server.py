@@ -46,6 +46,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
+from src.contracts.pick_values import pick_base_salary, pick_value_metrics
 from src.contracts.draft_picks import (
     DEFAULT_OWNERSHIP_PATH,
     DEFAULT_YEAR_STATUS_PATH,
@@ -106,6 +107,16 @@ _CONFIG = load_league_config()
 # _PICKS is derived per-request from ownership; no startup cache needed.
 
 
+def _enrich_picks_with_values(picks: list[dict]) -> None:
+    """Mutate each pick dict in-place to add calendar-aligned value metrics."""
+    rookie_scale = _CONFIG["rookie_scale"]
+    current_season = int(_CONFIG["season"]["target_season"])
+    for p in picks:
+        base = pick_base_salary(p["round"], p["slot"], rookie_scale)
+        metrics = pick_value_metrics(base, p["year"], current_season, _CONFIG)
+        p.update(metrics)
+
+
 def _roster_csv_path() -> Path:
     """Current roster CSV path based on active config."""
     current_season = int(_CONFIG["season"]["current_season"])
@@ -154,6 +165,7 @@ def api_get_picks() -> Response:
     ownership = load_ownership()
     year_status = load_year_status()
     picks = generate_picks(_CONFIG, ownership, year_status)
+    _enrich_picks_with_values(picks)
     return jsonify({
         "picks": picks,
         "ownership": ownership,
@@ -235,6 +247,7 @@ def api_init_teams() -> Response:
 
     year_status = load_year_status()
     picks = generate_picks(_CONFIG, ownership, year_status)
+    _enrich_picks_with_values(picks)
     return jsonify({
         "ok": True,
         "picks": picks,
@@ -278,6 +291,7 @@ def api_set_draft_order() -> Response:
 
     year_status = load_year_status()
     picks = generate_picks(_CONFIG, ownership, year_status)
+    _enrich_picks_with_values(picks)
     return jsonify({
         "ok": True,
         "picks": picks,
@@ -315,6 +329,7 @@ def api_complete_year() -> Response:
 
     ownership = load_ownership()
     picks = generate_picks(_CONFIG, ownership, year_status)
+    _enrich_picks_with_values(picks)
     return jsonify({
         "ok": True,
         "year": year,

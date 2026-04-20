@@ -1,7 +1,9 @@
 // Phase 3 — Trade Proposal Assessment
 // Select two teams, pick assets (players, picks, cap $) moving each direction,
 // and see net changes across four metrics: This Yr Value, This Yr Surplus,
-// 3-Yr Value, 3-Yr Surplus. Pick value is not modeled yet — picks contribute 0.
+// 3-Yr Value, 3-Yr Surplus. Pick values are calendar-aligned: a 2026 pick
+// contributes to This Yr Value; a 2027 pick contributes only to 3-Yr Value.
+// All picks carry zero surplus (projected value == contract salary by assumption).
 
 (function () {
   // ── State ─────────────────────────────────────────────────────────────────
@@ -139,11 +141,13 @@
       const checked = fromSet.has(p.pick_id) ? 'checked' : '';
       const slotStr = p.slot ? ` · #${p.slot}` : '';
       const salary = p.salary != null ? `$${p.salary}` : '';
+      const val1yr = (p.value_1yr != null && p.value_1yr > 0) ? fmt1(p.value_1yr) : '–';
       return `
         <label class="tp-row">
           <input type="checkbox" data-pick="${escapeAttr(p.pick_id)}" ${checked} />
           <span class="tp-row-name mono">${p.year} R${p.round}${slotStr}</span>
           <span class="tp-row-metric num">${salary}</span>
+          <span class="tp-row-metric num" title="This Yr Value">${val1yr}</span>
         </label>`;
     }).join('');
 
@@ -189,6 +193,30 @@
       if (!r) return;
       METRICS.forEach(m => {
         const v = r[m.key] || 0;
+        deltas.B[m.key] -= v;
+        deltas.A[m.key] += v;
+      });
+    });
+
+    // Picks: calendar-aligned value metrics (surplus always 0).
+    const pickLookup = {};
+    (DRAFT_PICKS_DATA || []).forEach(p => { pickLookup[p.pick_id] = p; });
+
+    tpPicksFromA.forEach(id => {
+      const p = pickLookup[id];
+      if (!p) return;
+      METRICS.forEach(m => {
+        const v = p[m.key] || 0;
+        deltas.A[m.key] -= v;
+        deltas.B[m.key] += v;
+      });
+    });
+
+    tpPicksFromB.forEach(id => {
+      const p = pickLookup[id];
+      if (!p) return;
+      METRICS.forEach(m => {
+        const v = p[m.key] || 0;
         deltas.B[m.key] -= v;
         deltas.A[m.key] += v;
       });

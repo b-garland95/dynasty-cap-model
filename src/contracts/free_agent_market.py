@@ -96,7 +96,7 @@ def compute_cap_environment(
     fa_values = pd.to_numeric(
         tv_df.loc[~is_rostered, tv_col], errors="coerce"
     ).fillna(0.0)
-    total_fa_value = float(fa_values.sum())
+    total_fa_value = float(fa_values.clip(lower=0.0).sum())
 
     cpr = total_cap_available / total_fa_value if total_fa_value > 0.0 else 1.0
     market_multiplier = float(max(cpr, _MULTIPLIER_FLOOR) ** alpha)
@@ -163,7 +163,7 @@ def build_free_agent_market_table(
     working["projected_value"] = pd.to_numeric(
         working[tv_col], errors="coerce"
     ).fillna(0.0)
-    working["market_adjusted_value"] = working["projected_value"] * multiplier
+    working["market_adjusted_value"] = working["projected_value"]
     working["market_premium_pct"] = cap_env["inflation_pct"]
 
     base_cols = [c for c in ["player", "position", "team"] if c in working.columns]

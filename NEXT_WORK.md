@@ -2,75 +2,78 @@
 
 ## Ready
 
-### Expand Draft Pick Data Model for Original Assignment, Ownership, and Comp Picks
+### Add Rookie Pick Activation Curve and Effective Cap Treatment
 
-Outcome: Draft pick records correctly represent original assignment, current ownership, configurable compensatory picks, and the distinction between known-order and unknown-order future picks.
+Outcome: Draft picks have an effective current-year cap hit and effective current-year value contribution that reflect the probability a rookie is activated off the practice squad, rather than treating every pick as either fully active or always discounted.
 
-Description: The current draft pick ownership framework is too simple for the league’s actual draft structure. We need to expand the model so a pick is not just “owned by” a team, but also has an original team assignment and, when known, a realized draft slot. This is important because picks originate with one team, draft order is determined later based on performance, and ownership can change through trades.
+Description: We now have draft-pick value logic available elsewhere in the app, but the cap-health side of the system still needs a realistic way to translate rookie picks into current-year cap burden and value contribution. In League Tycoon terms, rookie picks will eventually become players on rookie-scale deals, and those players may either remain on the practice squad at the 25% cap rate or be activated such that their full cap counts against team salary cap. For current cap-health projections, we need a simple first-pass model for that activation risk.
 
-The model also needs to support compensatory picks. Comp picks should be configurable from league settings rather than hardcoded, but the current structure must support the existing extra picks at:
-- 2.11
-- 3.11
-- 4.11
-- 4.12
+For v1, implement a naive activation curve by pick slot using a hard-tailed log-style decay. The core behavior should be:
+- 1.01 is very likely to be activated, and activated early
+- late 1st-round picks should still carry meaningful activation probability
+- 2nd-round picks should tail off sharply
+- later rounds should have materially lower activation likelihoods
 
-The default ownership of these comp-picks should be empty. 
+That activation probability should be used symmetrically to discount both:
+- the pick’s current-year cap hit burden
+- the pick’s current-year value-added contribution
 
-For future draft years, the exact slot order is not yet known. That means the UI and backend should distinguish between:
-- picks for years with a known draft order
-- picks for years where only original team assignment is known
+This should produce an expected effective cap hit and expected effective value contribution for each pick. The implementation should be structured so the activation curve can be replaced later by a more evidence-based model without reworking downstream consumers.
 
-By default, a pick should be owned by the same team to which it was originally assigned. Ownership should then be independently editable when picks are traded.
-
-This ticket is about correcting the underlying pick representation and app behavior, not about final pick valuation.
+This ticket is about the backend economics and cap-treatment logic, not the Cap Health dashboard presentation.
 
 Done when:
 
-  * Draft pick model distinguishes between original assignment and current owner
-  * New picks default current owner to original assigned team
-  * Ownership can be updated independently from original assignment
-  * League settings support configurable compensatory pick structure
-  * Current comp picks 2.11, 3.11, 4.11, and 4.12 can be represented correctly
-  * Data model supports years with known slot order and years without known slot order
-  * UI for future years does not require a finalized slot order when that order is not yet known
-  * Pick representation remains compatible with future valuation work
-  * Tests cover default ownership, traded ownership overrides, comp pick creation, and future-year unknown-order behavior
+  * Backend computes an activation probability for each rookie pick based on pick slot
+  * Activation curve is directionally consistent with league expectations, especially steep drop after Round 1
+  * Each pick has an effective current-year cap hit derived from rookie-scale cap and activation probability
+  * Each pick has an effective current-year value-added contribution derived from pick value and the same activation probability
+  * Full-cap vs practice-squad-discount behavior is modeled explicitly rather than implicitly
+  * Logic uses existing rookie-scale / pick-structure config rather than duplicating salary assumptions
+  * Logic is written so the activation curve can be tuned or replaced later without breaking downstream consumers
+  * Tests cover curve monotonicity, 1.01 high-activation behavior, sharp round-2 dropoff, and effective cap/value discounting
 
 Notes for agent:
 
-  * Treat original assignment and current ownership as separate first-class fields
-  * Do not assume every future pick can be represented as a fixed slot like 1.03 or 2.07 before order is known
-  * Keep comp pick configuration driven by league settings so the structure is reusable across leagues
-  * Design the model so future tickets can attach valuation, trade history, and lifecycle state without reworking the schema
+  * Keep league rules sourced from config rather than hardcoding constants that already exist elsewhere
+  * Use one shared activation-probability function for both cap-hit discounting and value-added discounting
+  * Be explicit about whether the expected cap hit is modeled as:
+    expected cap = p_activate * full_cap + (1 - p_activate) * discounted_ps_cap
+  * Preserve a clean distinction between intrinsic pick value and current-year realized cap/value expectation
+  * Favor an intentionally simple curve in v1, but make the function shape and parameters easy to inspect and tune
 
-### Add Draft Order Submission Workflow for Annual Pick Slot Generation
+### Wire Draft Pick Value and Effective Cap Burden into Cap Health Dashboard
 
-Outcome: User can submit the finalized draft order for a league year and automatically generate the initial slot structure for that year’s draft across all rounds based on original team assignment and league settings.
+Outcome: The Cap Health dashboard includes draft-pick value and draft-pick cap burden in team projections instead of showing picks as TBD.
 
-Description: Pick slot order is not known until the prior season ends. Once that order is known, we need a workflow for submitting the finalized draft order so the app can build the initial state of that season’s picks. The submitted order should drive slot creation across each round, since the same team ordering repeats by round, with configured comp picks inserted where applicable.
+Description: The app already has enough pick-value logic to surface dollar values for draft picks in other workflows, including trade analysis. The Cap Health dashboard should now consume that logic so teams’ projected outlooks include the effect of owned draft capital. Today that area still shows draft picks as TBD, which understates both future value and cap obligations.
 
-This workflow should allow the app to move a draft year from an “order unknown” state into a “slot order known” state. After submission, each pick for that year should have a concrete round/slot identity based on the entered draft order and the configured league structure.
+This work should wire pick economics into the Cap Health dashboard using the effective outputs produced by the rookie activation / cap-treatment layer. Team-level cap-health outputs should therefore reflect both:
+- value added from owned picks
+- cap consumed by those picks
 
-This ticket is about annual draft-order finalization and pick instantiation, not about managing post-trade ownership changes beyond preserving whatever ownership logic already exists.
+This is especially important because picks are not “free” assets in this league context. Their associated rookie contracts consume cap, and that cost should reduce cap available in the dashboard. The dashboard should therefore show a more complete team outlook by incorporating both the upside and the burden of draft capital.
+
+For v1, use the newly available pick-value and effective-cap logic as-is. The goal is to replace the current TBD placeholder and correctly wire picks into team-level projections, not to perfect the underlying pick model in the same ticket.
 
 Done when:
 
-  * App supports submitting a finalized draft order for a specific league year
-  * Submitted order generates the initial slot structure for each standard round in that year
-  * Generated slot order repeats correctly across rounds based on the entered team ordering
-  * Configured compensatory picks are inserted correctly for the affected rounds
-  * Workflow applies to a draft year that previously had unknown future order
-  * Generated picks preserve original assignment correctly
-  * Existing ownership logic remains compatible after slot generation
-  * User receives clear feedback when draft order submission succeeds or fails
-  * Tests cover annual order submission, round replication, and comp-pick insertion
+  * Cap Health dashboard no longer shows draft-pick contribution as TBD
+  * Team-level projections include owned draft-pick value using the existing pick value framework
+  * Team-level projections include owned draft-pick effective cap burden using the activation-discounted cap logic
+  * Draft-pick cap burden is backed out of available cap in the Cap Health view
+  * Dashboard clearly distinguishes player-contract burden from draft-pick burden if both are shown
+  * Pick-related value and pick-related cap impact roll up correctly at the team level
+  * Output is directionally consistent with owned-pick inventory across teams
+  * Tests cover dashboard integration and at least one end-to-end case where owned picks change both projected value and available cap
 
 Notes for agent:
 
-  * Think of this as a year-finalization workflow that converts abstract future picks into concrete slotted picks
-  * Keep the entered draft order as an explicit input that can be inspected and, if necessary, corrected later
-  * Make sure generated slot structure is deterministic and reproducible from the submitted order plus league settings
-  * Be careful not to overwrite traded ownership state when turning a year into concrete slotted picks
+  * Reuse the same pick value source already powering trade-related views rather than re-implementing valuation in the dashboard layer
+  * Treat this as a wiring/integration ticket; the dashboard should consume backend outputs, not embed its own pick math
+  * Make the presentation legible enough that users can tell why a team’s cap available changed after pick costs are included
+  * Be careful about double counting when combining player value, player cap burden, pick value, and pick cap burden
+  * If there is a current-year vs multi-year split inside Cap Health, make sure pick treatment is applied consistently to the intended horizon
 
 ### Add Draft Year Lifecycle State for Spent Picks After the Draft
 
@@ -104,36 +107,7 @@ Notes for agent:
   * Make sure downstream consumers do not continue valuing or surfacing spent current-year picks once the year is completed
   * Design the lifecycle state so future tickets can support richer draft-history views if needed
 
-### Add Contract Schedule Validation Workflow
 
-Outcome: User can review players whose contract schedules are flagged for validation, confirm or correct their schedules in the app, and persist validated results to the backend override dataset with validation status updated accordingly.
-
-Description: We need a dedicated workflow for validating contract schedules for players we have flagged as needing review. Rather than handling these one-off in backend files, the app should provide a screen that surfaces the outstanding validation queue, lets a user inspect and update the relevant contract schedule details, and then marks those players as validated once review is complete.
-
-Edits made through this workflow should write to the override dataset stored on the backend, since validated schedules represent curated corrections or confirmations relative to raw source data. Validation status should also be persisted so the app can clearly distinguish between players still needing review and players whose contract schedules have already been validated.
-
-This ticket is about the validation workflow, persistence, and status management, not about redesigning the contract ingestion pipeline.
-
-Done when:
-
-  * App has a dedicated screen for contract schedule validation
-  * Screen shows players currently flagged as needing contract schedule validation
-  * User can inspect the relevant contract schedule fields for a flagged player
-  * User can edit or confirm contract schedule details from the UI
-  * Saving writes updated schedule data to the backend override dataset
-  * Completing validation updates the player’s status from needing validation to validated
-  * Validation status persists across reloads and is reflected correctly when the screen is reopened
-  * Screen clearly separates validated players from players still requiring review, or filters to only outstanding items by default
-  * App provides clear save success and failure feedback
-  * Tests cover queue loading, schedule editing, override persistence, and validation status transitions
-
-Notes for agent:
-
-  * Treat the backend override dataset as the source of truth for validated manual corrections
-  * Keep the validation status model explicit and durable so future workflows can report on coverage and remaining backlog
-  * Design the screen around a review queue pattern, since users will likely validate many players in sequence
-  * Avoid coupling “validated” too tightly to “manually changed”; a player may be validated even if the raw schedule was simply confirmed as correct
-  * Make sure downstream contract schedule consumers read from the override layer consistently after validation
 
 ## Later
 

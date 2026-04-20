@@ -242,6 +242,7 @@ def build_contract_surplus_table(
     merged["surplus_value"] = merged["pv_tv"] - merged["pv_cap"]
 
     # Windowed annualized surplus for each supported window size.
+    # 1yr, 3yr, 5yr columns are retained for the Cap Health dashboard.
     for label, window in VALUATION_WINDOWS.items():
         tv_cols = [f"tv_y{i}" for i in range(4)]
         cap_cols = [f"cap_y{i}" for i in range(4)]
@@ -264,6 +265,33 @@ def build_contract_surplus_table(
     merged["surplus_3yr_ann"] = merged["value_3yr_ann"] - merged["cap_3yr_ann"]
     merged["surplus_5yr_ann"] = merged["value_5yr_ann"] - merged["cap_5yr_ann"]
 
+    # Per-year surplus (year index 0–3, independent of window).
+    for i in range(4):
+        merged[f"surplus_y{i}"] = merged[f"tv_y{i}"] - merged[f"cap_y{i}"]
+
+    # Contract-length aggregates: totals and averages over each player's
+    # actual years_remaining (not a fixed window).
+    merged["contract_total_value"] = merged.apply(
+        lambda row: float(sum(row[f"tv_y{i}"] for i in range(int(row["years_remaining"])))),
+        axis=1,
+    )
+    merged["contract_total_cap"] = merged.apply(
+        lambda row: float(sum(row[f"cap_y{i}"] for i in range(int(row["years_remaining"])))),
+        axis=1,
+    )
+    merged["contract_total_surplus"] = merged["contract_total_value"] - merged["contract_total_cap"]
+    merged["contract_avg_value"] = merged.apply(
+        lambda row: row["contract_total_value"] / int(row["years_remaining"])
+        if int(row["years_remaining"]) > 0 else 0.0,
+        axis=1,
+    )
+    merged["contract_avg_cap"] = merged.apply(
+        lambda row: row["contract_total_cap"] / int(row["years_remaining"])
+        if int(row["years_remaining"]) > 0 else 0.0,
+        axis=1,
+    )
+    merged["contract_avg_surplus"] = merged["contract_avg_value"] - merged["contract_avg_cap"]
+
     return merged[
         PLAYER_KEY_COLUMNS
         + ["pv_tv", "pv_cap", "surplus_value"]
@@ -271,6 +299,12 @@ def build_contract_surplus_table(
         + ["value_3yr_ann", "cap_3yr_ann", "surplus_3yr_ann"]
         + ["value_5yr_ann", "cap_5yr_ann", "surplus_5yr_ann"]
         + ["cap_today_current", "dead_money_cut_now_nominal", "dead_money_cut_now_pv", "needs_schedule_validation"]
+        + ["years_remaining"]
+        + [f"tv_y{i}" for i in range(4)]
+        + [f"cap_y{i}" for i in range(4)]
+        + [f"surplus_y{i}" for i in range(4)]
+        + ["contract_total_value", "contract_total_cap", "contract_total_surplus",
+           "contract_avg_value", "contract_avg_cap", "contract_avg_surplus"]
     ].reset_index(drop=True)
 
 

@@ -11,6 +11,9 @@
   let surplusSortKey       = 'surplus_1yr';
   let surplusSortAsc       = false;
   let surplusFilter        = { position: 'All', team: 'All' };
+  // surplusWindow drives the Contract Surplus sub-tab only.
+  // valuationWindow drives Cap Health (unchanged: '1yr' | '3yr' | '5yr').
+  let surplusWindow        = '1yr';   // '1yr' | 'contract' | 'y0' | 'y1' | 'y2' | 'y3'
   let valuationWindow      = '1yr';   // '1yr' | '3yr' | '5yr'
   let scatterYMode         = 'value';    // 'value' | 'surplus'
   let scatterColorMode     = 'position'; // 'position' | 'team'
@@ -26,21 +29,39 @@
   ];
 
   // ── Window field maps ─────────────────────────────────────────────────────
-  // Maps a window key to the player-level and team-level field names used for
-  // projected value, cap hit, and surplus.
-
+  // PLAYER_FIELDS: maps surplusWindow key → player-level field names for the
+  // Contract Surplus sub-tab (value, cap, surplus columns).
+  // 'contract' mode exposes additional aggregate columns handled separately in
+  // renderSurplusTable / renderSurplusScatter.
   const PLAYER_FIELDS = {
-    '1yr': { value: 'value_1yr',     cap: 'cap_1yr',     surplus: 'surplus_1yr'     },
-    '3yr': { value: 'value_3yr_ann', cap: 'cap_3yr_ann', surplus: 'surplus_3yr_ann' },
-    '5yr': { value: 'value_5yr_ann', cap: 'cap_5yr_ann', surplus: 'surplus_5yr_ann' },
+    '1yr':      { value: 'value_1yr',         cap: 'cap_1yr',         surplus: 'surplus_1yr'         },
+    'contract': { value: 'contract_avg_value', cap: 'contract_avg_cap', surplus: 'contract_avg_surplus' },
+    'y0':       { value: 'tv_y0',  cap: 'cap_y0',  surplus: 'surplus_y0' },
+    'y1':       { value: 'tv_y1',  cap: 'cap_y1',  surplus: 'surplus_y1' },
+    'y2':       { value: 'tv_y2',  cap: 'cap_y2',  surplus: 'surplus_y2' },
+    'y3':       { value: 'tv_y3',  cap: 'cap_y3',  surplus: 'surplus_y3' },
   };
 
+  // TEAM_FIELDS: maps valuationWindow key → team-level field names for Cap Health.
+  // Unchanged — Cap Health still uses 1yr / 3yr / 5yr.
   const TEAM_FIELDS = {
     '1yr': { value: 'total_value_1yr',     cap: 'total_cap_1yr',     surplus: 'total_surplus_1yr'     },
     '3yr': { value: 'total_value_3yr_ann', cap: 'total_cap_3yr_ann', surplus: 'total_surplus_3yr_ann' },
     '5yr': { value: 'total_value_5yr_ann', cap: 'total_cap_5yr_ann', surplus: 'total_surplus_5yr_ann' },
   };
 
+  // SURPLUS_WINDOW_LABELS: display strings for the Contract Surplus sub-tab.
+  // Per-year entries are keyed 'y0'–'y3' and built at init time with actual years.
+  const SURPLUS_WINDOW_LABELS = {
+    '1yr':      { value: 'This Year\'s Value', cap: 'This Year\'s Cap Hit', surplus: 'This Year\'s Surplus', yAxis: 'Value ($)' },
+    'contract': { value: 'Avg Value',          cap: 'Avg Cap Hit',          surplus: 'Avg Surplus',          yAxis: 'Avg Annual Value ($)' },
+    'y0':       { value: 'Value',              cap: 'Cap Hit',              surplus: 'Surplus',              yAxis: 'Value ($)' },
+    'y1':       { value: 'Value',              cap: 'Cap Hit',              surplus: 'Surplus',              yAxis: 'Value ($)' },
+    'y2':       { value: 'Value',              cap: 'Cap Hit',              surplus: 'Surplus',              yAxis: 'Value ($)' },
+    'y3':       { value: 'Value',              cap: 'Cap Hit',              surplus: 'Surplus',              yAxis: 'Value ($)' },
+  };
+
+  // WINDOW_LABELS: display strings for Cap Health (unchanged).
   const WINDOW_LABELS = {
     '1yr': { value: 'This Year\'s Value', cap: 'This Year\'s Cap Hit', surplus: 'This Year\'s Surplus', yAxis: 'Value ($)' },
     '3yr': { value: '3-Yr Avg Value',     cap: '3-Yr Avg Cap Hit',     surplus: '3-Yr Avg Surplus',     yAxis: 'Avg Annual Value ($)' },
@@ -58,24 +79,33 @@
     return 'var(--surplus-low)';
   }
 
-  function playerFields() { return PLAYER_FIELDS[valuationWindow]; }
-  function teamFields()   { return TEAM_FIELDS[valuationWindow]; }
-  function windowLabels() { return WINDOW_LABELS[valuationWindow]; }
+  function surplusFields()       { return PLAYER_FIELDS[surplusWindow] || PLAYER_FIELDS['1yr']; }
+  function surplusWindowLabels() { return SURPLUS_WINDOW_LABELS[surplusWindow] || SURPLUS_WINDOW_LABELS['1yr']; }
+  function teamFields()          { return TEAM_FIELDS[valuationWindow]; }
+  function windowLabels()        { return WINDOW_LABELS[valuationWindow]; }
 
   // ── Contract Surplus ──────────────────────────────────────────────────────
 
   function getFilteredSurplus({ ignoreSelection = false } = {}) {
+    const perYearMinYears = { y0: 1, y1: 2, y2: 3, y3: 4 };
     return SURPLUS_DATA.filter(r => {
       if (surplusFilter.position !== 'All' && r.position !== surplusFilter.position) return false;
       if (surplusFilter.team !== 'All' && r.team !== surplusFilter.team) return false;
       if (!ignoreSelection && scatterSelection.size > 0 && !scatterSelection.has(r.player)) return false;
+      // For specific-year views, only show players whose contract extends to that year.
+      if (surplusWindow in perYearMinYears && r.years_remaining < perYearMinYears[surplusWindow]) return false;
       return true;
     });
   }
 
   function updateSurplusHeaders() {
-    const labels = windowLabels();
-    const fields = playerFields();
+    if (surplusWindow === 'contract') {
+      // Contract Value mode uses a custom thead rendered inside renderSurplusTable.
+      return;
+    }
+
+    const labels = surplusWindowLabels();
+    const fields = surplusFields();
 
     const valueHdr   = document.getElementById('surplus-col-value');
     const capHdr     = document.getElementById('surplus-col-cap');
@@ -116,11 +146,119 @@
     });
   }
 
+  function _renderContractValueTable(rows, tbody) {
+    const table = tbody.closest('table');
+    if (table) {
+      const thead = table.querySelector('thead tr');
+      if (thead) {
+        thead.innerHTML = `
+          <th>Player</th>
+          <th>Team</th>
+          <th>Pos</th>
+          <th class="num" data-sort-cv="contract_avg_cap" style="cursor:pointer;">Avg Cap Hit ↕</th>
+          <th class="num" data-sort-cv="years_remaining" style="cursor:pointer;">Yrs Left ↕</th>
+          <th class="num" data-sort-cv="contract_avg_value" style="cursor:pointer;">Avg Value ↕</th>
+          <th class="num" data-sort-cv="contract_avg_surplus" style="cursor:pointer;">Avg Surplus ↕</th>
+          <th class="num" data-sort-cv="contract_total_value" style="cursor:pointer;">Total Value ↕</th>
+          <th class="num sort-desc" data-sort-cv="contract_total_surplus" style="cursor:pointer;">Total Surplus ↕</th>
+          <th class="num" data-sort-cv="cap_today_current" style="cursor:pointer;">Cap Today ↕</th>
+          <th class="num" data-sort-cv="dead_money_cut_now_nominal" style="cursor:pointer;">Dead $ ↕</th>
+        `;
+        thead.querySelectorAll('th[data-sort-cv]').forEach(th => {
+          th.addEventListener('click', () => {
+            if (surplusSortKey === th.dataset.sortCv) {
+              surplusSortAsc = !surplusSortAsc;
+            } else {
+              surplusSortKey = th.dataset.sortCv;
+              surplusSortAsc = false;
+            }
+            thead.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add(surplusSortAsc ? 'sort-asc' : 'sort-desc');
+            _renderContractValueTable(getFilteredSurplus(), tbody);
+          });
+        });
+      }
+    }
+
+    const sorted = rows.slice().sort((a, b) => {
+      const av = a[surplusSortKey] ?? 0;
+      const bv = b[surplusSortKey] ?? 0;
+      return surplusSortAsc ? av - bv : bv - av;
+    });
+
+    tbody.innerHTML = sorted.map(r => {
+      const surpColor = surplusColor(r.contract_avg_surplus ?? 0);
+      const totalSurpColor = surplusColor(r.contract_total_surplus ?? 0);
+      const validFlag = r.needs_schedule_validation
+        ? '<span class="validation-flag" title="Schedule needs validation">⚠</span>'
+        : '';
+      return `
+        <tr>
+          <td>${playerLink(r.player)}${validFlag}</td>
+          <td class="team-cell">${r.team}</td>
+          <td><span class="pos-badge pos-${r.position.toLowerCase()}">${r.position}</span></td>
+          <td class="num">${fmt1(r.contract_avg_cap)}</td>
+          <td class="num">${r.years_remaining}</td>
+          <td class="num">${fmt1(r.contract_avg_value)}</td>
+          <td class="num surplus-cell" style="color:${surpColor};">${fmt1(r.contract_avg_surplus)}</td>
+          <td class="num">${fmt1(r.contract_total_value)}</td>
+          <td class="num surplus-cell" style="color:${totalSurpColor};">${fmt1(r.contract_total_surplus)}</td>
+          <td class="num">${fmt1(r.cap_today_current)}</td>
+          <td class="num">${fmt1(r.dead_money_cut_now_nominal)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function _restoreStandardSurplusHeader(tbody) {
+    const table = tbody.closest('table');
+    if (!table) return;
+    const thead = table.querySelector('thead tr');
+    if (!thead) return;
+    thead.innerHTML = `
+      <th>Player</th>
+      <th>Team</th>
+      <th>Pos</th>
+      <th id="surplus-col-value" class="num sort-desc">Proj Value ↕</th>
+      <th id="surplus-col-cap" class="num">Cap Hit ↕</th>
+      <th id="surplus-col-surplus" class="num">Surplus ↕</th>
+      <th data-sort="cap_today_current" class="num">Cap Today ↕</th>
+      <th data-sort="dead_money_cut_now_nominal" class="num">Dead $ ↕</th>
+    `;
+    // Re-wire static sort columns.
+    thead.querySelectorAll('th[data-sort]').forEach(th => {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', () => {
+        if (surplusSortKey === th.dataset.sort) {
+          surplusSortAsc = !surplusSortAsc;
+        } else {
+          surplusSortKey = th.dataset.sort;
+          surplusSortAsc = false;
+        }
+        thead.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+        th.classList.add(surplusSortAsc ? 'sort-asc' : 'sort-desc');
+        renderSurplusTable(getFilteredSurplus());
+      });
+    });
+  }
+
   function renderSurplusTable(rows) {
     const tbody = document.getElementById('surplus-table-body');
     if (!tbody) return;
 
-    const fields = playerFields();
+    if (surplusWindow === 'contract') {
+      _renderContractValueTable(rows, tbody);
+      return;
+    }
+
+    // Ensure standard header is in place (may need restoring after contract mode).
+    const hasContractHeader = tbody.closest('table')?.querySelector('th[data-sort-cv]');
+    if (hasContractHeader) {
+      _restoreStandardSurplusHeader(tbody);
+      updateSurplusHeaders();
+    }
+
+    const fields = surplusFields();
 
     const sorted = rows.slice().sort((a, b) => {
       const av = a[surplusSortKey] ?? 0;
@@ -219,12 +357,16 @@
     const rows = getFilteredSurplus({ ignoreSelection: true });
     if (!rows.length) return;
 
-    const fields = playerFields();
-    const labels = windowLabels();
-    const xField = fields.cap;
-    const yField = scatterYMode === 'value' ? fields.value : fields.surplus;
-    const xLabel = labels.cap;
-    const yLabel = scatterYMode === 'value' ? labels.value : labels.surplus;
+    const fields = surplusFields();
+    const labels = surplusWindowLabels();
+    const xField = surplusWindow === 'contract' ? 'contract_avg_cap' : fields.cap;
+    const yField = surplusWindow === 'contract'
+      ? (scatterYMode === 'value' ? 'contract_avg_value' : 'contract_avg_surplus')
+      : (scatterYMode === 'value' ? fields.value : fields.surplus);
+    const xLabel = surplusWindow === 'contract' ? 'Avg Cap Hit' : labels.cap;
+    const yLabel = surplusWindow === 'contract'
+      ? (scatterYMode === 'value' ? 'Avg Value' : 'Avg Surplus')
+      : (scatterYMode === 'value' ? labels.value : labels.surplus);
 
     const maxCap = Math.max(...rows.map(r => +(r[xField] || 0)));
 
@@ -439,8 +581,11 @@
   }
 
   function refreshSurplus() {
-    // Reset sort to surplus for active window when window changes.
-    surplusSortKey = playerFields().surplus;
+    // Reset sort to the primary surplus column for the active window.
+    surplusSortKey = surplusWindow === 'contract'
+      ? 'contract_total_surplus'
+      : surplusFields().surplus;
+    surplusSortAsc = false;
     updateSurplusHeaders();
     renderSurplusScatter();
     renderSurplusTable(getFilteredSurplus());
@@ -743,26 +888,26 @@
       btn.addEventListener('click', () => switchLeagueTab(btn.dataset.subtab));
     });
 
-    // Surplus window selector
+    // Surplus window selector — populate per-year options from config then wire change handler.
     const surplusWindowSel = document.getElementById('surplus-window');
     if (surplusWindowSel) {
+      for (let i = 0; i < 4; i++) {
+        const opt = document.createElement('option');
+        opt.value = `y${i}`;
+        opt.textContent = String(tvYearLabel(i));
+        surplusWindowSel.appendChild(opt);
+      }
       surplusWindowSel.addEventListener('change', () => {
-        valuationWindow = surplusWindowSel.value;
-        // Keep cap-window in sync
-        const capWindowSel = document.getElementById('cap-window');
-        if (capWindowSel) capWindowSel.value = valuationWindow;
+        surplusWindow = surplusWindowSel.value;
         refreshSurplus();
       });
     }
 
-    // Cap Health window selector
+    // Cap Health window selector — independent of surplus window.
     const capWindowSel = document.getElementById('cap-window');
     if (capWindowSel) {
       capWindowSel.addEventListener('change', () => {
         valuationWindow = capWindowSel.value;
-        // Keep surplus-window in sync
-        const surpWin = document.getElementById('surplus-window');
-        if (surpWin) surpWin.value = valuationWindow;
         refreshCap();
       });
     }

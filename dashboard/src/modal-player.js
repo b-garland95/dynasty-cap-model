@@ -204,15 +204,14 @@
   function buildCareerChart(playerName, careerRows, posColor) {
     if (careerChart) { careerChart.destroy(); careerChart = null; }
 
-    // Forecast rows: TV Y0=2026, Y1=2027, Y2=2028, Y3=2029
     const tv = (typeof TV_DATA !== 'undefined' ? TV_DATA : []).find(r => r.player === playerName);
     const historicalSeasons = new Set(careerRows.map(r => r.season));
 
     const forecastYears = [
-      { season: 2026, value: tv?.tv_y0 ?? null },
-      { season: 2027, value: tv?.tv_y1 ?? null },
-      { season: 2028, value: tv?.tv_y2 ?? null },
-      { season: 2029, value: tv?.tv_y3 ?? null },
+      { season: tvYearLabel(0), value: tv?.tv_y0 ?? null },
+      { season: tvYearLabel(1), value: tv?.tv_y1 ?? null },
+      { season: tvYearLabel(2), value: tv?.tv_y2 ?? null },
+      { season: tvYearLabel(3), value: tv?.tv_y3 ?? null },
     ].filter(y => y.value !== null && y.value > 0 && !historicalSeasons.has(y.season));
 
     const histLen   = careerRows.length;
@@ -469,13 +468,19 @@
 
     const rows = _buildComparableWindow(playerName, tvAll, surplusAll, ledgerAll);
 
-    // Update metric column header
+    // Update metric column header and TV year headers from config.
     const hdr = document.getElementById('modal-comp-metric-header');
     if (hdr) {
-      hdr.textContent = _compMetric === 'tv_y0'   ? 'This Year\'s Value'
+      hdr.textContent = _compMetric === 'tv_y0'   ? `${tvYearLabel(0)} Value`
                       : _compMetric === 'tv_sum'   ? 'Total 4-Yr Value'
                       :                              'This Year\'s Surplus';
     }
+    const y1hdr = document.getElementById('modal-tv-y1-header');
+    const y2hdr = document.getElementById('modal-tv-y2-header');
+    const y3hdr = document.getElementById('modal-tv-y3-header');
+    if (y1hdr) y1hdr.textContent = String(tvYearLabel(1));
+    if (y2hdr) y2hdr.textContent = String(tvYearLabel(2));
+    if (y3hdr) y3hdr.textContent = String(tvYearLabel(3));
 
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">Comparable players are not available for this ranking window.</td></tr>';

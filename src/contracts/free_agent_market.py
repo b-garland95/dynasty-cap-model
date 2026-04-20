@@ -5,14 +5,19 @@ Produces two outputs:
   2. A league-level cap environment dict that explains the inflation/deflation signal.
 
 Market mechanism (v1):
-  cap_to_value_ratio (CVR) = available_cap / total_fa_projected_value
+  cap_to_value_ratio (CVR) = effective_cap_available / total_fa_projected_value
   market_multiplier         = CVR ^ alpha   (dampened power law)
   market_adjusted_value     = projected_value * market_multiplier
 
 Available cap uses the precise per-team formula that matches the League Config screen:
   cap_remaining_per_team = base_cap - current_cap_usage - dead_money
                            - cap_transactions + rollover
-  available_cap          = sum(max(cap_remaining_per_team, 0) for all teams)
+  total_cap_available    = sum(max(cap_remaining_per_team, 0) for all teams)
+
+Effective cap backs out rollover from total_cap_available because rollover is
+cap that exists on paper but will not compete for free agents — it was held back
+last season and is typically reserved for future use, not spent in the FA auction.
+  effective_cap_available = max(total_cap_available - total_rollover, 0)
 """
 
 from __future__ import annotations
@@ -64,8 +69,8 @@ def compute_cap_environment(
     Returns
     -------
     dict with keys:
-        total_cap_available, total_fa_value, cap_to_value_ratio,
-        market_multiplier, inflation_pct, alpha
+        total_cap_available, total_rollover, effective_cap_available,
+        total_fa_value, cap_to_value_ratio, market_multiplier, inflation_pct, alpha
     """
     n_teams = int(config["league"]["teams"])
     base_cap = float(config["cap"]["base_cap"])
@@ -76,16 +81,22 @@ def compute_cap_environment(
 
     if cap_health_df is not None and not cap_health_df.empty:
         total_cap_available = 0.0
+        total_rollover = 0.0
         for _, row in cap_health_df.iterrows():
             team = str(row.get("team", ""))
+            team_adj = adj.get(team, {})
             remaining = _per_team_cap_remaining(
                 current_cap_usage=float(row.get("current_cap_usage", 0.0)),
                 base_cap=base_cap,
-                team_adj=adj.get(team, {}),
+                team_adj=team_adj,
             )
             total_cap_available += max(remaining, 0.0)
+            total_rollover += float(team_adj.get("rollover", 0.0))
     else:
         total_cap_available = float(n_teams * base_cap)
+        total_rollover = 0.0
+
+    effective_cap_available = max(total_cap_available - total_rollover, 0.0)
 
     is_rostered = (
         tv_df["is_rostered"].fillna(False).astype(bool)
@@ -98,12 +109,14 @@ def compute_cap_environment(
     ).fillna(0.0)
     total_fa_value = float(fa_values.clip(lower=0.0).sum())
 
-    cpr = total_cap_available / total_fa_value if total_fa_value > 0.0 else 1.0
+    cpr = effective_cap_available / total_fa_value if total_fa_value > 0.0 else 1.0
     market_multiplier = float(max(cpr, _MULTIPLIER_FLOOR) ** alpha)
     inflation_pct = (market_multiplier - 1.0) * 100.0
 
     return {
         "total_cap_available": total_cap_available,
+        "total_rollover": total_rollover,
+        "effective_cap_available": effective_cap_available,
         "total_fa_value": total_fa_value,
         "cap_to_value_ratio": cpr,
         "market_multiplier": market_multiplier,
@@ -163,7 +176,7 @@ def build_free_agent_market_table(
     working["projected_value"] = pd.to_numeric(
         working[tv_col], errors="coerce"
     ).fillna(0.0)
-    working["market_adjusted_value"] = working["projected_value"]
+    working["market_adjusted_value"] = (working["projected_value"] * multiplier).clip(lower=0.0)
     working["market_premium_pct"] = cap_env["inflation_pct"]
 
     base_cols = [c for c in ["player", "position", "team"] if c in working.columns]

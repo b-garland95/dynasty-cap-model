@@ -988,6 +988,180 @@ body {
 .pos-badge.pos-wr { background: rgba(152,195,121,0.2); color: var(--pos-wr); }
 .pos-badge.pos-te { background: rgba(209,154,102,0.2); color: var(--pos-te); }
 
+/* ── Value Curves — Historical Season Grid ── */
+.vc-grid-section {
+  margin-top: 40px;
+}
+
+.vc-grid-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vc-grid-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.vc-grid-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.vc-grid-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+}
+
+.vc-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vc-filter-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Chip multi-select */
+.vc-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.vc-chip-group--years {
+  max-width: 380px;
+}
+
+.vc-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.vc-chip:hover {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+.vc-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Rank range inputs */
+.vc-range-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vc-range-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  width: 58px;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+
+.vc-range-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.vc-range-input::placeholder {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.vc-range-sep {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Player search */
+.vc-search-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  padding: 4px 10px;
+  width: 150px;
+  transition: border-color 0.15s;
+}
+
+.vc-search-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.vc-search-input::placeholder {
+  color: var(--muted);
+}
+
+/* Reset button */
+.vc-reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  transition: border-color 0.12s, color 0.12s;
+  margin-left: auto;
+}
+
+.vc-reset-btn:hover {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+/* Rank-delta badge (pre vs actual) */
+.vc-rank-delta {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-left: 4px;
+  font-weight: 500;
+}
+.vc-rank-delta.pos { color: var(--surplus-pos); }
+.vc-rank-delta.neg { color: var(--surplus-neg); }
+
 /* Validation warning flag */
 .validation-flag {
   color: #e5a96a;

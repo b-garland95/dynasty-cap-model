@@ -3,15 +3,16 @@
 
 // Paths are relative to index.html (served from dashboard/src/)
 const DATA_PATHS = {
-  weekly:          '../data/weekly_detail.csv',
-  season:          '../data/season_values.csv',
-  headshots:       '../data/player_headshots.csv',
-  tvInputs:        '../data/tv_inputs.csv',
-  surplus:         '../data/contract_surplus.csv',
-  capHealth:       '../data/team_cap_health.csv',
-  ledger:          '../data/contract_ledger.csv',
-  faMarket:        '../data/free_agent_market.csv',
-  faMarketEnv:     '../data/fa_market_environment.csv',
+  weekly:              '../data/weekly_detail.csv',
+  season:              '../data/season_values.csv',
+  headshots:           '../data/player_headshots.csv',
+  tvInputs:            '../data/tv_inputs.csv',
+  surplus:             '../data/contract_surplus.csv',
+  capHealth:           '../data/team_cap_health.csv',
+  ledger:              '../data/contract_ledger.csv',
+  faMarket:            '../data/free_agent_market.csv',
+  faMarketEnv:         '../data/fa_market_environment.csv',
+  redraftRankings:     '../data/redraft_rankings_master.csv',
 };
 
 // ── Phase 1 (Historical) ─────────────────────────────────────────────────────
@@ -84,8 +85,9 @@ function loadData() {
   // Phase 1 is required — reject if it fails
   const phase1Promise = Promise.all([
     parseCsv(DATA_PATHS.weekly),
-    parseCsv(DATA_PATHS.season)
-  ]).then(([weeklyRaw, seasonRaw]) => {
+    parseCsv(DATA_PATHS.season),
+    parseCsv(DATA_PATHS.redraftRankings)
+  ]).then(([weeklyRaw, seasonRaw, redraftRaw]) => {
 
     // ── Weekly data ──────────────────────────────────────────────────────────
     WEEKLY_DATA = weeklyRaw
@@ -102,6 +104,18 @@ function loadData() {
         start_prob:   +(r.start_prob  ?? 0) || 0,
         dollar_value: +(r.dollar_value ?? 0) || 0
       }));
+
+    // ── Pre-season positional rank map (from redraft rankings) ───────────────
+    // key: "season||player" → pos_rank (integer, preseason positional rank)
+    const preseasonPosRankMap = {};
+    redraftRaw.forEach(r => {
+      if (!r.player || !r.season || !r.pos_rank) return;
+      const key = `${+r.season}||${String(r.player)}`;
+      // Keep only the first occurrence (rankings are already deduplicated)
+      if (!(key in preseasonPosRankMap)) {
+        preseasonPosRankMap[key] = +r.pos_rank || null;
+      }
+    });
 
     // ── Season data — derived metrics ────────────────────────────────────────
     const posGroups = {};
@@ -123,16 +137,18 @@ function loadData() {
       .filter(r => r.player && r.position)
       .map(r => {
         const season = +r.season;
+        const key    = `${season}||${String(r.player)}`;
         return {
-          player:       String(r.player),
-          position:     String(r.position),
+          player:              String(r.player),
+          position:            String(r.position),
           season,
-          esv:          +(r.esv          ?? 0) || 0,
-          sav:          +(r.sav          ?? 0) || 0,
-          par:          +(r.par          ?? 0) || 0,
-          total_points: +(r.total_points ?? 0) || 0,
-          dollar_value: +(r.dollar_value ?? 0) || 0,
-          pos_rank:     posRankMap[`${season}||${r.player}`] ?? null
+          esv:                 +(r.esv          ?? 0) || 0,
+          sav:                 +(r.sav          ?? 0) || 0,
+          par:                 +(r.par          ?? 0) || 0,
+          total_points:        +(r.total_points ?? 0) || 0,
+          dollar_value:        +(r.dollar_value ?? 0) || 0,
+          pos_rank:            posRankMap[key] ?? null,
+          preseason_pos_rank:  preseasonPosRankMap[key] ?? null
         };
       });
 
@@ -285,12 +301,14 @@ function loadData() {
     if (faMarketEnvRaw.length > 0) {
       const envRow = faMarketEnvRaw[0];
       FA_MARKET_ENV = {
-        total_cap_available:  +(envRow.total_cap_available  ?? null),
-        total_fa_value:       +(envRow.total_fa_value       ?? null),
-        cap_to_value_ratio:   +(envRow.cap_to_value_ratio   ?? null),
-        market_multiplier:    +(envRow.market_multiplier    ?? null),
-        inflation_pct:        +(envRow.inflation_pct        ?? null),
-        alpha:                +(envRow.alpha                ?? null),
+        total_cap_available:    +(envRow.total_cap_available    ?? null),
+        total_rollover:         +(envRow.total_rollover         ?? null),
+        effective_cap_available:+(envRow.effective_cap_available?? null),
+        total_fa_value:         +(envRow.total_fa_value         ?? null),
+        cap_to_value_ratio:     +(envRow.cap_to_value_ratio     ?? null),
+        market_multiplier:      +(envRow.market_multiplier      ?? null),
+        inflation_pct:          +(envRow.inflation_pct          ?? null),
+        alpha:                  +(envRow.alpha                  ?? null),
       };
     }
 

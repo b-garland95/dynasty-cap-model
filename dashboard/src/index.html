@@ -76,9 +76,84 @@
             <label for="vc-topn">Show top</label>
             <select id="vc-topn"></select>
           </div>
+          <div class="control-group">
+            <label for="vc-xaxis">X-axis</label>
+            <select id="vc-xaxis">
+              <option value="actual" selected>Actual Rank</option>
+              <option value="preseason">Pre-season Rank</option>
+            </select>
+          </div>
         </div>
         <div class="chart-container" style="height: 460px;">
           <canvas id="chart-value-curves"></canvas>
+        </div>
+
+        <!-- ── Historical Season Grid ── -->
+        <div class="vc-grid-section">
+          <div class="vc-grid-header">
+            <h3 class="vc-grid-title">Historical Season Explorer</h3>
+            <span class="vc-grid-count" id="vc-grid-count"></span>
+          </div>
+          <div class="vc-grid-filters">
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Position</span>
+              <div class="vc-chip-group" id="vc-f-pos">
+                <button class="vc-chip active" data-value="QB">QB</button>
+                <button class="vc-chip active" data-value="RB">RB</button>
+                <button class="vc-chip active" data-value="WR">WR</button>
+                <button class="vc-chip active" data-value="TE">TE</button>
+              </div>
+            </div>
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Season</span>
+              <div class="vc-chip-group vc-chip-group--years" id="vc-f-year"></div>
+            </div>
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Pre-season rank</span>
+              <div class="vc-range-group">
+                <input class="vc-range-input" id="vc-f-pre-min" type="number" min="1" placeholder="Min">
+                <span class="vc-range-sep">–</span>
+                <input class="vc-range-input" id="vc-f-pre-max" type="number" min="1" placeholder="Max">
+              </div>
+            </div>
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Actual rank</span>
+              <div class="vc-range-group">
+                <input class="vc-range-input" id="vc-f-act-min" type="number" min="1" placeholder="Min">
+                <span class="vc-range-sep">–</span>
+                <input class="vc-range-input" id="vc-f-act-max" type="number" min="1" placeholder="Max">
+              </div>
+            </div>
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Yrs Exp</span>
+              <div class="vc-range-group">
+                <input class="vc-range-input" id="vc-f-yos-min" type="number" min="1" placeholder="Min">
+                <span class="vc-range-sep">–</span>
+                <input class="vc-range-input" id="vc-f-yos-max" type="number" min="1" placeholder="Max">
+              </div>
+            </div>
+            <div class="vc-filter-group">
+              <span class="vc-filter-label">Search</span>
+              <input class="vc-search-input" id="vc-f-search" type="text" placeholder="Player name…">
+            </div>
+            <button class="vc-reset-btn" id="vc-f-reset">Reset</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" id="vc-grid-table">
+              <thead>
+                <tr>
+                  <th data-sort="player">Player</th>
+                  <th data-sort="position">Pos</th>
+                  <th data-sort="season" class="num sort-desc">Season</th>
+                  <th class="num" data-sort="years_of_service">Yrs Exp</th>
+                  <th class="num" data-sort="preseason_pos_rank">Pre Rank</th>
+                  <th class="num" data-sort="pos_rank">Actual Rank</th>
+                  <th class="num" data-sort="dollar_value">$ Value</th>
+                </tr>
+              </thead>
+              <tbody id="vc-grid-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

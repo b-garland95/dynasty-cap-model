@@ -35,26 +35,33 @@
     const alpha     = 0.5;
 
     let totalCapAvailable = 0;
+    let totalRollover = 0;
+    const teamAdj = typeof TEAM_ADJUSTMENTS !== 'undefined' ? TEAM_ADJUSTMENTS : {};
     (CAP_HEALTH_DATA || []).forEach(r => {
       const remaining = typeof computeCapRemaining === 'function'
         ? computeCapRemaining(r.team, r.current_cap_usage)
         : (baseCap - r.current_cap_usage);
       totalCapAvailable += Math.max(remaining, 0);
+      totalRollover += parseFloat((teamAdj[r.team] || {}).rollover || 0);
     });
+
+    const effectiveCapAvailable = Math.max(totalCapAvailable - totalRollover, 0);
 
     const totalFaValue = (TV_DATA || [])
       .filter(r => !r.is_rostered)
       .reduce((s, r) => s + (r.tv_y0 || 0), 0);
 
-    const cpr        = totalFaValue > 0 ? totalCapAvailable / totalFaValue : 1.0;
+    const cpr        = totalFaValue > 0 ? effectiveCapAvailable / totalFaValue : 1.0;
     const multiplier = Math.pow(Math.max(cpr, 1e-4), alpha);
 
     return {
-      total_cap_available: totalCapAvailable,
-      total_fa_value:      totalFaValue,
-      cap_to_value_ratio:  cpr,
-      market_multiplier:   multiplier,
-      inflation_pct:       (multiplier - 1) * 100,
+      total_cap_available:     totalCapAvailable,
+      total_rollover:          totalRollover,
+      effective_cap_available: effectiveCapAvailable,
+      total_fa_value:          totalFaValue,
+      cap_to_value_ratio:      cpr,
+      market_multiplier:       multiplier,
+      inflation_pct:           (multiplier - 1) * 100,
       alpha,
     };
   }
@@ -126,7 +133,7 @@
     const container = document.getElementById('fa-env-cards');
     if (!container) return;
 
-    const fmtM   = v => (v != null && !isNaN(v)) ? '$' + v.toFixed(0) + 'M' : '–';
+    const fmtM   = v => (v != null && !isNaN(v)) ? '$' + v.toFixed(1) : '–';
     const fmtX   = v => (v != null && !isNaN(v)) ? v.toFixed(2) + '×' : '–';
     const fmtPct = v => {
       if (v == null || isNaN(v)) return '–';
@@ -140,11 +147,13 @@
                     : 'Balanced Market';
     const alphaStr  = (env.alpha != null && !isNaN(env.alpha)) ? env.alpha.toFixed(1) : '0.5';
 
+    const rollover = env.total_rollover ?? 0;
+
     container.innerHTML = `
       <div class="fa-env-card">
-        <div class="fa-env-label">League Cap Available</div>
-        <div class="fa-env-value">${fmtM(env.total_cap_available)}</div>
-        <div class="fa-env-desc">Sum of positive cap remaining across all teams</div>
+        <div class="fa-env-label">Effective Cap Available</div>
+        <div class="fa-env-value">${fmtM(env.effective_cap_available)}</div>
+        <div class="fa-env-desc">League cap less rollover (${fmtM(env.total_cap_available)} − ${fmtM(rollover)}) — basis for market adjustment</div>
       </div>
       <div class="fa-env-card">
         <div class="fa-env-label">FA Player Value</div>

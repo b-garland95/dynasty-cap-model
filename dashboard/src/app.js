@@ -44,7 +44,7 @@ const SECTIONS = {
 // ── View init functions ───────────────────────────────────────────────────────
 
 const VIEW_INIT_FNS = {
-  'value-curves':          () => initValueCurves(),
+  'value-curves':          () => { initValueCurves(); initValueCurvesGrid(); },
   'year-over-year':        () => initYearOverYear(),
   'player-timeline':       () => initPlayerTimeline(),
   'value-distribution':    () => initValueDistribution(),

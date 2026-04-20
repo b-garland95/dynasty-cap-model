@@ -278,10 +278,10 @@
                   <th>Team</th>
                   <th>Pos</th>
                   <th class="num">Trend</th>
-                  <th data-sort="tv_y0" class="num sort-desc">TV Y0 ↕</th>
-                  <th data-sort="tv_y1" class="num">TV Y1 ↕</th>
-                  <th data-sort="tv_y2" class="num">TV Y2 ↕</th>
-                  <th data-sort="tv_y3" class="num">TV Y3 ↕</th>
+                  <th data-sort="tv_y0" id="th-tv-y0" class="num sort-desc">TV Y0 ↕</th>
+                  <th data-sort="tv_y1" id="th-tv-y1" class="num">TV Y1 ↕</th>
+                  <th data-sort="tv_y2" id="th-tv-y2" class="num">TV Y2 ↕</th>
+                  <th data-sort="tv_y3" id="th-tv-y3" class="num">TV Y3 ↕</th>
                   <th data-sort="adp"   class="num">ADP ↕</th>
                   <th data-sort="esv_p25" class="num">ESV p25 ↕</th>
                   <th data-sort="esv_p50" class="num">ESV p50 ↕</th>
@@ -334,8 +334,8 @@
               <label for="surplus-window">Window</label>
               <select id="surplus-window">
                 <option value="1yr" selected>This Year</option>
-                <option value="3yr">3-Year Avg</option>
-                <option value="5yr">5-Year Avg</option>
+                <option value="contract">Contract Value</option>
+                <!-- Per-year options injected by initLeague() using tvYearLabel() -->
               </select>
             </div>
             <div class="control-group">
@@ -801,9 +801,9 @@
                 <th>Team</th>
                 <th>Pos</th>
                 <th class="num" id="modal-comp-metric-header">TV Y0</th>
-                <th class="num">TV Y1</th>
-                <th class="num">TV Y2</th>
-                <th class="num">TV Y3</th>
+                <th class="num" id="modal-tv-y1-header">TV Y1</th>
+                <th class="num" id="modal-tv-y2-header">TV Y2</th>
+                <th class="num" id="modal-tv-y3-header">TV Y3</th>
                 <th class="num">Surplus</th>
                 <th class="num">Cap Today</th>
               </tr>

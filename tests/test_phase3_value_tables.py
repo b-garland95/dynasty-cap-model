@@ -245,3 +245,85 @@ def test_build_phase3_tables_3_to_7_end_to_end_fixture():
         "tag",
         "option",
     ]
+
+
+# ── Contract Value columns ────────────────────────────────────────────────────
+
+
+def test_contract_surplus_includes_years_remaining():
+    # years_remaining must be present and match the ledger values.
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    assert "years_remaining" in surplus_df.columns
+    player_one = surplus_df.loc[surplus_df["player"] == "Player One"].iloc[0]
+    player_two = surplus_df.loc[surplus_df["player"] == "Player Two"].iloc[0]
+    assert int(player_one["years_remaining"]) == 2
+    assert int(player_two["years_remaining"]) == 1
+
+
+def test_contract_surplus_includes_per_year_columns():
+    # tv_y{i}, cap_y{i}, surplus_y{i} must be present and surplus_y{i} == tv_y{i} - cap_y{i}.
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    for i in range(4):
+        assert f"tv_y{i}" in surplus_df.columns
+        assert f"cap_y{i}" in surplus_df.columns
+        assert f"surplus_y{i}" in surplus_df.columns
+
+    for _, row in surplus_df.iterrows():
+        for i in range(4):
+            assert math.isclose(row[f"surplus_y{i}"], row[f"tv_y{i}"] - row[f"cap_y{i}"], rel_tol=1e-9)
+
+
+def test_contract_total_value_sums_over_contract_years_only():
+    # Player One: years_remaining=2, tv=[20,15,10,5]
+    # contract_total_value = tv_y0 + tv_y1 = 20 + 15 = 35 (not tv_y2 or tv_y3)
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    player_one = surplus_df.loc[surplus_df["player"] == "Player One"].iloc[0]
+    assert math.isclose(player_one["contract_total_value"], 20.0 + 15.0, rel_tol=1e-9)
+
+    # Player Two: years_remaining=1, tv_y0=25
+    player_two = surplus_df.loc[surplus_df["player"] == "Player Two"].iloc[0]
+    assert math.isclose(player_two["contract_total_value"], 25.0, rel_tol=1e-9)
+
+
+def test_contract_avg_value_is_total_divided_by_years():
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    for _, row in surplus_df.iterrows():
+        yr = int(row["years_remaining"])
+        if yr > 0:
+            assert math.isclose(row["contract_avg_value"], row["contract_total_value"] / yr, rel_tol=1e-9)
+            assert math.isclose(row["contract_avg_cap"], row["contract_total_cap"] / yr, rel_tol=1e-9)
+
+
+def test_contract_total_surplus_is_total_value_minus_total_cap():
+    ledger_df, schedule_df, config = _build_base_inputs()
+    forecast_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=_tv_inputs())
+    economics_df = build_contract_economics(ledger_df, schedule_df, config)
+    surplus_df = build_contract_surplus_table(forecast_df, economics_df)
+
+    for _, row in surplus_df.iterrows():
+        assert math.isclose(
+            row["contract_total_surplus"],
+            row["contract_total_value"] - row["contract_total_cap"],
+            rel_tol=1e-9,
+        )
+        assert math.isclose(
+            row["contract_avg_surplus"],
+            row["contract_avg_value"] - row["contract_avg_cap"],
+            rel_tol=1e-9,
+        )

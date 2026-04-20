@@ -55,6 +55,16 @@ let LEAGUE_CONFIG     = {};  // editable config subset (dot-notation keys)
 let TEAM_ADJUSTMENTS  = {};  // { "Team Name": { dead_money, cap_transactions, rollover } }
 
 /**
+ * Return the actual calendar year for a given TV path offset (0–3).
+ * Reads season.target_season from LEAGUE_CONFIG; falls back to 2026 when
+ * the server is not running and LEAGUE_CONFIG is empty.
+ */
+function tvYearLabel(offset) {
+  const base = +(LEAGUE_CONFIG['season.target_season'] || 2026);
+  return base + offset;
+}
+
+/**
  * Parse a CSV via PapaParse (download mode — works with both file:// and http://).
  * Returns a promise that resolves to the array of row objects.
  * If the request fails (404, network error) the promise resolves to [] so
@@ -221,7 +231,7 @@ function loadData() {
         pv_tv:                    +(r.pv_tv                    ?? 0) || 0,
         pv_cap:                   +(r.pv_cap                   ?? 0) || 0,
         surplus_value:            +(r.surplus_value            ?? 0) || 0,
-        // Windowed annualized surplus fields
+        // Windowed annualized surplus fields (kept for Cap Health dashboard)
         value_1yr:                +(r.value_1yr                ?? 0) || 0,
         cap_1yr:                  +(r.cap_1yr                  ?? 0) || 0,
         surplus_1yr:              +(r.surplus_1yr              ?? 0) || 0,
@@ -235,6 +245,28 @@ function loadData() {
         dead_money_cut_now_nominal: +(r.dead_money_cut_now_nominal ?? 0) || 0,
         dead_money_cut_now_pv:    +(r.dead_money_cut_now_pv    ?? 0) || 0,
         needs_schedule_validation: r.needs_schedule_validation === true || r.needs_schedule_validation === 'True',
+        // Contract schedule metadata
+        years_remaining:          +(r.years_remaining          ?? 0) || 0,
+        // Per-year value (TV), cap hit, and surplus (year indices 0–3)
+        tv_y0:      +(r.tv_y0      ?? 0) || 0,
+        tv_y1:      +(r.tv_y1      ?? 0) || 0,
+        tv_y2:      +(r.tv_y2      ?? 0) || 0,
+        tv_y3:      +(r.tv_y3      ?? 0) || 0,
+        cap_y0:     +(r.cap_y0     ?? 0) || 0,
+        cap_y1:     +(r.cap_y1     ?? 0) || 0,
+        cap_y2:     +(r.cap_y2     ?? 0) || 0,
+        cap_y3:     +(r.cap_y3     ?? 0) || 0,
+        surplus_y0: +(r.surplus_y0 ?? 0) || 0,
+        surplus_y1: +(r.surplus_y1 ?? 0) || 0,
+        surplus_y2: +(r.surplus_y2 ?? 0) || 0,
+        surplus_y3: +(r.surplus_y3 ?? 0) || 0,
+        // Contract Value aggregates (over actual years_remaining)
+        contract_total_value:   +(r.contract_total_value   ?? 0) || 0,
+        contract_total_cap:     +(r.contract_total_cap     ?? 0) || 0,
+        contract_total_surplus: +(r.contract_total_surplus ?? 0) || 0,
+        contract_avg_value:     +(r.contract_avg_value     ?? 0) || 0,
+        contract_avg_cap:       +(r.contract_avg_cap       ?? 0) || 0,
+        contract_avg_surplus:   +(r.contract_avg_surplus   ?? 0) || 0,
       }));
     ALL_LG_TEAMS = [...new Set(SURPLUS_DATA.map(r => r.team).filter(Boolean))].sort();
 

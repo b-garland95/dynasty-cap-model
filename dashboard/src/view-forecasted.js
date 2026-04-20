@@ -338,6 +338,12 @@
       });
     }
 
+    // Update TV year column headers from config (TV Y0 → 2026, TV Y1 → 2027, …).
+    [0, 1, 2, 3].forEach(i => {
+      const th = document.getElementById(`th-tv-y${i}`);
+      if (th) th.textContent = `${tvYearLabel(i)} ↕`;
+    });
+
     // Default: TV Forecast sub-tab
     switchForecastedTab('tv-forecast');
   }

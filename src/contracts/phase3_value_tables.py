@@ -9,6 +9,12 @@ from src.contracts.dead_money import (
     dead_money_active_roster_cut_nominal,
     dead_money_active_roster_cut_pv,
 )
+from src.contracts.roster_adjusted_value import (
+    build_team_rav_summary,
+    build_trade_gap_screen,
+    compute_rav,
+    load_availability_rates,
+)
 
 
 TV_PATH_COLUMNS = ["tv_y0", "tv_y1", "tv_y2", "tv_y3"]
@@ -319,6 +325,10 @@ def build_team_cap_health_dashboard(
     window_value_cols   = ["value_1yr", "value_3yr_ann", "value_5yr_ann"]
     window_cap_cols     = ["cap_1yr", "cap_3yr_ann", "cap_5yr_ann"]
 
+    surplus_cols_to_merge = PLAYER_KEY_COLUMNS + window_surplus_cols + window_value_cols + window_cap_cols
+    if "rav_y0" in contract_surplus_df.columns:
+        surplus_cols_to_merge = surplus_cols_to_merge + ["rav_y0"]
+
     player_level = (
         ledger_df[PLAYER_KEY_COLUMNS + ["current_salary", "real_salary"]]
         .merge(production_value_df[PLAYER_KEY_COLUMNS + ["pv_tv"]], on=PLAYER_KEY_COLUMNS, how="left")
@@ -332,7 +342,7 @@ def build_team_cap_health_dashboard(
             how="left",
         )
         .merge(
-            contract_surplus_df[PLAYER_KEY_COLUMNS + window_surplus_cols + window_value_cols + window_cap_cols],
+            contract_surplus_df[surplus_cols_to_merge],
             on=PLAYER_KEY_COLUMNS,
             how="left",
         )
@@ -340,7 +350,7 @@ def build_team_cap_health_dashboard(
 
     player_level["needs_schedule_validation"] = player_level["needs_schedule_validation"].fillna(False).astype(bool)
 
-    dashboard = player_level.groupby("team", as_index=False).agg(
+    agg_spec: dict[str, tuple[str, str]] = dict(
         current_cap_usage=("current_salary", "sum"),
         real_cap_y0=("cap_y0", "sum"),
         real_cap_y1=("cap_y1", "sum"),
@@ -364,6 +374,10 @@ def build_team_cap_health_dashboard(
         dead_money_cut_now_pv=("dead_money_cut_now_pv", "sum"),
         validation_player_count=("needs_schedule_validation", "sum"),
     )
+    if "rav_y0" in player_level.columns:
+        agg_spec["total_rav_y0"] = ("rav_y0", "sum")
+
+    dashboard = player_level.groupby("team", as_index=False).agg(**agg_spec)
 
     validation_rows = player_level.loc[player_level["needs_schedule_validation"]].groupby("team", as_index=False).agg(
         validation_current_salary=("current_salary", "sum"),
@@ -475,6 +489,29 @@ def build_phase3_tables_3_to_7(
     production_value_df = build_production_value_forecast(ledger_df, config, tv_inputs_df=tv_inputs_df)
     contract_economics_df = build_contract_economics(ledger_df, schedule_df, config)
     contract_surplus_df = build_contract_surplus_table(production_value_df, contract_economics_df)
+
+    # RAV: roster-adjusted value, computed from historical availability rates.
+    # Gracefully skipped if no availability rates file is configured or present.
+    rav_cfg = config.get("rav", {})
+    availability_rates_path = rav_cfg.get("availability_rates_path")
+    if availability_rates_path:
+        from pathlib import Path as _Path
+        _avail_path = _Path(availability_rates_path)
+        if not _avail_path.is_absolute():
+            # Resolve relative to repo root (two levels up from this file)
+            _avail_path = _Path(__file__).resolve().parent.parent.parent / availability_rates_path
+        if _avail_path.exists():
+            availability_rates = load_availability_rates(_avail_path)
+            contract_surplus_df = compute_rav(contract_surplus_df, config, availability_rates)
+            team_rav_summary_df = build_team_rav_summary(contract_surplus_df)
+            trade_gap_df = build_trade_gap_screen(contract_surplus_df)
+        else:
+            team_rav_summary_df = pd.DataFrame()
+            trade_gap_df = pd.DataFrame()
+    else:
+        team_rav_summary_df = pd.DataFrame()
+        trade_gap_df = pd.DataFrame()
+
     team_dashboard_df = build_team_cap_health_dashboard(
         ledger_df,
         production_value_df,
@@ -488,6 +525,8 @@ def build_phase3_tables_3_to_7(
         "contract_economics": contract_economics_df,
         "contract_surplus": contract_surplus_df,
         "team_cap_health_dashboard": team_dashboard_df,
+        "team_rav_summary": team_rav_summary_df,
+        "trade_gap_screen": trade_gap_df,
         **shortlists,
     }
 

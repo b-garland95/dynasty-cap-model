@@ -871,6 +871,9 @@
     if (tabId === 'trade-proposal' && typeof window.refreshTradeProposal === 'function') {
       window.refreshTradeProposal();
     }
+    if (tabId === 'roster-efficiency' && typeof window.initRosterEfficiency === 'function') {
+      window.initRosterEfficiency();
+    }
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────

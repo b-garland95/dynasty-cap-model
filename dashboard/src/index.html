@@ -325,6 +325,7 @@
           <button class="sub-tab-btn"        data-subtab="pick-inventory">Pick Inventory</button>
           <button class="sub-tab-btn"        data-subtab="free-agent-market">Free Agent Market</button>
           <button class="sub-tab-btn"        data-subtab="trade-proposal">Trade Proposal</button>
+          <button class="sub-tab-btn"        data-subtab="roster-efficiency">Roster Efficiency</button>
         </div>
 
         <!-- Contract Surplus sub-panel -->
@@ -579,6 +580,93 @@
           </p>
 
         </div><!-- #sub-trade-proposal -->
+
+        <!-- Roster Efficiency sub-panel -->
+        <div id="sub-roster-efficiency" class="sub-tab-panel" hidden>
+
+          <!-- Sub-view toggle: team chart vs trade gap screen -->
+          <div class="view-controls">
+            <div class="control-group">
+              <label>View</label>
+              <div class="toggle-group" id="re-subview-toggle">
+                <button class="toggle-btn active" data-value="team-chart">Team Overview</button>
+                <button class="toggle-btn"        data-value="trade-gap">Trade Gap Screen</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Team Overview sub-view -->
+          <div id="re-team-chart" class="re-subview">
+            <p class="section-desc" style="margin: 0 0 12px;">
+              <strong>Deployed Value (RAV)</strong> = value the team actually uses from starters.
+              <strong>Bench Overhang</strong> = value stranded on the bench that could be traded.
+            </p>
+            <div class="chart-container" style="height: 360px;">
+              <canvas id="chart-rav-teams"></canvas>
+            </div>
+            <div class="table-wrapper" style="margin-top: 20px;">
+              <table class="data-table" id="rav-team-table">
+                <thead>
+                  <tr>
+                    <th>Team</th>
+                    <th class="num">Raw TV</th>
+                    <th class="num">Deployed (RAV)</th>
+                    <th class="num">Bench Overhang</th>
+                    <th class="num">Utilization %</th>
+                    <th class="num">QB (raw/RAV)</th>
+                    <th class="num">RB (raw/RAV)</th>
+                    <th class="num">WR (raw/RAV)</th>
+                    <th class="num">TE (raw/RAV)</th>
+                  </tr>
+                </thead>
+                <tbody id="rav-team-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Trade Gap Screen sub-view -->
+          <div id="re-trade-gap" class="re-subview" hidden>
+            <p class="section-desc" style="margin: 0 0 12px;">
+              Bench players whose projected value exceeds what their current team can deploy.
+              High <strong>Trade Gap</strong> = their value is stranded — another team would start them.
+            </p>
+            <div class="view-controls" style="margin-top: 0; margin-bottom: 12px;">
+              <div class="control-group">
+                <label for="tg-position">Position</label>
+                <select id="tg-position">
+                  <option value="All">All</option>
+                  <option value="QB">QB</option>
+                  <option value="RB">RB</option>
+                  <option value="WR">WR</option>
+                  <option value="TE">TE</option>
+                </select>
+              </div>
+              <div class="control-group">
+                <label for="tg-team">Team</label>
+                <select id="tg-team"><option value="All">All Teams</option></select>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table" id="trade-gap-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Pos</th>
+                    <th data-sort="tv_y0"        class="num">Raw TV ↕</th>
+                    <th data-sort="rav_y0"        class="num">RAV ↕</th>
+                    <th data-sort="trade_gap_y0"  class="num sort-desc">Trade Gap ↕</th>
+                    <th data-sort="depth_discount" class="num">Usage % ↕</th>
+                    <th data-sort="cap_y0"        class="num">Cap Hit ↕</th>
+                    <th>Depth Role</th>
+                  </tr>
+                </thead>
+                <tbody id="trade-gap-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- #sub-roster-efficiency -->
 
       </div><!-- #panel-league -->
 
@@ -838,6 +926,7 @@
   <script src="view-league-config.js"></script>
   <script src="view-draft-picks.js"></script>
   <script src="view-contract-validation.js"></script>
+  <script src="view-roster-efficiency.js"></script>
   <script src="app.js"></script>
 
 </body>

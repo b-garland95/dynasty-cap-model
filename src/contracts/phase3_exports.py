@@ -51,6 +51,10 @@ def export_phase3_tables(
     downstream_tables["tag_candidates"].to_csv(output_path / "tag_candidates.csv", index=False)
     downstream_tables["option_candidates"].to_csv(output_path / "option_candidates.csv", index=False)
     downstream_tables["instrument_candidates"].to_csv(output_path / "instrument_candidates.csv", index=False)
+    if not downstream_tables["team_rav_summary"].empty:
+        downstream_tables["team_rav_summary"].to_csv(output_path / "team_rav_summary.csv", index=False)
+    if not downstream_tables["trade_gap_screen"].empty:
+        downstream_tables["trade_gap_screen"].to_csv(output_path / "trade_gap_screen.csv", index=False)
 
     fa_tables: dict[str, pd.DataFrame] = {}
     if tv_inputs_df is not None:

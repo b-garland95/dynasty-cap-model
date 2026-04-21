@@ -97,6 +97,17 @@ DASHBOARD_SRC  = REPO_ROOT / "dashboard" / "src"
 DASHBOARD_DATA = REPO_ROOT / "dashboard" / "data"
 
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "interim" / "rosters"
+
+# CSVs produced by export_phase3_tables that should also be served from dashboard/data/.
+# Maps: source filename in DEFAULT_OUTPUT_DIR → dest filename in DASHBOARD_DATA.
+_DASHBOARD_CSV_MAP = {
+    "contract_surplus.csv":      "contract_surplus.csv",
+    "team_cap_health_dashboard.csv": "team_cap_health.csv",
+    "free_agent_market.csv":     "free_agent_market.csv",
+    "fa_market_environment.csv": "fa_market_environment.csv",
+    "team_rav_summary.csv":      "team_rav_summary.csv",
+    "trade_gap_screen.csv":      "trade_gap_screen.csv",
+}
 DEFAULT_SCHEDULE_OVERRIDES_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "contract_salary_schedule_overrides.csv"
 DEFAULT_TV_INPUTS_CSV = REPO_ROOT / "data" / "interim" / "phase3" / "tv_inputs.csv"
 
@@ -454,6 +465,13 @@ def api_recompute() -> Response:
         name: len(df) for name, df in exported.items()
         if hasattr(df, "__len__")
     }
+
+    # Sync updated CSVs into dashboard/data/ so the frontend sees fresh data.
+    for src_name, dest_name in _DASHBOARD_CSV_MAP.items():
+        src = DEFAULT_OUTPUT_DIR / src_name
+        dst = DASHBOARD_DATA / dest_name
+        if src.exists():
+            shutil.copy2(str(src), str(dst))
 
     return jsonify({"ok": True, "duration_ms": duration_ms, "tables": table_counts})
 

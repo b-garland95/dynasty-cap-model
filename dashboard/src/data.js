@@ -13,6 +13,8 @@ const DATA_PATHS = {
   faMarket:            '../data/free_agent_market.csv',
   faMarketEnv:         '../data/fa_market_environment.csv',
   redraftRankings:     '../data/redraft_rankings_master.csv',
+  ravSummary:          '../data/team_rav_summary.csv',
+  tradeGap:            '../data/trade_gap_screen.csv',
 };
 
 // ── Phase 1 (Historical) ─────────────────────────────────────────────────────
@@ -42,6 +44,10 @@ let ALL_LG_TEAMS    = [];  // sorted unique fantasy team names from SURPLUS_DATA
 // view-free-agent-market.js from TV_DATA + CAP_HEALTH_DATA when the CSV is absent.
 let FA_MARKET_DATA = [];   // player-level market table
 let FA_MARKET_ENV  = {};   // league-level cap environment (single-row CSV → object)
+
+// ── Roster-Adjusted Value ─────────────────────────────────────────────────────
+let RAV_SUMMARY_DATA = [];   // one row per team: total_tv_y0, total_rav_y0, etc.
+let TRADE_GAP_DATA   = [];   // bench players sorted by trade_gap_y0 desc
 
 // ── Draft Pick Inventory ─────────────────────────────────────────────────────
 // Loaded from /api/picks (Flask server) or falls back to draft_pick_inventory.csv.
@@ -181,7 +187,9 @@ function loadData() {
     parseCsv(DATA_PATHS.ledger),
     parseCsv(DATA_PATHS.faMarket),
     parseCsv(DATA_PATHS.faMarketEnv),
-  ]).then(([headshotsRaw, tvRaw, surplusRaw, capRaw, ledgerRaw, faMarketRaw, faMarketEnvRaw]) => {
+    parseCsv(DATA_PATHS.ravSummary),
+    parseCsv(DATA_PATHS.tradeGap),
+  ]).then(([headshotsRaw, tvRaw, surplusRaw, capRaw, ledgerRaw, faMarketRaw, faMarketEnvRaw, ravSummaryRaw, tradeGapRaw]) => {
 
     // ── Headshot map ─────────────────────────────────────────────────────────
     headshotsRaw.forEach(r => {
@@ -267,6 +275,13 @@ function loadData() {
         contract_avg_value:     +(r.contract_avg_value     ?? 0) || 0,
         contract_avg_cap:       +(r.contract_avg_cap       ?? 0) || 0,
         contract_avg_surplus:   +(r.contract_avg_surplus   ?? 0) || 0,
+        // Roster-Adjusted Value fields (populated when RAV pipeline has run)
+        rav_y0:        +(r.rav_y0        ?? r.tv_y0 ?? 0) || 0,
+        trade_gap_y0:  +(r.trade_gap_y0  ?? 0) || 0,
+        rav_slot:      String(r.rav_slot  ?? ''),
+        started:       r.started === true || r.started === 'True',
+        bench_depth:   +(r.bench_depth   ?? 0) || 0,
+        depth_discount:+(r.depth_discount ?? 1) || 1,
       }));
     ALL_LG_TEAMS = [...new Set(SURPLUS_DATA.map(r => r.team).filter(Boolean))].sort();
 
@@ -344,12 +359,45 @@ function loadData() {
       };
     }
 
+    // ── Roster-Adjusted Value ─────────────────────────────────────────────
+    RAV_SUMMARY_DATA = ravSummaryRaw
+      .filter(r => r.team)
+      .map(r => ({
+        team:                   String(r.team),
+        total_tv_y0:            +(r.total_tv_y0            ?? 0) || 0,
+        total_rav_y0:           +(r.total_rav_y0           ?? 0) || 0,
+        rav_utilization_rate:   +(r.rav_utilization_rate   ?? 1) || 1,
+        total_trade_gap_y0:     +(r.total_trade_gap_y0     ?? 0) || 0,
+        tv_qb:  +(r.tv_qb  ?? 0) || 0,  rav_qb:  +(r.rav_qb  ?? 0) || 0,
+        tv_rb:  +(r.tv_rb  ?? 0) || 0,  rav_rb:  +(r.rav_rb  ?? 0) || 0,
+        tv_wr:  +(r.tv_wr  ?? 0) || 0,  rav_wr:  +(r.rav_wr  ?? 0) || 0,
+        tv_te:  +(r.tv_te  ?? 0) || 0,  rav_te:  +(r.rav_te  ?? 0) || 0,
+      }));
+
+    TRADE_GAP_DATA = tradeGapRaw
+      .filter(r => r.player)
+      .map(r => ({
+        player:         String(r.player),
+        team:           String(r.team || ''),
+        position:       String(r.position || ''),
+        tv_y0:          +(r.tv_y0          ?? 0) || 0,
+        rav_y0:         +(r.rav_y0         ?? 0) || 0,
+        trade_gap_y0:   +(r.trade_gap_y0   ?? 0) || 0,
+        bench_depth:    +(r.bench_depth     ?? 0) || 0,
+        rav_slot:       String(r.rav_slot   ?? 'bench'),
+        cap_y0:         +(r.cap_y0          ?? 0) || 0,
+        surplus_y0:     +(r.surplus_y0      ?? 0) || 0,
+        depth_discount: +(r.depth_discount  ?? 0) || 0,
+      }));
+
     console.log(`Headshots    : ${Object.keys(HEADSHOT_MAP).length}`);
     console.log(`TV forecasts : ${TV_DATA.length}`);
     console.log(`Surplus rows : ${SURPLUS_DATA.length}`);
     console.log(`Cap health   : ${CAP_HEALTH_DATA.length} teams`);
     console.log(`Ledger rows  : ${LEDGER_DATA.length}`);
     console.log(`FA market    : ${FA_MARKET_DATA.length} players`);
+    console.log(`RAV summary  : ${RAV_SUMMARY_DATA.length} teams`);
+    console.log(`Trade gap    : ${TRADE_GAP_DATA.length} players`);
   });
 
   // Draft picks — loaded from the Flask API if available, else from static CSV.

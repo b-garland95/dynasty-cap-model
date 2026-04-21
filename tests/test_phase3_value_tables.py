@@ -233,6 +233,8 @@ def test_build_phase3_tables_3_to_7_end_to_end_fixture():
         "tag_candidates",
         "option_candidates",
         "instrument_candidates",
+        "team_rav_summary",
+        "trade_gap_screen",
     }
     assert len(tables["production_value_forecast"]) == 6
     assert len(tables["contract_economics"]) == 5

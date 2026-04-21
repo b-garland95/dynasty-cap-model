@@ -28,6 +28,11 @@ cap:
   annual_inflation: 0.10
   discount_rate: 0.25
 
+rav:
+  regular_season_weeks: 17
+  availability_rates_path: "data/processed/rav_availability_rates.csv"
+  bench_depth_2plus_floor: 0.01   # floor discount for depth-2+ bench players
+
 valuation:
   # Start probability assumed for players with no projection data.
   # 0.0 is the conservative default: unranked players are typically buried on

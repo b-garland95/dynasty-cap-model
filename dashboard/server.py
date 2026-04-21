@@ -47,6 +47,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 from src.contracts.pick_values import pick_base_salary, pick_value_metrics
+from src.contracts.pick_activation import pick_effective_economics
 from src.contracts.draft_picks import (
     DEFAULT_OWNERSHIP_PATH,
     DEFAULT_YEAR_STATUS_PATH,
@@ -119,13 +120,23 @@ _CONFIG = load_league_config()
 
 
 def _enrich_picks_with_values(picks: list[dict]) -> None:
-    """Mutate each pick dict in-place to add calendar-aligned value metrics."""
+    """Mutate each pick dict in-place to add calendar-aligned value metrics and activation economics."""
     rookie_scale = _CONFIG["rookie_scale"]
     current_season = int(_CONFIG["season"]["target_season"])
     for p in picks:
         base = pick_base_salary(p["round"], p["slot"], rookie_scale)
         metrics = pick_value_metrics(base, p["year"], current_season, _CONFIG)
         p.update(metrics)
+        # Activation-discounted effective cap and value for current year.
+        econ = pick_effective_economics(
+            rnd=p["round"],
+            slot_within_round=p["slot"],
+            full_cap_current_year=float(metrics["value_1yr"]),
+            config=_CONFIG,
+        )
+        p["p_activate"] = econ["p_activate"]
+        p["eff_cap_hit"] = econ["eff_cap_hit"]
+        p["eff_value"] = econ["eff_value"]
 
 
 def _roster_csv_path() -> Path:
@@ -467,10 +478,11 @@ def api_recompute() -> Response:
     }
 
     # Sync updated CSVs into dashboard/data/ so the frontend sees fresh data.
+    # Skip when src and dst resolve to the same file (dashboard/data/ may contain symlinks).
     for src_name, dest_name in _DASHBOARD_CSV_MAP.items():
         src = DEFAULT_OUTPUT_DIR / src_name
         dst = DASHBOARD_DATA / dest_name
-        if src.exists():
+        if src.exists() and src.resolve() != dst.resolve():
             shutil.copy2(str(src), str(dst))
 
     return jsonify({"ok": True, "duration_ms": duration_ms, "tables": table_counts})

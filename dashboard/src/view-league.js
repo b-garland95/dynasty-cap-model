@@ -627,19 +627,38 @@
     return 1;
   }
 
-  // Placeholder: pick valuations are not yet modeled. Returning 0 keeps the
-  // dataset/column wired so the future implementation only needs to swap in
-  // the real per-team value.
-  function getPickValue(_team) { return 0; }
+  // Return all active (non-completed) picks owned by the given team.
+  function teamActivePicks(team) {
+    if (typeof DRAFT_PICKS_DATA === 'undefined') return [];
+    return DRAFT_PICKS_DATA.filter(
+      p => p.owner === team && p.year_status !== 'completed'
+    );
+  }
+
+  // Sum of activation-discounted effective value for all picks owned by a team.
+  // Only current-year picks (offset=0) contribute to value_1yr / eff_value;
+  // future-year picks have eff_value=0 because value_1yr=0 for them.
+  function getPickValue(team) {
+    return teamActivePicks(team).reduce((sum, p) => sum + (p.eff_value || 0), 0);
+  }
+
+  // Sum of activation-discounted effective cap burden for all picks owned by a team.
+  function getPickCapBurden(team) {
+    return teamActivePicks(team).reduce((sum, p) => sum + (p.eff_cap_hit || 0), 0);
+  }
 
   function getRosterValueBreakdown(row, fields, multiplier) {
     const playerValue  = +(row[fields.value] || 0);
-    const capRemaining = computeCapRemaining(row.team, row.current_cap_usage);
-    const capAdjCap    = Math.max(capRemaining, 0) * multiplier;
+    const pickCapBurden = getPickCapBurden(row.team);
+    // Cap remaining is reduced by pick cap burden before market-multiplier scaling.
+    const rawCapRemaining = computeCapRemaining(row.team, row.current_cap_usage);
+    const capAfterPicks   = Math.max(rawCapRemaining - pickCapBurden, 0);
+    const capAdjCap    = capAfterPicks * multiplier;
     const pickValue    = getPickValue(row.team);
     return {
       playerValue,
       capAdjCap,
+      pickCapBurden,
       pickValue,
       total: playerValue + capAdjCap + pickValue,
     };
@@ -692,7 +711,7 @@
             stack: 'roster',
           },
           {
-            label: 'Picks (TBD)',
+            label: 'Pick Value (Eff.)',
             data: rows.map(({ breakdown }) => +breakdown.pickValue.toFixed(1)),
             backgroundColor: hexToRgba(pickColor, 0.7),
             borderColor:     pickColor,
@@ -716,8 +735,9 @@
                 const { row, breakdown } = entry;
                 return [
                   ` Players (${labels.value}): $${breakdown.playerValue.toFixed(1)}`,
-                  ` Market-Adj Cap: $${breakdown.capAdjCap.toFixed(1)}  (× ${multiplier.toFixed(2)})`,
-                  ` Picks: $${breakdown.pickValue.toFixed(1)}`,
+                  ` Market-Adj Cap Space: $${breakdown.capAdjCap.toFixed(1)}  (× ${multiplier.toFixed(2)})`,
+                  ` Pick Value (Eff.): $${breakdown.pickValue.toFixed(1)}`,
+                  ` Pick Cap Burden (Eff.): $${breakdown.pickCapBurden.toFixed(1)}`,
                   ` Total Roster Value: $${breakdown.total.toFixed(1)}`,
                   ` ${labels.cap}: $${(row[fields.cap] || 0).toFixed(1)}`,
                   ` ${labels.surplus}: $${(row[fields.surplus] || 0).toFixed(1)}`,
@@ -766,6 +786,8 @@
           <td class="num">${fmt1(r.current_cap_usage)}</td>
           <td class="num" style="color:${crColor};">${fmt1(capRemaining)}</td>
           <td class="num">${fmt1(breakdown.capAdjCap)}</td>
+          <td class="num">${fmt1(breakdown.pickValue)}</td>
+          <td class="num">${fmt1(breakdown.pickCapBurden)}</td>
           <td class="num">${fmt1(breakdown.total)}</td>
           <td class="num">${fmt1(r[fields.value])}</td>
           <td class="num">${fmt1(r[fields.cap])}</td>

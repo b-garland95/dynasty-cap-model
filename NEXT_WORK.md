@@ -111,6 +111,8 @@ Notes for agent:
 
 ## Later
 
+### Display Value Team Lost through Roster Clogs as part of the stacked bar to help identify trade candidates
+
 ---
 
 ## Icebox

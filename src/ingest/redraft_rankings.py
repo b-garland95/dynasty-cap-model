@@ -375,6 +375,7 @@ def build_master_redraft_adp_with_fallback(
     adp_dir: Path,
     rankings_fallback_dir: Path,
     *,
+    target_season: Optional[int] = None,
     crosswalk: Optional[pd.DataFrame] = None,
     name_overrides_path: Optional[Path] = None,
     ambiguous_ids_path: Optional[Path] = None,
@@ -383,7 +384,10 @@ def build_master_redraft_adp_with_fallback(
 
     For each season, FantasyData ADP is preferred.  When ADP data is absent for a
     season (e.g. because FantasyData has not yet published rankings for the upcoming
-    year), the corresponding FantasyPros rankings file is used instead.
+    year), the live FantasyPros ECR feed is fetched via
+    :func:`load_ff_rankings_live` for ``target_season``, and any remaining gaps
+    are filled from ``FantasyPros_YYYY_Draft_OP_Rankings.csv`` files in
+    ``rankings_fallback_dir``.
 
     Parameters
     ----------
@@ -391,7 +395,11 @@ def build_master_redraft_adp_with_fallback(
         Directory containing ``nfl-2qb-adp-*_YYYY.csv`` FantasyData ADP files.
     rankings_fallback_dir:
         Directory containing ``FantasyPros_YYYY_Draft_OP_Rankings.csv`` files
-        used as a fallback when ADP is not available for a season.
+        used as a historical fallback when ADP is not available for a season.
+    target_season:
+        When provided, if this season is absent from ADP data, the live
+        FantasyPros ECR feed is fetched automatically instead of requiring a
+        manually uploaded CSV.
     crosswalk:
         Optional pre-loaded nflverse crosswalk; fetched live if None.
     name_overrides_path, ambiguous_ids_path:
@@ -404,14 +412,16 @@ def build_master_redraft_adp_with_fallback(
         Columns: season, rank, tier, player, team, position, pos_rank,
                  merge_name, gsis_id, ranking_source
 
-        ``ranking_source`` is ``"fantasydata_adp"`` for rows sourced from
-        FantasyData ADP files and ``"fantasypros_rankings"`` for rows sourced
-        from FantasyPros fallback files.
+        ``ranking_source`` values:
+        - ``"fantasydata_adp"`` — sourced from FantasyData ADP files
+        - ``"fantasypros_live"`` — sourced from live FantasyPros ECR API
+        - ``"fantasypros_rankings"`` — sourced from FantasyPros CSV fallback files
 
     Raises
     ------
     FileNotFoundError
-        If no files are found in either directory.
+        If no files are found in either directory and the live fetch is not
+        applicable or fails to cover a required season.
     """
     if crosswalk is None:
         crosswalk = load_player_id_crosswalk()
@@ -427,7 +437,16 @@ def build_master_redraft_adp_with_fallback(
         adp_seasons = set(adp_master["season"].unique())
         frames.append(adp_master)
 
-    # --- Fallback: FantasyPros rankings for seasons not covered by ADP -------
+    # --- Live fetch: FantasyPros ECR for target_season when not in ADP -------
+    live_seasons: set[int] = set()
+    if target_season is not None and int(target_season) not in adp_seasons:
+        live_df = load_ff_rankings_live(season=int(target_season), crosswalk=crosswalk)
+        live_df["ranking_source"] = "fantasypros_live"
+        live_seasons = {int(target_season)}
+        frames.append(live_df)
+
+    # --- CSV Fallback: FantasyPros rankings for remaining uncovered seasons --
+    covered_seasons = adp_seasons | live_seasons
     rankings_files = sorted(
         rankings_fallback_dir.glob("FantasyPros_*_Draft_OP_Rankings.csv")
     )
@@ -439,7 +458,7 @@ def build_master_redraft_adp_with_fallback(
             ambiguous_ids_path=ambiguous_ids_path,
         )
         fallback = rankings_master[
-            ~rankings_master["season"].isin(adp_seasons)
+            ~rankings_master["season"].isin(covered_seasons)
         ].copy()
         if not fallback.empty:
             fallback["ranking_source"] = "fantasypros_rankings"
@@ -559,6 +578,83 @@ def build_master_dynasty_adp(
     return master[col_order].copy()
 
 
+def load_ff_rankings_live(
+    *,
+    season: int,
+    crosswalk: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Fetch current FantasyPros superflex redraft ECR via nflreadpy and normalize.
+
+    Calls ``nflreadpy.load_ff_rankings(type="draft")``, filters to
+    ``page_type == "redraft-op"`` and ``ecr_type == "rsf"`` (superflex overall),
+    and returns a DataFrame in the same schema as :func:`build_master_redraft_rankings`.
+
+    Parameters
+    ----------
+    season:
+        The season year to tag these rankings with (no ``season`` column exists
+        in the raw feed).
+    crosswalk:
+        Optional pre-loaded nflverse crosswalk; fetched live if None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: season, rank, tier, player, team, position, pos_rank,
+                 merge_name, gsis_id
+    """
+    import nflreadpy as nfl  # deferred: mirrors player_ids.py pattern
+
+    pl_df = nfl.load_ff_rankings(type="draft")
+    df = pd.DataFrame({name: pl_df[name].to_list() for name in pl_df.columns})
+
+    # Filter to superflex redraft overall
+    df = df[
+        (df["page_type"] == "redraft-op") & (df["ecr_type"] == "rsf")
+    ].copy()
+
+    if df.empty:
+        raise ValueError(
+            "load_ff_rankings returned no rows for page_type='redraft-op', ecr_type='rsf'. "
+            "The FantasyPros feed format may have changed."
+        )
+
+    # Skill positions are the only ones present in this slice, but be explicit
+    df = df[df["pos"].isin({"QB", "RB", "WR", "TE"})].copy()
+
+    df = df.rename(columns={"pos": "position", "ecr": "rank", "id": "fantasypros_id"})
+
+    df["season"] = season
+    df["tier"] = pd.NA
+
+    # Compute pos_rank: ascending rank of ECR within each position
+    df["pos_rank"] = (
+        df.groupby("position")["rank"]
+        .rank(method="first", ascending=True)
+        .astype("Int64")
+    )
+
+    df["merge_name"] = df["player"].map(normalize_name)
+
+    # Attach gsis_id via fantasypros_id → crosswalk join
+    if crosswalk is None:
+        crosswalk = load_player_id_crosswalk()
+
+    cw = crosswalk[["fantasypros_id", "gsis_id"]].copy()
+    cw["_fp_int"] = pd.to_numeric(cw["fantasypros_id"], errors="coerce").astype("Int64")
+    cw = cw.dropna(subset=["_fp_int"]).drop_duplicates(subset=["_fp_int"])
+
+    df["_fp_int"] = pd.to_numeric(df["fantasypros_id"], errors="coerce").astype("Int64")
+    df = df.merge(cw[["_fp_int", "gsis_id"]], on="_fp_int", how="left")
+    df = df.drop(columns=["_fp_int", "fantasypros_id"])
+
+    col_order = [
+        "season", "rank", "tier", "player", "team",
+        "position", "pos_rank", "merge_name", "gsis_id",
+    ]
+    return df[col_order].copy().reset_index(drop=True)
+
+
 def ensure_redraft_ranking_season(
     rankings_df: pd.DataFrame,
     *,
@@ -585,6 +681,7 @@ def ensure_redraft_ranking_season(
     rebuilt = build_master_redraft_adp_with_fallback(
         adp_dir=adp_dir,
         rankings_fallback_dir=rankings_fallback_dir,
+        target_season=target_season,
         crosswalk=crosswalk,
         name_overrides_path=name_overrides_path,
         ambiguous_ids_path=ambiguous_ids_path,

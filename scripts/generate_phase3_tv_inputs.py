@@ -26,19 +26,30 @@ DIMS_CACHE = REPO_ROOT / "data" / "interim" / "player_dimensions_raw.csv"
 CROSSWALK_CACHE = REPO_ROOT / "data" / "interim" / "player_id_crosswalk.csv"
 
 
-def main() -> int:
-    config = load_league_config()
-    # target_season comes from config; the roster CSV default uses current_season filename convention
-    target_season = int(config["season"]["target_season"])
-    current_season = int(config["season"]["current_season"])
-    default_roster_csv = REPO_ROOT / "data" / "raw" / "roster_exports" / f"lbb_rosters_{current_season}.csv"
+def generate_tv_inputs(
+    roster_csv_path: Path | str,
+    output_csv_path: Path | str,
+    config: dict | None = None,
+    dynasty_csv_path: Path | str | None = None,
+) -> pd.DataFrame:
+    """Generate Phase 3 TV inputs from a roster CSV and write to output_csv_path.
 
-    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_roster_csv
-    output_csv_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUTPUT_CSV
-    # Optional: path to dynasty rankings CSV (same schema as redraft_rankings_master.csv)
-    dynasty_csv_path: Path | None = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+    Returns the resulting DataFrame. Used by both the CLI entrypoint and the
+    dashboard recompute endpoint so that roster changes are fully reflected in
+    tv_inputs.csv before export_phase3_tables runs.
+    """
+    if config is None:
+        config = load_league_config()
+
+    roster_csv_path = Path(roster_csv_path)
+    output_csv_path = Path(output_csv_path)
+
+    target_season = int(config["season"]["target_season"])
+
     if dynasty_csv_path is None and DEFAULT_DYNASTY_RANKINGS_CSV.exists():
         dynasty_csv_path = DEFAULT_DYNASTY_RANKINGS_CSV
+    if dynasty_csv_path is not None:
+        dynasty_csv_path = Path(dynasty_csv_path)
 
     training_df = pd.read_csv(DEFAULT_TRAINING_CSV, dtype={"gsis_id": "string"})
     rankings_df = pd.read_csv(DEFAULT_RANKINGS_CSV, dtype={"gsis_id": "string"})
@@ -131,6 +142,24 @@ def main() -> int:
     print(f"Scored {target_season} redraft ranks for {matched} of {len(tv_inputs_df)} projected players")
     print(f"Matched fantasy-roster slots for {rostered} of {len(tv_inputs_df)} projected players")
     print(f"Unscored players defaulted to zero TV for v1: {len(tv_inputs_df) - matched}")
+    return tv_inputs_df
+
+
+def main() -> int:
+    config = load_league_config()
+    current_season = int(config["season"]["current_season"])
+    default_roster_csv = REPO_ROOT / "data" / "raw" / "roster_exports" / f"lbb_rosters_{current_season}.csv"
+
+    roster_csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_roster_csv
+    output_csv_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_OUTPUT_CSV
+    dynasty_csv_path: Path | None = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+
+    generate_tv_inputs(
+        roster_csv_path=roster_csv_path,
+        output_csv_path=output_csv_path,
+        config=config,
+        dynasty_csv_path=dynasty_csv_path,
+    )
     return 0
 
 

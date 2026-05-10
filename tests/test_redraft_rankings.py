@@ -8,12 +8,17 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from unittest.mock import patch
+
+import polars as pl
+
 from src.ingest.player_ids import CROSSWALK_COLUMNS
 from src.ingest.redraft_rankings import (
     build_master_redraft_adp,
     build_master_redraft_adp_with_fallback,
     build_master_redraft_rankings,
     ensure_redraft_ranking_season,
+    load_ff_rankings_live,
     load_single_redraft_adp,
     load_single_redraft_rankings,
 )
@@ -436,13 +441,14 @@ def test_fallback_adp_season_gets_fantasydata_source(tmp_path, crosswalk):
 
 
 def test_fallback_missing_adp_season_uses_rankings(tmp_path, crosswalk):
-    """Seasons absent from ADP but present in rankings use fantasypros_rankings."""
+    """Seasons absent from ADP and not the target_season use fantasypros_rankings CSV."""
     adp_dir = tmp_path / "adp"
     adp_dir.mkdir()
     rankings_dir = tmp_path / "rankings"
     rankings_dir.mkdir()
 
-    # 2025 has ADP; 2026 only has rankings (simulates missing FantasyData publish)
+    # 2025 has ADP; 2026 only has a CSV rankings file (no target_season passed
+    # so live fetch is not triggered)
     _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
                    ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
     _write_csv(rankings_dir, "FantasyPros_2026_Draft_OP_Rankings.csv",
@@ -503,7 +509,7 @@ def test_fallback_raises_when_both_dirs_empty(tmp_path, crosswalk):
 
 
 def test_ensure_redraft_ranking_season_rebuilds_missing_target_season(tmp_path, crosswalk):
-    """Stale masters are rebuilt so a missing target season can come from fallback rankings."""
+    """Stale masters are rebuilt so a missing target season comes from the live feed."""
     adp_dir = tmp_path / "adp"
     adp_dir.mkdir()
     rankings_dir = tmp_path / "rankings"
@@ -513,12 +519,6 @@ def test_ensure_redraft_ranking_season_rebuilds_missing_target_season(tmp_path, 
         adp_dir,
         "nfl-2qb-adp-abc_2025.csv",
         ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"],
-    )
-    _write_csv(
-        rankings_dir,
-        "FantasyPros_2026_Draft_OP_Rankings.csv",
-        _STANDARD_HEADER,
-        ['"1",1,"Josh Allen",BUF,"QB1","1","7","2.0","0.7","-"'],
     )
 
     stale_master = pd.DataFrame(
@@ -538,17 +538,241 @@ def test_ensure_redraft_ranking_season_rebuilds_missing_target_season(tmp_path, 
         ]
     )
 
-    refreshed = ensure_redraft_ranking_season(
-        stale_master,
-        target_season=2026,
-        adp_dir=adp_dir,
-        rankings_fallback_dir=rankings_dir,
-        crosswalk=crosswalk,
-        name_overrides_path=_NO_OVERRIDES,
-        ambiguous_ids_path=_NO_AMBIG,
-    )
+    live_rows = [
+        ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Josh Allen", 17298, "QB", "BUF", 1.0),
+    ]
+    pl_df = _make_ff_rankings_polars(*live_rows)
+
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        refreshed = ensure_redraft_ranking_season(
+            stale_master,
+            target_season=2026,
+            adp_dir=adp_dir,
+            rankings_fallback_dir=rankings_dir,
+            crosswalk=crosswalk,
+            name_overrides_path=_NO_OVERRIDES,
+            ambiguous_ids_path=_NO_AMBIG,
+        )
 
     assert set(refreshed["season"]) == {2025, 2026}
-    fallback_row = refreshed.loc[refreshed["season"] == 2026].iloc[0]
-    assert fallback_row["player"] == "Josh Allen"
-    assert fallback_row["ranking_source"] == "fantasypros_rankings"
+    live_row = refreshed.loc[refreshed["season"] == 2026].iloc[0]
+    assert live_row["player"] == "Josh Allen"
+    assert live_row["ranking_source"] == "fantasypros_live"
+
+
+# ===========================================================================
+# load_ff_rankings_live
+# ===========================================================================
+
+def _make_ff_rankings_polars(*rows) -> "pl.DataFrame":
+    """Build a minimal polars DataFrame mimicking load_ff_rankings() output."""
+    data = {
+        "fp_page": [r[0] for r in rows],
+        "page_type": [r[1] for r in rows],
+        "ecr_type": [r[2] for r in rows],
+        "player": [r[3] for r in rows],
+        "id": [r[4] for r in rows],
+        "pos": [r[5] for r in rows],
+        "team": [r[6] for r in rows],
+        "ecr": [r[7] for r in rows],
+        "sd": [0.5] * len(rows),
+        "best": [1] * len(rows),
+        "worst": [5] * len(rows),
+        "sportsdata_id": [None] * len(rows),
+        "player_filename": ["x.php"] * len(rows),
+        "yahoo_id": [None] * len(rows),
+        "cbs_id": [None] * len(rows),
+        "player_owned_avg": [50.0] * len(rows),
+        "player_owned_espn": [None] * len(rows),
+        "player_owned_yahoo": [None] * len(rows),
+        "player_image_url": [None] * len(rows),
+        "player_square_image_url": [None] * len(rows),
+        "rank_delta": [0.0] * len(rows),
+        "bye": [None] * len(rows),
+        "mergename": [r[3] for r in rows],
+        "scrape_date": ["2026-05-08"] * len(rows),
+        "tm": [r[6] for r in rows],
+    }
+    return pl.DataFrame(data)
+
+
+# Rows format: (fp_page, page_type, ecr_type, player, id, pos, team, ecr)
+_LIVE_SAMPLE_ROWS = [
+    ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Justin Jefferson", 19236, "WR", "MIN", 3.2),
+    ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Travis Etienne", 19231, "RB", "JAC", 5.1),
+    ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Josh Allen", 17298, "QB", "BUF", 1.0),
+    # Non-superflex row that should be filtered out
+    ("/nfl/rankings/overall.php", "redraft-overall", "ro", "Josh Allen", 17298, "QB", "BUF", 1.0),
+]
+
+
+def test_load_ff_rankings_live_output_schema(crosswalk):
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    expected_cols = [
+        "season", "rank", "tier", "player", "team",
+        "position", "pos_rank", "merge_name", "gsis_id",
+    ]
+    assert list(result.columns) == expected_cols
+
+
+def test_load_ff_rankings_live_filters_to_superflex(crosswalk):
+    """Only redraft-op + rsf rows should appear; the redraft-overall row is dropped."""
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    # 3 superflex rows, not 4
+    assert len(result) == 3
+
+
+def test_load_ff_rankings_live_season_injected(crosswalk):
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    assert (result["season"] == 2026).all()
+
+
+def test_load_ff_rankings_live_ecr_used_as_rank(crosswalk):
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    jj = result[result["player"] == "Justin Jefferson"].iloc[0]
+    assert jj["rank"] == pytest.approx(3.2)
+
+
+def test_load_ff_rankings_live_pos_rank_computed(crosswalk):
+    """pos_rank should be 1-based rank within each position group by ECR."""
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    jj = result[result["player"] == "Justin Jefferson"].iloc[0]
+    te = result[result["player"] == "Travis Etienne"].iloc[0]
+    ja = result[result["player"] == "Josh Allen"].iloc[0]
+    # Each is the only player of their position → all pos_rank == 1
+    assert jj["pos_rank"] == 1
+    assert te["pos_rank"] == 1
+    assert ja["pos_rank"] == 1
+
+
+def test_load_ff_rankings_live_attaches_gsis_id(crosswalk):
+    """fantasypros_id join should resolve gsis_id for known players."""
+    pl_df = _make_ff_rankings_polars(*_LIVE_SAMPLE_ROWS)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    jj = result[result["player"] == "Justin Jefferson"].iloc[0]
+    te = result[result["player"] == "Travis Etienne"].iloc[0]
+    assert jj["gsis_id"] == "00-0036322"
+    assert te["gsis_id"] == "00-0036973"
+
+
+def test_load_ff_rankings_live_unknown_id_is_null(crosswalk):
+    """Players with an unrecognized fantasypros_id get a null gsis_id."""
+    rows = [("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Nobody Fake", 99999, "QB", "FA", 50.0)]
+    pl_df = _make_ff_rankings_polars(*rows)
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        result = load_ff_rankings_live(season=2026, crosswalk=crosswalk)
+
+    assert pd.isna(result.iloc[0]["gsis_id"])
+
+
+# ===========================================================================
+# build_master_redraft_adp_with_fallback — live fetch integration
+# ===========================================================================
+
+
+def test_fallback_uses_live_when_target_season_missing(tmp_path, crosswalk):
+    """When target_season is absent from ADP, the live FantasyPros feed is used."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    # Only 2025 has ADP; 2026 is the target and has no files anywhere
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+
+    live_rows = [
+        ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Josh Allen", 17298, "QB", "BUF", 1.0),
+    ]
+    pl_df = _make_ff_rankings_polars(*live_rows)
+
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        master = build_master_redraft_adp_with_fallback(
+            adp_dir, rankings_dir,
+            target_season=2026,
+            crosswalk=crosswalk,
+        )
+
+    assert set(master["season"]) == {2025, 2026}
+    live_row = master[master["season"] == 2026].iloc[0]
+    assert live_row["player"] == "Josh Allen"
+    assert live_row["ranking_source"] == "fantasypros_live"
+
+
+def test_fallback_live_not_called_when_target_in_adp(tmp_path, crosswalk):
+    """Live fetch is skipped when target_season is already in ADP files."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2026.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+
+    with patch("nflreadpy.load_ff_rankings") as mock_live:
+        master = build_master_redraft_adp_with_fallback(
+            adp_dir, rankings_dir,
+            target_season=2026,
+            crosswalk=crosswalk,
+        )
+        mock_live.assert_not_called()
+
+    assert len(master) == 1
+    assert master.iloc[0]["ranking_source"] == "fantasydata_adp"
+
+
+def test_ensure_redraft_ranking_season_uses_live_for_missing_target(tmp_path, crosswalk):
+    """ensure_redraft_ranking_season triggers live fetch for a missing target season."""
+    adp_dir = tmp_path / "adp"
+    adp_dir.mkdir()
+    rankings_dir = tmp_path / "rankings"
+    rankings_dir.mkdir()
+
+    _write_adp_csv(adp_dir, "nfl-2qb-adp-abc_2025.csv",
+                   ["1,21685,Justin Jefferson,MIN,7,26,WR,WR1,3.2"])
+
+    stale_master = pd.DataFrame([{
+        "season": 2025, "rank": 3.2, "tier": pd.NA,
+        "player": "Justin Jefferson", "team": "MIN",
+        "position": "WR", "pos_rank": 1,
+        "merge_name": "justin jefferson", "gsis_id": "00-0036322",
+        "ranking_source": "fantasydata_adp",
+    }])
+
+    live_rows = [
+        ("/nfl/rankings/superflex.php", "redraft-op", "rsf", "Josh Allen", 17298, "QB", "BUF", 1.0),
+    ]
+    pl_df = _make_ff_rankings_polars(*live_rows)
+
+    with patch("nflreadpy.load_ff_rankings", return_value=pl_df):
+        refreshed = ensure_redraft_ranking_season(
+            stale_master,
+            target_season=2026,
+            adp_dir=adp_dir,
+            rankings_fallback_dir=rankings_dir,
+            crosswalk=crosswalk,
+            name_overrides_path=_NO_OVERRIDES,
+            ambiguous_ids_path=_NO_AMBIG,
+        )
+
+    assert set(refreshed["season"]) == {2025, 2026}
+    live_row = refreshed[refreshed["season"] == 2026].iloc[0]
+    assert live_row["player"] == "Josh Allen"
+    assert live_row["ranking_source"] == "fantasypros_live"

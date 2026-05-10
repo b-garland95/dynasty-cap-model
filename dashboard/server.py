@@ -74,6 +74,10 @@ from src.contracts.contract_validation import (
     update_schedule_overrides,
 )
 from src.contracts.phase3_exports import export_phase3_tables
+from scripts.generate_phase3_tv_inputs import (
+    DEFAULT_OUTPUT_CSV as DEFAULT_TV_INPUTS_OUTPUT_CSV,
+    generate_tv_inputs,
+)
 from src.contracts.phase3_tables import (
     apply_schedule_overrides,
     build_contract_ledger,
@@ -110,7 +114,6 @@ _DASHBOARD_CSV_MAP = {
     "trade_gap_screen.csv":      "trade_gap_screen.csv",
 }
 DEFAULT_SCHEDULE_OVERRIDES_CSV = REPO_ROOT / "data" / "raw" / "roster_exports" / "contract_salary_schedule_overrides.csv"
-DEFAULT_TV_INPUTS_CSV = REPO_ROOT / "data" / "interim" / "phase3" / "tv_inputs.csv"
 
 app = Flask(__name__, static_folder=None)
 
@@ -461,12 +464,24 @@ def api_recompute() -> Response:
 
     t0 = time.time()
     try:
+        # Regenerate tv_inputs.csv from the current roster before running
+        # export_phase3_tables, so that is_rostered flags and player TV values
+        # reflect any roster changes made since the last full pipeline run.
+        generate_tv_inputs(
+            roster_csv_path=roster_path,
+            output_csv_path=DEFAULT_TV_INPUTS_OUTPUT_CSV,
+            config=_CONFIG,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"TV inputs regeneration failed: {exc}"}), 500
+
+    try:
         exported = export_phase3_tables(
             roster_csv_path=str(roster_path),
             config=_CONFIG,
             output_dir=str(DEFAULT_OUTPUT_DIR),
             schedule_overrides_path=str(DEFAULT_SCHEDULE_OVERRIDES_CSV),
-            tv_inputs_path=str(DEFAULT_TV_INPUTS_CSV),
+            tv_inputs_path=str(DEFAULT_TV_INPUTS_OUTPUT_CSV),
         )
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500

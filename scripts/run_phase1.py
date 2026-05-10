@@ -27,6 +27,7 @@ from src.valuation.phase1_pipeline import run_phase1_all_seasons
 HISTORICAL_CSV = REPO_ROOT / "data" / "interim" / "historical_weekly_player_points_2015_2025.csv"
 PROJECTIONS_CSV = REPO_ROOT / "data" / "interim" / "weekly_projections_2014_2025_master_normalized.csv"
 RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
+DYNASTY_RANKINGS_CSV = REPO_ROOT / "data" / "interim" / "dynasty_rankings_master.csv"
 OUTPUT_DIR = REPO_ROOT / "data" / "processed" / "phase1"
 
 
@@ -41,6 +42,7 @@ def main() -> int:
     parser.add_argument("--points-csv", type=Path, default=HISTORICAL_CSV)
     parser.add_argument("--projections-csv", type=Path, default=PROJECTIONS_CSV)
     parser.add_argument("--rankings-csv", type=Path, default=RANKINGS_CSV)
+    parser.add_argument("--dynasty-rankings-csv", type=Path, default=DYNASTY_RANKINGS_CSV)
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     args = parser.parse_args()
     seasons = list(range(args.start_season, args.end_season + 1))
@@ -94,6 +96,15 @@ def main() -> int:
     else:
         print(f"No rankings CSV at {args.rankings_csv} — using start-only capture when projections are available")
 
+    # --- Load preseason dynasty rankings ------------------------------------
+    dynasty_rankings = None
+    if args.dynasty_rankings_csv.exists():
+        print(f"Loading dynasty rankings from {args.dynasty_rankings_csv} ...")
+        dynasty_rankings = pd.read_csv(args.dynasty_rankings_csv, dtype={"gsis_id": "string"})
+        print(f"  {len(dynasty_rankings)} rows, seasons {dynasty_rankings['season'].min()}-{dynasty_rankings['season'].max()}")
+    else:
+        print(f"No dynasty rankings CSV at {args.dynasty_rankings_csv} — dynasty ADP columns will be null")
+
     # --- Run Phase 1 --------------------------------------------------------
     print(f"\nRunning Phase 1 for seasons {seasons} ...")
     results = run_phase1_all_seasons(hist_df, projections, adp_rankings, config, seasons=seasons)
@@ -122,6 +133,46 @@ def main() -> int:
         print("Attached player dimensions (age, years_of_experience, draft info, …)")
     except Exception as exc:
         print(f"  Warning: player dimensions enrichment failed ({exc.__class__.__name__}); skipping")
+
+    # --- Enrich with preseason ADP context -----------------------------------
+    if adp_rankings is not None:
+        rd_adp = (
+            adp_rankings[adp_rankings["gsis_id"].notna()][["season", "gsis_id", "rank", "pos_rank"]]
+            .rename(columns={"rank": "redraft_adp", "pos_rank": "redraft_adp_pos_rank"})
+        )
+        season_values = season_values.merge(rd_adp, on=["season", "gsis_id"], how="left")
+        print("Attached redraft ADP (redraft_adp, redraft_adp_pos_rank)")
+    else:
+        season_values["redraft_adp"] = float("nan")
+        season_values["redraft_adp_pos_rank"] = float("nan")
+
+    if dynasty_rankings is not None:
+        dyn_adp = (
+            dynasty_rankings[dynasty_rankings["gsis_id"].notna()][["season", "gsis_id", "rank", "pos_rank"]]
+            .rename(columns={"rank": "dynasty_adp", "pos_rank": "dynasty_adp_pos_rank"})
+        )
+        season_values = season_values.merge(dyn_adp, on=["season", "gsis_id"], how="left")
+        print("Attached dynasty ADP (dynasty_adp, dynasty_adp_pos_rank)")
+    else:
+        season_values["dynasty_adp"] = float("nan")
+        season_values["dynasty_adp_pos_rank"] = float("nan")
+
+    # rookie_draft_adp: within each (season, position), rank rookies by dynasty_adp ascending.
+    # Rank 1 = first rookie off the board. Non-rookies and unranked rookies are null.
+    def _rank_rookies_by_dynasty_adp(grp):
+        result = pd.Series(pd.NA, index=grp.index, dtype="Int64")
+        mask = grp["is_rookie"] & grp["dynasty_adp"].notna()
+        if mask.any():
+            result[mask] = grp.loc[mask, "dynasty_adp"].rank(method="min").astype("Int64")
+        return result
+
+    season_values["rookie_draft_adp"] = (
+        season_values
+        .groupby(["season", "position"], group_keys=False)
+        .apply(_rank_rookies_by_dynasty_adp)
+        .astype("Int64")
+    )
+    print("Computed rookie_draft_adp (positional dynasty rank among rookies per season/position)")
 
     # --- Compute implied dollar values ---------------------------------------
     season_values, weekly_detail = compute_dollar_values(

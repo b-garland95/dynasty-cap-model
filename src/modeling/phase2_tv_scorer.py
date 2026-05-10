@@ -111,6 +111,7 @@ def build_phase2_tv_inputs_from_frames(
     if has_ranking_source:
         _source_labels = {
             "fantasydata_adp": f"phase2_{target_season}_adp",
+            "fantasypros_live": f"phase2_{target_season}_rankings_live",
             "fantasypros_rankings": f"phase2_{target_season}_rankings_fallback",
         }
         matched_label = merged["ranking_source"].map(_source_labels).fillna(

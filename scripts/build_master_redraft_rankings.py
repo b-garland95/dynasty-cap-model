@@ -1,9 +1,10 @@
 """Build the master pre-season redraft ADP/rankings file.
 
 Primary source: FantasyData 2QB ADP CSVs from ``data/raw/rankings/redraft_adp/``.
-Fallback source: FantasyPros OP Rankings CSVs from ``data/raw/rankings/redraft/``
-for any season not yet covered by FantasyData (e.g. 2026 before FantasyData
-publishes).
+Fallback source (target season): live FantasyPros ECR feed via nflreadpy when
+the target season is not yet covered by FantasyData ADP.
+Historical fallback: FantasyPros OP Rankings CSVs from ``data/raw/rankings/redraft/``
+for any prior season not covered by FantasyData.
 
 Output: ``data/interim/redraft_rankings_master.csv`` with a ``ranking_source``
 column indicating which source was used per row.
@@ -19,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.ingest.redraft_rankings import build_master_redraft_adp_with_fallback
+from src.utils.config import load_league_config
 
 ADP_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft_adp"
 RANKINGS_FALLBACK_DIR = REPO_ROOT / "data" / "raw" / "rankings" / "redraft"
@@ -26,9 +28,13 @@ OUTPUT_PATH = REPO_ROOT / "data" / "interim" / "redraft_rankings_master.csv"
 
 
 def main() -> int:
+    config = load_league_config()
+    target_season = int(config["season"]["target_season"])
+
     master = build_master_redraft_adp_with_fallback(
         adp_dir=ADP_DIR,
         rankings_fallback_dir=RANKINGS_FALLBACK_DIR,
+        target_season=target_season,
     )
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     master.to_csv(OUTPUT_PATH, index=False)

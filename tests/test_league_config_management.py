@@ -138,38 +138,37 @@ class TestRosterValidation:
         path = tmp_path / "bad_roster.csv"
         with path.open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Team", "Player", "Current Salary"])
+            writer.writerow(["Team", "Player", "Salary"])  # missing most required columns
             writer.writerow(["A", "Someone", "10"])
         result = validate_roster_csv(str(path))
         assert result["valid"] is False
         assert "Missing required columns" in result["error"]
 
+    def _new_format_headers(self):
+        return [
+            "Team", "Player", "Position", "NFL Team", "PS", "Salary", "Years",
+            "Contract Type", "PS Eligible", "Contract Eligible", "Extension Eligible",
+            "Tag Eligible", "Option Eligible", "RFA Eligible",
+            "Has Been Extended", "Has Been Tagged",
+        ]
+
     def test_validate_bad_numeric(self, tmp_path):
         path = tmp_path / "bad_numeric.csv"
-        headers = [
-            "Team", "Player", "Position", "Current Salary", "Real Salary",
-            "Extension Salary", "Years", "PS Eligible", "Has Been Extended",
-            "Has Been Tagged", "Contract Eligible", "Extension Eligible", "Tag Eligible",
-        ]
         with path.open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(headers)
-            writer.writerow(["A", "P1", "QB", "not_a_number", "10", "0", "2",
-                             "FALSE", "FALSE", "FALSE", "TRUE", "TRUE", "TRUE"])
+            writer.writerow(self._new_format_headers())
+            writer.writerow(["A", "P1", "QB", "KC", "FALSE", "not_a_number", "2",
+                             "FA Draft", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE", "FALSE",
+                             "FALSE", "FALSE"])
         result = validate_roster_csv(str(path))
         assert result["valid"] is False
         assert "non-numeric" in result["error"].lower()
 
     def test_validate_empty_csv(self, tmp_path):
         path = tmp_path / "empty.csv"
-        headers = [
-            "Team", "Player", "Position", "Current Salary", "Real Salary",
-            "Extension Salary", "Years", "PS Eligible", "Has Been Extended",
-            "Has Been Tagged", "Contract Eligible", "Extension Eligible", "Tag Eligible",
-        ]
         with path.open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(headers)
+            writer.writerow(self._new_format_headers())
         result = validate_roster_csv(str(path))
         assert result["valid"] is False
         assert "no data" in result["error"].lower()

@@ -24,7 +24,10 @@ def export_phase3_tables(
     tv_inputs_path: str | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Build and export Phase 3 Tables 1 through 7 as CSV files."""
-    ledger_df = build_contract_ledger(roster_csv_path)
+    ledger_df = build_contract_ledger(
+        roster_csv_path,
+        ps_cap_percent=float(config["practice_squad"]["cap_percent"]),
+    )
     schedule_df = build_salary_schedule(ledger_df, config)
     schedule_df = apply_schedule_overrides(
         schedule_df,

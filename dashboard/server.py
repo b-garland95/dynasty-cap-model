@@ -511,7 +511,10 @@ def _build_validated_schedule() -> tuple[pd.DataFrame | None, str | None]:
     if not roster_path.exists():
         return None, f"Roster file not found at {roster_path}"
     try:
-        ledger = build_contract_ledger(str(roster_path))
+        ledger = build_contract_ledger(
+            str(roster_path),
+            ps_cap_percent=float(_CONFIG["practice_squad"]["cap_percent"]),
+        )
         schedule = build_salary_schedule(ledger, _CONFIG)
         overrides = load_schedule_overrides(str(DEFAULT_SCHEDULE_OVERRIDES_CSV))
         schedule = apply_schedule_overrides(schedule, overrides)

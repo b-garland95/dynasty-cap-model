@@ -3,6 +3,7 @@ import textwrap
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.contracts.phase3_tables import (
     apply_schedule_overrides,
@@ -28,14 +29,27 @@ def test_build_contract_ledger_parsing_and_flags():
     assert pd.api.types.is_float_dtype(ledger_df["extension_salary"])
     assert pd.api.types.is_integer_dtype(ledger_df["years_remaining"])
 
-    player_one = ledger_df.loc[ledger_df["player"] == "Player One"].iloc[0]
+    # extension_salary is always 0.0 in the new format (column removed from LT export)
+    assert (ledger_df["extension_salary"] == 0.0).all()
+
+    # New columns present
+    for col in ("nfl_team", "on_ps", "contract_type", "option_eligible", "rfa_eligible"):
+        assert col in ledger_df.columns, f"Expected column {col!r} in ledger"
+
     player_three = ledger_df.loc[ledger_df["player"] == "Player Three"].iloc[0]
+    assert bool(player_three["on_ps"]) is True
     assert bool(player_three["ps_eligible"]) is True
     assert bool(player_three["has_been_extended"]) is False
     assert bool(player_three["has_been_tagged"]) is False
     assert bool(player_three["tag_eligible"]) is False
 
+    # PS discount: Player Three salary=5, on_ps=True → current_salary = 5 * 0.25 = 1.25
+    assert player_three["current_salary"] == pytest.approx(5.0 * 0.25)
+
     player_one = ledger_df.loc[ledger_df["player"] == "Player One"].iloc[0]
+    # Not on PS: current_salary == real_salary
+    assert player_one["current_salary"] == player_one["real_salary"]
+
     player_four = ledger_df.loc[ledger_df["player"] == "Player Four"].iloc[0]
     assert player_one["contract_type_bucket"] == "standard"
     assert bool(player_one["needs_schedule_validation"]) is False
@@ -59,7 +73,9 @@ def test_build_salary_schedule_values_and_shape():
     assert not player_one["needs_schedule_validation"].any()
 
     player_four = schedule_df.loc[schedule_df["player"] == "Player Four"].sort_values("year_index")
-    assert player_four["cap_hit_real"].tolist() == [8.0, 32.0]
+    # extension_salary is 0 in new format → instrument falls back to standard escalation
+    expected_p4 = [8.0, float(math.ceil(8.0 * (1.0 + inflation)))]
+    assert player_four["cap_hit_real"].tolist() == expected_p4
     assert (player_four["schedule_source"] == "best_effort_instrument").all()
     assert player_four["needs_schedule_validation"].all()
 

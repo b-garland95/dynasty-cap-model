@@ -1,6 +1,6 @@
-Team,Player,Position,Current Salary,Real Salary,Extension Salary,Years,PS Eligible,Has Been Extended,Has Been Tagged,Contract Eligible,Extension Eligible,Tag Eligible
-A,Player One,RB,10,10,0,2,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE
-A,Player Two,QB,20,20,0,1,FALSE,FALSE,FALSE,TRUE,FALSE,TRUE
-B,Player Three,WR,5,5,0,3,TRUE,FALSE,FALSE,TRUE,TRUE,FALSE
-B,Player Four,RB,8,8,32,2,FALSE,TRUE,FALSE,TRUE,TRUE,TRUE
-B,Player Five,TE,3,3,0,2,FALSE,TRUE,FALSE,TRUE,TRUE,FALSE
+Team,Player,Position,NFL Team,PS,Salary,Years,Contract Type,PS Eligible,Contract Eligible,Extension Eligible,Tag Eligible,Option Eligible,RFA Eligible,Has Been Extended,Has Been Tagged
+A,Player One,RB,KC,FALSE,10,2,FA Draft,FALSE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE
+A,Player Two,QB,BUF,FALSE,20,1,Free Agent,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE
+B,Player Three,WR,SF,TRUE,5,3,Rookie,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE
+B,Player Four,RB,DAL,FALSE,8,2,Extension,FALSE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,FALSE
+B,Player Five,TE,ATL,FALSE,3,2,Extension,FALSE,TRUE,TRUE,FALSE,FALSE,FALSE,TRUE,FALSE
